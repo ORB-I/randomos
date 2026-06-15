@@ -12,7 +12,7 @@ extern u8* kern_stack;
 #define URAM_START 0x00400000
 
 void init_syscalls() {
-    idt_regintr(0x80, syscall_s, 0x8E);
+    idt_regintr(0x80, syscall_s, 0xEE);
 }
 
 struct sysregs {
@@ -25,9 +25,6 @@ struct sysregs {
 };
 
 [[noreturn]] void sys_exit() {
-    u8* uram = (u8*)URAM_START;
-    for (u32 i = 0; i < (512 * 1024 * 1024); i++) uram[i] = 0;
-    
     u32 kesp = (u32)kern_stack + 4096;
     asm volatile(
         "mov %0, %%esp\n\t"
@@ -48,6 +45,7 @@ void syscall_c(struct sysregs* args) {
             usize sz = args->edx;
             switch (args->ebx) {
                 case 1:
+                case 2:
                     for (usize i = 0; i < sz; i++) {
                         vga_putchar(buf[i]);
                     }

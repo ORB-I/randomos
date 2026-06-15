@@ -95,7 +95,7 @@ int load_program(const char* path, char** argv) {
         ac++;
     }
 
-    u32 avaddrs[ARGMAX];
+    u32 avaddrs[ARGMAX] = {0};
 
     for (int i = ac - 1; i >= 0; i--) {
         u32 len = strlen(argv[i]) + 1;
@@ -128,7 +128,7 @@ int load_program(const char* path, char** argv) {
     *(u32*)esp0_cpy = (u32)ac;
 
     esp0_cpy -= sizeof(u32); esp_cpy -= sizeof(u32);
-    *(u32*)esp0_cpy = 0; 
+    *(u32*)esp0_cpy = 0;
 
     asm volatile(
         "cli\n\t"
