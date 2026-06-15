@@ -7,7 +7,6 @@
 FIL fp[128];
 DIR dp[128];
 
-int used_fp = 0;
 int used_dp = 0;
 
 FATFS fs;
@@ -30,22 +29,33 @@ int mount(const char* path, int flags) {
 int umount(const char* path) { return (f_unmount(path) == FR_OK) ? 0 : -1; }
 
 int open(const char* path, int flags) {
-    int fd = used_fp++;
+    int fd = -1;
+    for (int i = 0; i < 128; i++) {
+        if (fp[i].obj.fs == NULL) {
+            fd = i;
+            break;
+        }
+    }
+
+    if (fd == -1) return -1;
+
     FRESULT res = f_open(&fp[fd], path, flags & ~O_TRUNC);
-    if (res != FR_OK) { used_fp--; return -1; }
+    if (res != FR_OK) return -1;
     if ((flags & O_TRUNC) == O_TRUNC) {
         res = f_truncate(&fp[fd]);
-        if (res != FR_OK) { used_fp--; return -1; }
+        if (res != FR_OK) return -1;
         else return fd;
     }
     return fd;
 }
 
 int close(int fd) {
+    if (fd < 0 || fd >= 128) return -1;
+    if (fp[fd].obj.fs == NULL) return -1;
+
     FRESULT res = f_close(&fp[fd]);
     if (res != FR_OK) return -1;
     memset(&fp[fd], 0, sizeof(FIL));
-    used_fp--;
     return 0;
 }
 
@@ -73,16 +83,24 @@ int trunc(int fd) { return f_truncate(&fp[fd]) == FR_OK ? 0 : -1; }
 int sync(int fd)  { return f_sync(&fp[fd]) == FR_OK ? 0 : -1; }
 
 DIR* opendir(const char* path) {
-    if (f_opendir(&dp[used_dp++], path) != FR_OK) { used_dp--; return NULL; }
-    else return &dp[used_dp - 1];
+    for (int i = 0; i < 128; i++) {
+        if (dp[i].obj.fs == NULL) {
+            if (f_opendir(&dp[i], path) != FR_OK) {
+                return NULL;
+            }
+            return &dp[i];
+        }
+    }
+    return NULL;
 }
 
 int closedir(DIR* cdp) {
+    if (!cdp) return -1;
     if (f_closedir(cdp) == FR_OK) {
         memset(cdp, 0, sizeof(DIR));
-        used_dp--;
         return 0;
-    } else return -1;
+    } 
+    return -1;
 }
 
 void convstat(FILINFO* finfo, struct stat* st) {

@@ -33,7 +33,9 @@ extern u8 *kern_stack;
 #define NULLSS 0
 #define KCSS 1
 #define KDSS 2
-#define TSS 3
+#define UCSS 3
+#define UDSS 4
+#define TSS 5
 
 void set_gdtent(int n, u32 base, u32 lim, u8 acc, u8 gran) {
     struct gdt_entry *e = &_gdt[n];
@@ -42,17 +44,25 @@ void set_gdtent(int n, u32 base, u32 lim, u8 acc, u8 gran) {
     e->base_mid = (base >> 16) & 0xFF;
     e->base_high = (base >> 24) & 0xFF;
 
+    if (lim > 65535) {
+        lim = lim >> 12;
+    }
+
     e->limlow = (lim & 0xFFFF);
     e->gran = ((lim >> 16) & 0x0F);
     e->gran |= (gran & 0xF0);
     e->acc = acc;
 }
 
+#define MiB (1024 * 1024)
+
 void load_gdt() {
     asm volatile("cli");
     set_gdtent(NULLSS, 0, 0, 0, 0);
-    set_gdtent(KCSS, 0, 0xFFFFF, 0x9A, 0xCF);
-    set_gdtent(KDSS, 0, 0xFFFFF, 0x92, 0xCF);
+    set_gdtent(KCSS, 0, 0xFFFFFFFF, 0x9A, 0xCF);
+    set_gdtent(KDSS, 0, 0xFFFFFFFF, 0x92, 0xCF);
+    set_gdtent(UCSS, 0x00400000, (512 * MiB), 0xFA, 0xCF);
+    set_gdtent(UDSS, 0x00400000, (512 * MiB), 0xF2, 0xCF);
 
     u8 *tss_ptr = (u8 *)&_tss;
     for (u32 i = 0; i < sizeof(struct tss_entry); i++) {

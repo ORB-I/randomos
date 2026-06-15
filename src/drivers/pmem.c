@@ -5,6 +5,8 @@
 
 #include <drivers/vga.h>
 
+#define KHEAP_MAX 0x00400000
+
 extern u32 _kernel_end;
 u32 pmm_start = 0;
 u32 pmm_end = 0;
@@ -39,7 +41,11 @@ void pmem_init(multiboot_info_t* mbinfo) {
     }
 
     if (highaddr == 0) panic("Couldn't find usable memory");
-    pmm_end = highaddr;
+    if (highaddr > KHEAP_MAX) {
+        pmm_end = KHEAP_MAX;
+    } else {
+        pmm_end = highaddr;
+    }
 
     pmm_bitmap = (u8*)_kernel_end;
     u32 mxpag = (pmm_end - (u32)pmm_bitmap) / pmm_pagesz;

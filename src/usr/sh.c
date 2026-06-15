@@ -2,6 +2,7 @@
 #include <core/std.h>
 
 #include <lib/sh.h>
+#include <lib/loader.h>
 
 #include <drivers/kbd.h>
 #include <drivers/vga.h>
@@ -133,7 +134,15 @@ builtin_t builtins[] = {
 
 const usize nbuiltins = sizeof(builtins) / sizeof(builtin_t);
 
+bool hasdrv_g = false;
+bool hasdrv_g_set = false;
+
 void sh(bool hasdrv) {
+    if (!hasdrv_g_set) {
+        hasdrv_g = hasdrv;
+        hasdrv_g_set = true;
+    }
+    
     while (1) {
         char* argv[MAX_ARGS];
 
@@ -151,7 +160,7 @@ void sh(bool hasdrv) {
         for (usize i = 0; i < nbuiltins; i++) {
             if (streq(builtins[i].name, argv[0])) {
                 found = true;
-                if (builtins[i].needdrv && !hasdrv) {
+                if (builtins[i].needdrv && !hasdrv_g) {
                     printf("this command requires a drive\n");
                 } else {
                     builtins[i].cmd(argc, argv);
@@ -159,7 +168,16 @@ void sh(bool hasdrv) {
             }
         }
 
-        if (!found) printf("unknown command\n");
+        if (!found) {
+            struct stat st;
+            if (stat(argv[0], &st) != -1) {
+                if (load_program(argv[0], argv) < 0) {
+                    printf("failed to load program\n");
+                }
+            } else {
+                printf("not found\n");
+            }
+        }
 
         kfree(cmd);
     }

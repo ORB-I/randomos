@@ -6,6 +6,7 @@
 #include <core/mem.h>
 
 #include <lib/sh.h>
+#include <lib/loader.h>
 
 #include <drivers/kbd.h>
 #include <drivers/rtc.h>
@@ -61,6 +62,8 @@ void kmain(u32 mag, multiboot_info_t* mbinfo, u8* ebda) {
         hasdrv = false;
         printf("KERN: No drive available\n");
     }
+
+    init_syscalls();
 
     printf("IO: Initializing and enabling keyboard\n");
     init_kbd();
