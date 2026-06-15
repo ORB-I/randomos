@@ -1,3 +1,2 @@
-1. Write ELF loader
-2. Write syscall handler (int 0x80)
-3. Get to userspace and move shell there
+1. Make more syscalls
+2. Change fs driver to not hand out fds less than 3

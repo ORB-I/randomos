@@ -13,12 +13,17 @@ int load_segment(Elf32_Phdr* phdr, int fd) {
         return -1;
     }
 
-    ssize nread = read(fd, seg, phdr->p_memsz);
-    if (nread < 0 || (usize)nread < phdr->p_memsz) {
+    if (phdr->p_memsz > phdr->p_filesz) {
+        memset((u8*)(USERLOAD + phdr->p_vaddr), 0, phdr->p_memsz);
+    }
+
+    ssize nread = read(fd, seg, phdr->p_filesz);
+    if (nread < 0 || (usize)nread < phdr->p_filesz) {
         return -1;
     }
 
-    memcpy((u8*)(USERLOAD + phdr->p_vaddr), seg, phdr->p_memsz);
+    memcpy((u8*)(USERLOAD + phdr->p_vaddr), seg, phdr->p_filesz);
+
     return 0;
 }
 
