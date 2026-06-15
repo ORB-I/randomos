@@ -3,8 +3,12 @@
 
 #include <drivers/vga.h>
 #include <drivers/fs.h>
+#include <drivers/rtc.h>
 
 #include <lib/sh.h>
+#include <lib/loader.h>
+
+#include <lai/helpers/pm.h>
 
 extern void syscall_s();
 extern u8* kern_stack;
@@ -40,22 +44,75 @@ struct sysregs {
 void syscall_c(struct sysregs* args) {
     switch (args->eax) {
         case 1: sys_exit();
-        case 4: {
-            u8* buf = (u8*)(URAM_START + args->ecx);
-            usize sz = args->edx;
-            switch (args->ebx) {
-                case 1:
-                case 2:
-                    for (usize i = 0; i < sz; i++) {
-                        vga_putchar(buf[i]);
-                    }
-                    args->eax = sz;
-                    break;
-                default:
-                    args->eax = write(args->ebx, buf, sz);
-            }
+        case 2: {
+            args->eax = read(args->ebx, (u8*)(URAM_START + args->ecx), args->edx);
             return;
         }
+        case 3: {
+            args->eax = write(args->ebx, (u8*)(URAM_START + args->ecx), args->edx);
+            return;
+        }
+        case 4: {
+            args->eax = open((char*)(URAM_START + args->ebx), args->ecx);
+            return;
+        }
+        case 5: {
+            args->eax = close(args->ebx);
+            return;
+        }
+        case 6: {
+            if (open((char*)(URAM_START + args->ebx), O_CREAT) < 0) {
+                args->eax = -1;
+                return;
+            } else {
+                args->eax = close(args->eax);
+                return;
+            }
+        }
+        case 7: {
+            args->eax = unlink((char*)(URAM_START + args->ebx));
+            return;
+        }
+        case 8: {
+            args->eax = chdir((char*)(URAM_START + args->ebx));
+            return;
+        }
+        case 9: {
+            args->eax = lseek(args->ebx, args->ecx, args->edx);
+            return;
+        }
+        case 10: {
+            args->eax = rename((char*)(URAM_START + args->ebx), (char*)(URAM_START + args->ecx));
+            return;
+        }
+        case 11: {
+            args->eax = mkdir((char*)(URAM_START + args->ebx));
+            return;
+        }
+        case 12: {
+            args->eax = unlink((char*)(URAM_START + args->ebx));
+            return;
+        }
+        case 13: {
+            if (lai_acpi_reset() == 0) args->eax = 0;
+            else args->eax = -1;
+            return;
+        }
+        case 14: {
+            args->eax = stat((char*)(URAM_START + args->ebx), (struct stat*)(URAM_START + args->ecx));
+            return;
+        }
+        case 15: {
+            if (lai_enter_sleep(5) == 0) args->eax = 0;
+            else args->eax = -1;
+            return;
+        }
+        case 16: {
+            rtc_sleep(args->ebx);
+            args->eax = 0;
+            return;
+        }
+
         default: args->eax = -1;
     }
 }

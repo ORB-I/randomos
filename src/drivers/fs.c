@@ -3,11 +3,10 @@
 #include <lib/string.h>
 #include <drivers/fs.h>
 #include <drivers/vga.h>
+#include <drivers/kbd.h>
 
 FIL fp[128];
 DIR dp[128];
-
-int used_dp = 0;
 
 FATFS fs;
 int mount(const char* path, int flags) {
@@ -44,43 +43,70 @@ int open(const char* path, int flags) {
     if ((flags & O_TRUNC) == O_TRUNC) {
         res = f_truncate(&fp[fd]);
         if (res != FR_OK) return -1;
-        else return fd;
+        else return fd + 3;
     }
-    return fd;
+    return fd + 3; // adding 3 to skip stdin, stdout, stderr
 }
 
 int close(int fd) {
-    if (fd < 0 || fd >= 128) return -1;
-    if (fp[fd].obj.fs == NULL) return -1;
+    if (fd < 0 || fd >= 128 + 3) return -1;
+    if (fd < 3) {
+        return 0;
+    } else {
+        if (fp[fd - 3].obj.fs == NULL) return -1;
 
-    FRESULT res = f_close(&fp[fd]);
-    if (res != FR_OK) return -1;
-    memset(&fp[fd], 0, sizeof(FIL));
+        FRESULT res = f_close(&fp[fd - 3]);
+        if (res != FR_OK) return -1;
+        memset(&fp[fd - 3], 0, sizeof(FIL));
+    }
     return 0;
 }
 
 ssize read(int fd, void* buf, usize size) {
-    UINT nread;
-    return (f_read(&fp[fd], buf, size, &nread) == FR_OK) ? (ssize)nread : -1;
+    if (fd < 3) {
+        switch (fd) {
+            // can read stdin but not stdout/stderr yet lol
+            case 0:
+                return getstr(buf, size);
+            case 1: return -1;
+            case 2: return -1;
+            default: return -1; // doing this to make the compiler happy, even though it cant be reached
+        }
+    } else {
+        UINT nread;
+        return (f_read(&fp[fd - 3], buf, size, &nread) == FR_OK) ? (ssize)nread : -1;
+    }
 }
 
 ssize write(int fd, void* buf, usize size) {
-    UINT nwritten;
-    return (f_write(&fp[fd], buf, size, &nwritten) == FR_OK) ? (ssize)nwritten : -1;
+    if (fd < 3) {
+        switch (fd) {
+            case 0: return -1; // cant write to stdin yet
+            case 1:
+            case 2:
+                for (usize i = 0; i < size; i++) vga_putchar(((char*)buf)[i]);
+                return size;
+            default: return -1;
+        }
+    } else {
+        UINT nwritten;
+        return (f_write(&fp[fd - 3], buf, size, &nwritten) == FR_OK) ? (ssize)nwritten : -1;
+    }
 }
 
 off_t lseek(int fd, off_t off, int whence) {
+    if (fd < 3) return -1;
     if (whence == SEEK_SET) {
-        return f_lseek(&fp[fd], off) == FR_OK ? 0 : -1;
+        return f_lseek(&fp[fd - 3], off) == FR_OK ? 0 : -1;
     } else if (whence == SEEK_CUR) {
-        return f_lseek(&fp[fd], f_tell(&fp[fd]) + off) == FR_OK ? 0 : -1;
+        return f_lseek(&fp[fd - 3], f_tell(&fp[fd - 3]) + off) == FR_OK ? 0 : -1;
     } else if (whence == SEEK_END) {
-        return f_lseek(&fp[fd], f_size(&fp[fd]) + off) == FR_OK ? 0 : -1;
+        return f_lseek(&fp[fd - 3], f_size(&fp[fd - 3]) + off) == FR_OK ? 0 : -1;
     } else return -1;
 }
 
-int trunc(int fd) { return f_truncate(&fp[fd]) == FR_OK ? 0 : -1; }
-int sync(int fd)  { return f_sync(&fp[fd]) == FR_OK ? 0 : -1; }
+int trunc(int fd) { if (fd < 3) return -1; return f_truncate(&fp[fd - 3]) == FR_OK ? 0 : -1; }
+int sync(int fd)  { if (fd < 3) return -1; return f_sync(&fp[fd - 3]) == FR_OK ? 0 : -1; }
 
 DIR* opendir(const char* path) {
     for (int i = 0; i < 128; i++) {
