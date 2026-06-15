@@ -1,0 +1,69 @@
+#include <core/std.h>
+#include <core/asmh.h>
+
+#include <lib/printf.h>
+
+#include <drivers/vga.h>
+
+static volatile u16* vga = (volatile u16*)0xB8000;
+static vga_color_t current_color = VGA_WHITE;
+static volatile usize vga_idx = 0;
+
+static u16 pack_vga_char(char c, vga_color_t color) {
+    return ((u16)color << 8) | (u8)c;
+}
+
+void vga_putchar(char c) {
+    u16 vc = pack_vga_char(c, current_color);
+    if (c == '\n') {
+        usize row = vga_idx / 80;
+        vga_idx = (row + 1) * 80;
+    } else {
+        vga[vga_idx++] = vc;
+    }
+
+    if (vga_idx >= 80 * 25) {
+        vga_clear();
+        vga_idx = 0;
+    }
+}
+
+void vga_printstr(const char* str) {
+    while (*str != '\0') {
+        vga_putchar(*str++);
+    }
+}
+
+void vga_setcolor(vga_color_t color) {
+    current_color = color;
+}
+
+void vga_clear() {
+    u16 cv = pack_vga_char(' ', VGA_LIGHT_GREY);
+    for (s32 i = 0; i < 80 * 25; i++) {
+        vga[i] = cv;
+    }
+}
+
+static void vga_printf_write(const char* str, usize len) {
+    for (usize i = 0; i < len; i++) {
+        vga_putchar(str[i]);
+    }
+}
+
+void vga_flush() {
+    u16 pos = vga_idx;
+    outb(0x3D4, 0x0F);
+    outb(0x3D5, (u8)(pos & 0xFF));
+    outb(0x3D4, 0x0E);
+    outb(0x3D5, (u8)((pos >> 8) & 0xFF));
+}
+
+void printf(const char* fmt, ...) {
+    va_list lst;
+    va_start(lst, fmt);
+
+    vwprintf(vga_printf_write, fmt, lst);
+
+    va_end(lst);
+}
