@@ -17,5 +17,11 @@
 #define SYS_STAT     14
 #define SYS_POWEROFF 15
 #define SYS_SLEEP    16
+#define SYS_READDIR  17
+#define SYS_OPENDIR  18
+#define SYS_CLOSEDIR 19
+#define SYS_GETCWD   20
+#define SYS_SYNC     21
+#define SYS_TRUNC    22
 
 u32 syscall(u32 nr, ...);

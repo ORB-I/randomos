@@ -1,4 +1,5 @@
-#include <core/std.h>
+#include <str.h>
+#include <stddef.h>
 
 usize strlen(const char* str) {
     const char* ststr = str;

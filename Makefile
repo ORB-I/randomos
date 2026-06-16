@@ -13,8 +13,7 @@ ASFLAGS      := -felf32
 LDFLAGS      := -Tshare/link.ld -m32 -ffreestanding -O2 -nostdlib
 LIBS         := -Llib -llai -lff -lgcc
 CCFLAGS      := -m32 -nostdlib -fno-builtin -fno-stack-protector -Iinclude \
-		        -nostartfiles -nodefaultlibs -ffreestanding -Wall -Wextra -g \
-				-include include/ff16/ffconf.h
+		        -nostartfiles -nodefaultlibs -ffreestanding -Wall -Wextra -g
 XORRISOFLAGS := -as mkisofs -R -no-emul-boot -boot-load-size 4 -A os \
 		        -input-charset utf8 -quiet -boot-info-table
 QEMUFLAGS    :=
@@ -25,6 +24,9 @@ CC_SRC := $(shell find src -name '*.c')
 OBJ := $(AS_SRC:.asm=.o) $(CC_SRC:.c=.o)
 EXE := kern.elf
 ISO := os.iso
+
+all: $(ISO)
+	$(MAKE) -C user/libc
 
 $(ISO): $(EXE)
 	@echo "[ISO] $<"
@@ -67,5 +69,6 @@ compile_commands.json: clean
 
 clean:
 	rm -f $(OBJ) $(ISO) $(EXE)
+	$(MAKE) -C user/libc $@
 
 .PHONY: run clean

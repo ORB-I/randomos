@@ -112,6 +112,26 @@ void syscall_c(struct sysregs* args) {
             args->eax = 0;
             return;
         }
+        case 17: {
+            args->eax = readdir((DIR*)(URAM_START + args->ebx), (struct stat*)(URAM_START + args->ecx));
+            return;
+        }
+        case 18: {
+            args->eax = (u32)(void*)opendir((char*)(URAM_START + args->ebx));
+        }
+        case 19: {
+            args->eax = closedir((DIR*)(URAM_START + args->ebx));
+        }
+        case 20: {
+            args->eax = getcwd((char*)(URAM_START + args->ebx), args->ecx);
+            return;
+        }
+        case 21: {
+            args->eax = sync(args->ebx);
+        }
+        case 22: {
+            args->eax = trunc(args->ebx);
+        }
 
         default: args->eax = -1;
     }

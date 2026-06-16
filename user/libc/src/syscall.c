@@ -18,7 +18,7 @@ u32 syscall(u32 nr, ...) {
     u32 ret;
 
     asm volatile(
-        "int 0x80"
+        "int $0x80"
         : "=a"(ret)
         : "r"(eax), "r"(ebx), "r"(ecx), "r"(edx), "r"(edi), "r"(esi)
         : "memory"

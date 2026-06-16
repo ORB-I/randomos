@@ -15,6 +15,8 @@
 typedef s32 ssize;
 typedef s32 off_t;
 
+typedef void DIR;
+
 struct stat {
     char st_name[256];
     u8 st_attrib;
@@ -36,3 +38,9 @@ int reboot();
 int stat(char* path, struct stat* st);
 int poweroff();
 void sleep(int secs);
+int readdir(DIR* dir, struct stat* st);
+DIR* opendir(char* path);
+int closedir(DIR* dir);
+int getcwd(char* buf, usize buflen);
+int sync(int fd);
+int trunc(int fd);

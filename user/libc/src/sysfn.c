@@ -61,3 +61,27 @@ int poweroff() {
 void sleep(int secs) {
     syscall(SYS_SLEEP, (u32)secs);
 }
+
+int readdir(DIR* dir, struct stat* st) {
+    return (int)syscall(SYS_READDIR, (u32)dir, (u32)st);
+}
+
+DIR* opendir(char* path) {
+    return (DIR*)syscall(SYS_OPENDIR, (u32)path);
+}
+
+int closedir(DIR* dir) {
+    return (int)syscall(SYS_CLOSEDIR, (u32)dir);
+}
+
+int getcwd(char* buf, usize buflen) {
+    return (int)syscall(SYS_GETCWD, (u32)buf, (u32)buflen);
+}
+
+int sync(int fd) {
+    return (int)syscall(SYS_SYNC, (u32)fd);
+}
+
+int trunc(int fd) {
+    return (int)syscall(SYS_TRUNC, (u32)fd);
+}

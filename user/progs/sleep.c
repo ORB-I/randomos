@@ -1,5 +1,5 @@
 #include <sys/sysfn.h>
-#include <string.h>
+#include <str.h>
 #include <io.h>
 
 int main(int ac, char** av) {
