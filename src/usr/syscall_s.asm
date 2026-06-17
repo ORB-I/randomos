@@ -11,7 +11,6 @@ syscall_s:
     mov es, ax
     mov fs, ax
     mov gs, ax
-    mov ss, ax
 
     push esp
     call syscall_c

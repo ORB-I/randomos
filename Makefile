@@ -25,8 +25,12 @@ OBJ := $(AS_SRC:.asm=.o) $(CC_SRC:.c=.o)
 EXE := kern.elf
 ISO := os.iso
 
+SUBDIRS := user/libc user/progs
+
 all: $(ISO)
-	$(MAKE) -C user/libc
+	@for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir; \
+	done
 
 $(ISO): $(EXE)
 	@echo "[ISO] $<"
@@ -50,7 +54,7 @@ $(EXE): $(OBJ)
 
 run: $(ISO)
 	$(QEMU) $(QEMUFLAGS) \
-		-M pc -boot d \
+		-M pc -boot d -m 1G \
 		-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
 		-drive id=disk,file=drive.img,format=raw,if=none \
   		-device ide-hd,drive=disk,bus=ide.0,unit=0 \
@@ -69,6 +73,8 @@ compile_commands.json: clean
 
 clean:
 	rm -f $(OBJ) $(ISO) $(EXE)
-	$(MAKE) -C user/libc $@
+	@for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir $@; \
+	done
 
-.PHONY: run clean
+.PHONY: run clean all

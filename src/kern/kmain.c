@@ -46,20 +46,13 @@ void kmain(u32 mag, multiboot_info_t* mbinfo, u8* ebda) {
     core_acpi_t acpi;
     init_acpi(&acpi, ebda);
 
-    bool hasdrv = true;
-
     int drive = ata_init();
     if (drive > 0) {
         ff16_set_drive(drive);
         if (mount("", MNT_FORMAT) < 0) {
             printf("failed to mount\n");
-        } else {
-            hasdrv = true;
-            int fd = open("test", O_CREAT);
-            close(fd);
         }
     } else {
-        hasdrv = false;
         printf("KERN: No drive available\n");
     }
 
@@ -69,6 +62,6 @@ void kmain(u32 mag, multiboot_info_t* mbinfo, u8* ebda) {
     init_kbd();
     enable_kbd();
 
-    sh(hasdrv);
+    sh();
     for (;;);
 }

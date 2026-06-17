@@ -8,21 +8,19 @@
 #define ARGMAX 16
 
 int load_segment(Elf32_Phdr* phdr, int fd) {
-    u8 seg[phdr->p_memsz];
+    u8* dest = (u8*)(USERLOAD + phdr->p_vaddr);
     if (lseek(fd, phdr->p_offset, SEEK_SET) < 0) {
         return -1;
     }
 
     if (phdr->p_memsz > phdr->p_filesz) {
-        memset((u8*)(USERLOAD + phdr->p_vaddr), 0, phdr->p_memsz);
+        memset(dest, 0, phdr->p_memsz);
     }
 
-    ssize nread = read(fd, seg, phdr->p_filesz);
+    ssize nread = read(fd, dest, phdr->p_filesz);
     if (nread < 0 || (usize)nread < phdr->p_filesz) {
         return -1;
     }
-
-    memcpy((u8*)(USERLOAD + phdr->p_vaddr), seg, phdr->p_filesz);
 
     return 0;
 }
@@ -132,9 +130,6 @@ int load_program(const char* path, char** argv) {
     esp0_cpy -= sizeof(u32); esp_cpy -= sizeof(u32);
     *(u32*)esp0_cpy = (u32)ac;
 
-    esp0_cpy -= sizeof(u32); esp_cpy -= sizeof(u32);
-    *(u32*)esp0_cpy = 0;
-
     asm volatile(
         "cli\n\t"
         
@@ -156,7 +151,8 @@ int load_program(const char* path, char** argv) {
 
         "iret\n\t"
 
-        :: "r"(udata), "r"(esp_cpy), "r"(ucode), "r"(ehdr.e_entry)
+        :: "r"(udata), "r"(esp_cpy), 
+           "r"(ucode), "r"(ehdr.e_entry)
         : "eax", "memory"
     );
 

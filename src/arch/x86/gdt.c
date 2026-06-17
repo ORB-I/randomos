@@ -49,8 +49,7 @@ void set_gdtent(int n, u32 base, u32 lim, u8 acc, u8 gran) {
     }
 
     e->limlow = (lim & 0xFFFF);
-    e->gran = ((lim >> 16) & 0x0F);
-    e->gran |= (gran & 0xF0);
+    e->gran = (gran & 0xF0) | ((lim >> 16) & 0x0F);
     e->acc = acc;
 }
 

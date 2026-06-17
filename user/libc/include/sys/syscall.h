@@ -24,4 +24,9 @@
 #define SYS_SYNC     21
 #define SYS_TRUNC    22
 
-u32 syscall(u32 nr, ...);
+u32 __syscall0(u32 nr);
+u32 __syscall1(u32 nr, u32 arg0);
+u32 __syscall2(u32 nr, u32 arg0, u32 arg1);
+u32 __syscall3(u32 nr, u32 arg0, u32 arg1, u32 arg2);
+u32 __syscall4(u32 nr, u32 arg0, u32 arg1, u32 arg2, u32 arg3);
+u32 __syscall5(u32 nr, u32 arg0, u32 arg1, u32 arg2, u32 arg3, u32 arg4);
