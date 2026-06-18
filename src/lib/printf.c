@@ -34,7 +34,6 @@ static void printf_base_numerical(writer_t wr, long n, s32 min_width, char pad) 
         buf[i++] = '-';
     }
 
-    // Padding
     while (i < min_width) {
         buf[i++] = pad;
     }
@@ -59,7 +58,7 @@ static void printf_base_hex(writer_t wr, u64 n, s32 min_width, char pad) {
 
     while (n != 0) {
         buf[i++] = hex_digits[n & 0xF];
-        n >>= 4; // Fixed: was >>= 3
+        n >>= 4;
     }
 
     while (i < min_width) {
