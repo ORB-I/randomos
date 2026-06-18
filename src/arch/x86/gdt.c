@@ -60,8 +60,8 @@ void load_gdt() {
     set_gdtent(NULLSS, 0, 0, 0, 0);
     set_gdtent(KCSS, 0, 0xFFFFFFFF, 0x9A, 0xCF);
     set_gdtent(KDSS, 0, 0xFFFFFFFF, 0x92, 0xCF);
-    set_gdtent(UCSS, 0x00400000, (512 * MiB), 0xFA, 0xCF);
-    set_gdtent(UDSS, 0x00400000, (512 * MiB), 0xF2, 0xCF);
+    set_gdtent(UCSS, 0, 0xFFFFFFFF, 0xFA, 0xCF);
+    set_gdtent(UDSS, 0, 0xFFFFFFFF, 0xF2, 0xCF);
 
     u8 *tss_ptr = (u8 *)&_tss;
     for (u32 i = 0; i < sizeof(struct tss_entry); i++) {

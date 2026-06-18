@@ -1,4 +1,4 @@
-#include <sys/sysfn.h>
+#include <fs.h>
 #include <io.h>
 
 int main(int ac, char** av) {

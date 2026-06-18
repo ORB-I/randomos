@@ -13,10 +13,14 @@ ASFLAGS      := -felf32
 LDFLAGS      := -Tshare/link.ld -m32 -ffreestanding -O2 -nostdlib
 LIBS         := -Llib -llai -lff -lgcc
 CCFLAGS      := -m32 -nostdlib -fno-builtin -fno-stack-protector -Iinclude \
-		        -nostartfiles -nodefaultlibs -ffreestanding -Wall -Wextra -g
+		        -nostartfiles -nodefaultlibs -ffreestanding -Wall -Wextra -g \
+				-MMD -MP
 XORRISOFLAGS := -as mkisofs -R -no-emul-boot -boot-load-size 4 -A os \
 		        -input-charset utf8 -quiet -boot-info-table
-QEMUFLAGS    :=
+QEMUFLAGS    += -M pc -boot d -m 1G \
+				-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+				-drive id=disk,file=drive.img,format=raw,if=none \
+  				-device ide-hd,drive=disk,bus=ide.0,unit=0
 
 AS_SRC := $(shell find src -name '*.asm')
 CC_SRC := $(shell find src -name '*.c')
@@ -24,6 +28,7 @@ CC_SRC := $(shell find src -name '*.c')
 OBJ := $(AS_SRC:.asm=.o) $(CC_SRC:.c=.o)
 EXE := kern.elf
 ISO := os.iso
+DEPS := $(CC_SRC:.c=.d)
 
 SUBDIRS := user/libc user/progs
 
@@ -52,13 +57,9 @@ $(EXE): $(OBJ)
 	@echo "[AS] $<"
 	$(AS) $(ASFLAGS) $<
 
-run: $(ISO)
-	$(QEMU) $(QEMUFLAGS) \
-		-M pc -boot d -m 1G \
-		-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
-		-drive id=disk,file=drive.img,format=raw,if=none \
-  		-device ide-hd,drive=disk,bus=ide.0,unit=0 \
-		-cdrom $<
+run: all
+	@echo "[QEMU]"
+	@$(QEMU) $(QEMUFLAGS) -cdrom $<
 
 compile_commands.json: clean
 	@echo "Generating $@"
@@ -72,9 +73,11 @@ compile_commands.json: clean
 	fi
 
 clean:
-	rm -f $(OBJ) $(ISO) $(EXE)
+	@echo "[CLEAN]"
+	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS)
 	@for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir $@; \
 	done
 
 .PHONY: run clean all
+-include $(DEPS)

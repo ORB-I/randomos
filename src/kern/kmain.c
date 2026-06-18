@@ -21,11 +21,26 @@
 #include <lai/helpers/pm.h>
 #include <ff16/ff.h>
 
+u64 ram_max = 0;
+
 void kmain(u32 mag, multiboot_info_t* mbinfo, u8* ebda) {
     vga_clear();
-    vga_setcolor(VGA_LIGHT_GREEN);
+    vga_setdflcolor(VGA_LIGHT_GREEN);
+    vga_clearcolor();
 
     if (mag != MULTIBOOT_BOOTLOADER_MAGIC) panic("INVALID MULTIBOOT BOOTLOADER MAGIC");
+
+    multiboot_memory_map_t* mmap = (multiboot_memory_map_t*)mbinfo->mmap_addr;
+    u32 mmap_end = mbinfo->mmap_addr + mbinfo->mmap_length;
+    while ((u32)mmap < mmap_end) {
+        if (mmap->type == 1) {
+            u64 mmap_end = mmap->addr + mmap->len;
+            if (mmap_end > ram_max) {
+                ram_max = mmap_end;
+            }
+        }
+        mmap = (multiboot_memory_map_t*)((uint32_t)mmap + mmap->size + sizeof(mmap->size));
+    }
 
     pmem_init(mbinfo);
 

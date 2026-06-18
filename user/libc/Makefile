@@ -6,7 +6,8 @@ ASFLAGS := -felf32
 CCFLAGS := -m32 -nostdlib -fno-builtin \
     -fno-stack-protector -Iinclude \
     -nostartfiles -nodefaultlibs \
-    -ffreestanding -Wall -Wextra -g
+    -ffreestanding -Wall -Wextra -g \
+	-MMD -MP
 
 LIBC := libc.a
 CRT := crt0.o
@@ -18,6 +19,8 @@ LIBA_SRC := $(filter-out ./src/crt.asm src/crt.asm, $(ASMSRC))
 
 LIBOBJ := $(LIBSRC:.c=.o)
 ASMOBJ := $(LIBA_SRC:.asm=.o)
+
+DEPS := $(LIBSRC:.c=.d)
 
 ALL_LIB_OBJS := $(LIBOBJ) $(ASMOBJ)
 
@@ -34,4 +37,7 @@ $(CRT): $(CRTSRC)
 %.o: %.asm
 	$(AS) $(ASFLAGS) $< -o $@
 clean:
-	rm -f $(LIBC) $(CRT) $(LIBOBJ) $(ASMOBJ)
+	rm -f $(LIBC) $(CRT) $(LIBOBJ) $(ASMOBJ) $(DEPS)
+
+.PHONY: all clean
+-include $(DEPS)

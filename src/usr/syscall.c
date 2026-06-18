@@ -13,8 +13,6 @@
 extern void syscall_s();
 extern u8* kern_stack;
 
-#define URAM_START 0x00400000
-
 void init_syscalls() {
     idt_regintr(0x80, syscall_s, 0xEE);
 }
@@ -45,15 +43,15 @@ void syscall_c(struct sysregs* args) {
     switch (args->eax) {
         case 1: sys_exit();
         case 2: {
-            args->eax = read(args->ebx, (u8*)(URAM_START + args->ecx), args->edx);
+            args->eax = read(args->ebx, (u8*)args->ecx, args->edx);
             return;
         }
         case 3: {
-            args->eax = write(args->ebx, (u8*)(URAM_START + args->ecx), args->edx);
+            args->eax = write(args->ebx, (u8*)args->ecx, args->edx);
             return;
         }
         case 4: {
-            args->eax = open((char*)(URAM_START + args->ebx), args->ecx);
+            args->eax = open((char*)args->ebx, args->ecx);
             return;
         }
         case 5: {
@@ -61,7 +59,7 @@ void syscall_c(struct sysregs* args) {
             return;
         }
         case 6: {
-            if (open((char*)(URAM_START + args->ebx), O_CREAT) < 0) {
+            if (open((char*)args->ebx, O_CREAT) < 0) {
                 args->eax = -1;
                 return;
             } else {
@@ -70,11 +68,11 @@ void syscall_c(struct sysregs* args) {
             }
         }
         case 7: {
-            args->eax = unlink((char*)(URAM_START + args->ebx));
+            args->eax = unlink((char*)args->ebx);
             return;
         }
         case 8: {
-            args->eax = chdir((char*)(URAM_START + args->ebx));
+            args->eax = chdir((char*)args->ebx);
             return;
         }
         case 9: {
@@ -82,15 +80,15 @@ void syscall_c(struct sysregs* args) {
             return;
         }
         case 10: {
-            args->eax = rename((char*)(URAM_START + args->ebx), (char*)(URAM_START + args->ecx));
+            args->eax = rename((char*)args->ebx, (char*)args->ecx);
             return;
         }
         case 11: {
-            args->eax = mkdir((char*)(URAM_START + args->ebx));
+            args->eax = mkdir((char*)args->ebx);
             return;
         }
         case 12: {
-            args->eax = unlink((char*)(URAM_START + args->ebx));
+            args->eax = unlink((char*)args->ebx);
             return;
         }
         case 13: {
@@ -99,7 +97,7 @@ void syscall_c(struct sysregs* args) {
             return;
         }
         case 14: {
-            args->eax = stat((char*)(URAM_START + args->ebx), (struct stat*)(URAM_START + args->ecx));
+            args->eax = stat((char*)args->ebx, (struct stat*)args->ecx);
             return;
         }
         case 15: {
@@ -113,19 +111,19 @@ void syscall_c(struct sysregs* args) {
             return;
         }
         case 17: {
-            args->eax = readdir((DIR*)(URAM_START + args->ebx), (struct stat*)(URAM_START + args->ecx));
+            args->eax = readdir((DIR*)args->ebx, (struct stat*)args->ecx);
             return;
         }
         case 18: {
-            args->eax = (u32)(void*)opendir((char*)(URAM_START + args->ebx));
+            args->eax = (u32)opendir((char*)args->ebx);
             return;
         }
         case 19: {
-            args->eax = closedir((DIR*)(URAM_START + args->ebx));
+            args->eax = closedir((DIR*)args->ebx);
             return;
         }
         case 20: {
-            args->eax = getcwd((char*)(URAM_START + args->ebx), args->ecx);
+            args->eax = getcwd((char*)args->ebx, args->ecx);
             return;
         }
         case 21: {
@@ -135,6 +133,9 @@ void syscall_c(struct sysregs* args) {
         case 22: {
             args->eax = trunc(args->ebx);
             return;
+        }
+        case 23: {
+            args->eax = termctl(args->ebx, args->ecx);
         }
 
         default: args->eax = -1;

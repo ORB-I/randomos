@@ -3,20 +3,20 @@
 #include <stdarg.h>
 #include <stddef.h>
 
-void putchar(char c) {
-    write(1, &c, 1);
-}
+void fputchar(int fd, char c) { write(fd, &c, 1); }
 
-static void printf_base_numerical(long n, s32 min_width, char pad) {
+void putchar(char c) { fputchar(STDOUT, c); }
+
+static void printf_base_numerical(int fd, long n, s32 min_width, char pad) {
     char buf[32];
     s32 i = 0;
     s32 negative = 0;
 
     if (n == 0) {
         while (min_width-- > 1) {
-            putchar(pad);
+            fputchar(fd, pad);
         }
-        putchar('0');
+        fputchar(fd, '0');
         return;
     }
 
@@ -34,26 +34,25 @@ static void printf_base_numerical(long n, s32 min_width, char pad) {
         buf[i++] = '-';
     }
 
-    // Padding
     while (i < min_width) {
         buf[i++] = pad;
     }
 
     while (--i >= 0) {
-        putchar(buf[i]);
+        fputchar(fd, buf[i]);
     }
 }
 
-static void printf_base_hex(u64 n, s32 min_width, char pad) {
+static void printf_base_hex(int fd, u64 n, s32 min_width, char pad) {
     const char* hex_digits = "0123456789abcdef";
     char buf[32];
     s32 i = 0;
 
     if (n == 0) {
         while (min_width-- > 1) {
-            putchar(pad);
+            fputchar(fd, pad);
         }
-        putchar('0');
+        fputchar(fd, '0');
         return;
     }
 
@@ -67,11 +66,11 @@ static void printf_base_hex(u64 n, s32 min_width, char pad) {
     }
 
     while (--i >= 0) {
-        putchar(buf[i]);
+        fputchar(fd, buf[i]);
     }
 }
 
-void vprintf(const char* fmt, va_list lst) {
+void vfprintf(int fd, const char* fmt, va_list lst) {
     while (*fmt) {
         if (*fmt == '%') {
             fmt++;
@@ -99,36 +98,36 @@ void vprintf(const char* fmt, va_list lst) {
                 case 'd':
                 case 'i':
                     if (is_long) {
-                        printf_base_numerical(va_arg(lst, long), width, pad);
+                        printf_base_numerical(fd, va_arg(lst, long), width, pad);
                     } else {
-                        printf_base_numerical(va_arg(lst, s32), width, pad);
+                        printf_base_numerical(fd, va_arg(lst, s32), width, pad);
                     }
                     break;
 
                 case 'u':
                     if (is_long) {
-                        printf_base_numerical(va_arg(lst, u64), width, pad);
+                        printf_base_numerical(fd, va_arg(lst, u64), width, pad);
                     } else {
-                        printf_base_numerical(va_arg(lst, u32), width, pad);
+                        printf_base_numerical(fd, va_arg(lst, u32), width, pad);
                     }
                     break;
 
                 case 'x':
                     if (is_long) {
-                        printf_base_hex(va_arg(lst, u64), width, pad);
+                        printf_base_hex(fd, va_arg(lst, u64), width, pad);
                     } else {
-                        printf_base_hex(va_arg(lst, u32), width, pad);
+                        printf_base_hex(fd, va_arg(lst, u32), width, pad);
                     }
                     break;
 
                 case 'p':
-                    putchar('0');
-                    putchar('x');
-                    printf_base_hex((uintptr_t)va_arg(lst, void*), width > 2 ? width - 2 : 0, '0');
+                    fputchar(fd, '0');
+                    fputchar(fd, 'x');
+                    printf_base_hex(fd, (uintptr_t)va_arg(lst, void*), width > 2 ? width - 2 : 0, '0');
                     break;
 
                 case 'c':
-                    putchar((char)va_arg(lst, s32));
+                    fputchar(fd, (char)va_arg(lst, s32));
                     break;
 
                 case 's': {
@@ -137,22 +136,24 @@ void vprintf(const char* fmt, va_list lst) {
                         str = "(null)";
                     }
                     while (*str) {
-                        putchar(*str++);
+                        fputchar(fd, *str);
+                        str++;
                     }
                     break;
                 }
 
                 case '%':
-                    putchar('%');
+                    fputchar(fd, '%');
                     break;
 
                 default:
-                    putchar('%');
-                    putchar(spec);
+                    fputchar(fd, '%');
+                    fputchar(fd, spec);
                     break;
             }
         } else {
-            putchar(*fmt++);
+            fputchar(fd, *fmt);
+            fmt++;
         }
     }
 }
@@ -160,8 +161,13 @@ void vprintf(const char* fmt, va_list lst) {
 void printf(const char* fmt, ...) {
     va_list lst;
     va_start(lst, fmt);
+    vfprintf(STDOUT, fmt, lst);
+    va_end(lst);
+}
 
-    vprintf(fmt, lst);
-
+void fprintf(int fd, const char* fmt, ...) {
+    va_list lst;
+    va_start(lst, fmt);
+    vfprintf(fd, fmt, lst);
     va_end(lst);
 }

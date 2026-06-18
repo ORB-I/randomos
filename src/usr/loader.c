@@ -2,13 +2,14 @@
 #include <drivers/fs.h>
 #include <lib/string.h>
 
-#define USERLOAD 0x00400000
-#define USERMAX (512 * 1024 * 1024)
+#define KERNMAX 0x00400000
 #define USERSTACK (64 * 1024)
 #define ARGMAX 16
 
+extern u64 ram_max;
+
 int load_segment(Elf32_Phdr* phdr, int fd) {
-    u8* dest = (u8*)(USERLOAD + phdr->p_vaddr);
+    u8* dest = (u8*)phdr->p_vaddr;
     if (lseek(fd, phdr->p_offset, SEEK_SET) < 0) {
         return -1;
     }
@@ -59,19 +60,21 @@ int load_program(const char* path, char** argv) {
     }
 
     Elf32_Phdr phdrs[ehdr.e_phnum];
-    usize loadsz = 0;
+    u32 load_high = KERNMAX;
+    u32 load_low = ram_max;
     for (int i = 0; i < ehdr.e_phnum; i++) {
         ssize nread = read(fd, &phdrs[i], sizeof(Elf32_Phdr));
         if (nread == -1 || (usize)nread != ehdr.e_phentsize) {
             close(fd);
             return -1;
         }
-        loadsz += phdrs[i].p_memsz;
-    }
+        if (phdrs[i].p_vaddr < KERNMAX || (phdrs[i].p_vaddr + phdrs[i].p_memsz) > ram_max) {
+            close(fd);
+            return -1;
+        }
 
-    if ((loadsz + USERSTACK) > USERMAX) {
-        close(fd);
-        return -1;
+        if (phdrs[i].p_vaddr > load_high) load_high = phdrs[i].p_vaddr;
+        if (phdrs[i].p_vaddr < load_low)  load_low  = phdrs[i].p_vaddr;
     }
 
     for (int i = 0; i < ehdr.e_phnum; i++) {
@@ -85,8 +88,8 @@ int load_program(const char* path, char** argv) {
 
     close(fd);
 
-    u32 esp = USERMAX;
-    u32 esp0 = USERLOAD + USERMAX;
+    u32 esp = load_high + USERSTACK;
+    u32 esp0 = load_low + esp;
     u32 ucode = 0x1B;
     u32 udata = 0x23;
 

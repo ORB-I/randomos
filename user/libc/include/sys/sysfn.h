@@ -1,46 +1,39 @@
 #pragma once
 #include <sys/types.h>
 
-#define O_WRONLY FA_WRITE
-#define O_RDONLY FA_READ
-#define O_RDWR (O_WRONLY | O_RDONLY)
-#define O_CREAT FA_OPEN_ALWAYS
-#define O_APPEND FA_OPEN_APPEND
-#define O_TRUNC 0x04
+#define TCTL_FLUSH 0
+#define TCTL_CLEAR 1
+#define TCTL_SCLR  2
+#define TCTL_CCLR  3
+#define TCTL_SDFL  4
+#define TCTL_SIDX  5
 
-#define SEEK_SET 0
-#define SEEK_CUR 1
-#define SEEK_END 2
+#define STDIN  0
+#define STDOUT 1
+#define STDERR 2
 
-typedef s32 ssize;
-typedef s32 off_t;
-
-typedef void DIR;
-
-struct stat {
-    char st_name[256];
-    u8 st_attrib;
-    usize st_size;
-};
+typedef enum VgaColours {
+    VGA_BLACK = 0,
+    VGA_BLUE = 1,
+    VGA_GREEN = 2,
+    VGA_CYAN = 3,
+    VGA_RED = 4,
+    VGA_MAGENTA = 5,
+    VGA_BROWN = 6,
+    VGA_LIGHT_GREY = 7,
+    VGA_DARK_GREY = 8,
+    VGA_LIGHT_BLUE = 9,
+    VGA_LIGHT_GREEN = 10,
+    VGA_LIGHT_CYAN = 11,
+    VGA_LIGHT_RED = 12,
+    VGA_LIGHT_MAGENTA = 13,
+    VGA_LIGHT_BROWN = 14,
+    VGA_WHITE = 15
+} vga_color_t;
 
 ssize read(int fd, void* buf, usize sz);
 ssize write(int fd, void* buf, usize sz);
-int open(char* path, u32 flags);
-int close(int fd);
-int creat(char* path);
-int unlink(char* path);
-int chdir(char* path);
-off_t lseek(int fd, off_t off, u32 whence);
-int rename(char* oldname, char* newname);
-int mkdir(char* path);
-int rmdir(char* path);
 int reboot();
-int stat(char* path, struct stat* st);
 int poweroff();
 void sleep(int secs);
-int readdir(DIR* dir, struct stat* st);
-DIR* opendir(char* path);
-int closedir(DIR* dir);
-int getcwd(char* buf, usize buflen);
-int sync(int fd);
-int trunc(int fd);
+int termctl(int code, int arg);

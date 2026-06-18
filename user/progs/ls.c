@@ -1,4 +1,4 @@
-#include <sys/sysfn.h>
+#include <fs.h>
 #include <io.h>
 
 int list_dir(char* path) {
@@ -18,10 +18,6 @@ int list_dir(char* path) {
 }
 
 int main(int ac, char** av) {
-    printf("ac: %d\n", ac);
-    printf("av: \n");
-    for (int i = 0; i < ac; i++) printf("    %s\n", av[i]);
-    
     if (ac < 2) {
         return list_dir(".");
     } else if (ac < 3) {

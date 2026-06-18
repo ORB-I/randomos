@@ -1,4 +1,12 @@
 #pragma once
+
+#define TCTL_FLUSH 0
+#define TCTL_CLEAR 1
+#define TCTL_SCLR  2
+#define TCTL_CCLR  3
+#define TCTL_SDFL  4
+#define TCTL_SIDX  5
+
 typedef enum VgaColours {
     VGA_BLACK = 0,
     VGA_BLUE = 1,
@@ -21,6 +29,9 @@ typedef enum VgaColours {
 void vga_putchar(char c);
 void vga_printstr(const char* str);
 void vga_setcolor(vga_color_t color);
+void vga_setdflcolor(vga_color_t color);
+void vga_clearcolor();
+int termctl(int code, int arg0);
 void vga_clear();
 void vga_flush();
 

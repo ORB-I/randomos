@@ -23,6 +23,7 @@
 #define SYS_GETCWD   20
 #define SYS_SYNC     21
 #define SYS_TRUNC    22
+#define SYS_TERMCTL  23
 
 u32 __syscall0(u32 nr);
 u32 __syscall1(u32 nr, u32 arg0);
