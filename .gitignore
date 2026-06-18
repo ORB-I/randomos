@@ -1,2 +1,12 @@
 .clangd
 .vscode
+
+.DS_Store
+
+*.o
+*.d
+*.elf
+libc.a
+*.img
+*.iso
+iso

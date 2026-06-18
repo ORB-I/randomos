@@ -11,15 +11,18 @@ DRIVE ?= ../../drive.img
 DEPLIBS := ../libc/libc.a ../libc/crt0.o
 DEPS := $(PROGS:=.d)
 
-all: $(DRIVE) $(PROGS)
+PROGFILES := $(PROGS:=.elf)
+
+all: $(DRIVE) $(PROGFILES)
 $(DRIVE):
 	dd if=/dev/zero of=$@ bs=1M count=16
+	mkfs.msdos -F 16 $@
 
-$(PROGS): %: %.c $(DEPLIBS)
+$(PROGFILES): %.elf: %.c $(DEPLIBS)
 	$(CC) $< -o $@ $(CCFLAGS)
-	mcopy -voi $(DRIVE) -s $@ ::/;
+	mcopy -voi $(DRIVE) -s $@ ::/$(basename $@)
 
 clean:
-	rm -f $(PROGS) $(DEPS)
+	rm -f $(PROGFILES) $(DEPS) $(DRIVE)
 .PHONY: all clean
 -include $(DEPS)

@@ -44,7 +44,7 @@ $(ISO): $(EXE)
 	@cp $< $(GRUB_BOOTDIR)/
 	@cp $(GRUB_MENULST) $(GRUB_GRUBDIR)/
 	@$(XORRISO) $(XORRISOFLAGS) -b boot/grub/stage2_eltorito -o $@ iso
-	@rm -rf $(GRUB_GRUBDIR)
+	@rm -rf iso
 
 $(EXE): $(OBJ)
 	@echo "[LD] $@"
