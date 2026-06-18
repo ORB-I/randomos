@@ -17,7 +17,7 @@ CCFLAGS      := -m32 -nostdlib -fno-builtin -fno-stack-protector -Iinclude \
 				-MMD -MP
 XORRISOFLAGS := -as mkisofs -R -no-emul-boot -boot-load-size 4 -A os \
 		        -input-charset utf8 -quiet -boot-info-table
-QEMUFLAGS    += -M pc -boot d -m 1G \
+QFLAGS       := -M pc -boot d -m 1G \
 				-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
 				-drive id=disk,file=drive.img,format=raw,if=none \
   				-device ide-hd,drive=disk,bus=ide.0,unit=0
@@ -59,7 +59,7 @@ $(EXE): $(OBJ)
 
 run: all
 	@echo "[QEMU]"
-	@$(QEMU) $(QEMUFLAGS) -cdrom $(ISO)
+	$(QEMU) $(QFLAGS) $(QEMUFLAGS) -cdrom $(ISO)
 
 compile_commands.json: clean
 	@echo "Generating $@"

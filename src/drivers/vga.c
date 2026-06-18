@@ -18,6 +18,11 @@ void vga_putchar(char c) {
     if (c == '\n') {
         usize row = vga_idx / 80;
         vga_idx = (row + 1) * 80;
+    } else if (c == '\t') {
+        vga_idx += 4;
+    } else if (c == '\r') {
+        usize row = vga_idx / 80;
+        vga_idx = row * 80;
     } else {
         vga[vga_idx++] = vc;
     }
@@ -97,6 +102,7 @@ int termctl(int code, int arg0) {
             return 0;
         case TCTL_SIDX:
             vga_idx = arg0;
+            return 0;
         default: return -1;
     }
 }
