@@ -59,7 +59,7 @@ $(EXE): $(OBJ)
 
 run: all
 	@echo "[QEMU]"
-	@$(QEMU) $(QEMUFLAGS) -cdrom $<
+	@$(QEMU) $(QEMUFLAGS) -cdrom $(ISO)
 
 compile_commands.json: clean
 	@echo "Generating $@"
