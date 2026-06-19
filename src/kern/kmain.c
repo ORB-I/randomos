@@ -1,9 +1,10 @@
+#include <core/mem/vmm.h>
+#include <core/mem/pmm.h>
 #include <core/std.h>
-#include <core/multiboot.h>
+#include <core/limreqs.h>
 #include <core/panic.h>
 #include <core/asmh.h>
 #include <core/idt.h>
-#include <core/mem.h>
 
 #include <lib/sh.h>
 #include <lib/loader.h>
@@ -22,27 +23,28 @@
 #include <ff16/ff.h>
 
 u64 ram_max = 0;
+extern void gdt_init();
 
-void kmain(u32 mag, multiboot_info_t* mbinfo, u8* ebda) {
+void kmain() {
+    if (!LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision)) {
+        for (;;) { asm("hlt"); }
+    }
+
+    if (!hhdm_request.response || !mmap_req.response) {
+        for (;;) { asm("hlt"); }
+    }
+
+    gdt_init();
+    pmm_init();
+    vmm_init();
+
+    
+    vga_init();
     vga_clear();
     vga_setdflcolor(VGA_LIGHT_GREEN);
     vga_clearcolor();
 
-    if (mag != MULTIBOOT_BOOTLOADER_MAGIC) panic("INVALID MULTIBOOT BOOTLOADER MAGIC");
-
-    multiboot_memory_map_t* mmap = (multiboot_memory_map_t*)mbinfo->mmap_addr;
-    u32 mmap_end = mbinfo->mmap_addr + mbinfo->mmap_length;
-    while ((u32)mmap < mmap_end) {
-        if (mmap->type == 1) {
-            u64 mmap_end = mmap->addr + mmap->len;
-            if (mmap_end > ram_max) {
-                ram_max = mmap_end;
-            }
-        }
-        mmap = (multiboot_memory_map_t*)((uint32_t)mmap + mmap->size + sizeof(mmap->size));
-    }
-
-    pmem_init(mbinfo);
+    printf("Hello!\n");
 
     asm("cli");
     printf("IO: Initializing PIC\n");
@@ -59,7 +61,7 @@ void kmain(u32 mag, multiboot_info_t* mbinfo, u8* ebda) {
     asm("sti");
 
     core_acpi_t acpi;
-    init_acpi(&acpi, ebda);
+    init_acpi(&acpi);
 
     int drive = ata_init();
     if (drive > 0) {
@@ -71,12 +73,12 @@ void kmain(u32 mag, multiboot_info_t* mbinfo, u8* ebda) {
         printf("KERN: No drive available\n");
     }
 
-    init_syscalls();
+    //init_syscalls();
 
-    printf("IO: Initializing and enabling keyboard\n");
-    init_kbd();
-    enable_kbd();
+    //printf("IO: Initializing and enabling keyboard\n");
+    //init_kbd();
+    //enable_kbd();
 
-    sh();
+    //sh();
     for (;;);
 }

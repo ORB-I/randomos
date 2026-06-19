@@ -1,13 +1,18 @@
 #include <core/std.h>
 #include <core/asmh.h>
-
+#include <core/limreqs.h>
 #include <lib/printf.h>
 #include <drivers/vga.h>
+#include <core/mem/vmm.h>
 
-static volatile u16* vga = (volatile u16*)0xB8000;
+static volatile u16* vga;
 static vga_color_t current_color = VGA_WHITE;
 static volatile usize vga_idx = 0;
 static vga_color_t default_color = VGA_WHITE;
+
+void vga_init() {
+    vga = (volatile u16*)(HHDM_START + 0xB8000);
+}
 
 static u16 pack_vga_char(char c, vga_color_t color) {
     return ((u16)color << 8) | (u8)c;

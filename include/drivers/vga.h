@@ -34,5 +34,6 @@ void vga_clearcolor();
 int termctl(int code, int arg0);
 void vga_clear();
 void vga_flush();
+void vga_init();
 
 void __attribute__((__format__(printf, 1, 2))) printf(const char* fmt, ...);

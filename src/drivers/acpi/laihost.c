@@ -1,5 +1,6 @@
+#include "core/mem/vmm.h"
 #include <core/panic.h>
-#include <core/mem.h>
+#include <core/liballoc.h>
 #include <core/asmh.h>
 
 #include <lib/string.h>
@@ -19,9 +20,9 @@ void set_lai_acpi(core_acpi_t* acpi) { __lai_core_acpi__ = acpi; }
 void laihost_log(int _, const char* msg) { printf("ACPI: %s\n", msg); }
 __attribute__((noreturn)) void laihost_panic(const char* msg) { panic(msg); }
 
-void* laihost_malloc(usize sz) { return kmalloc(sz); }
-void* laihost_realloc(void* ptr, usize newsize, usize _) { return krealloc(ptr, newsize); }
-void laihost_free(void* ptr, usize _) { kfree(ptr); }
+void* laihost_malloc(size_t sz) { return malloc(sz); }
+void* laihost_realloc(void* ptr, size_t newsize, size_t _) { return realloc(ptr, newsize); }
+void laihost_free(void* ptr, size_t _) { free(ptr); }
 
 void laihost_outb(u16 port, u8 val) { return outb(port, val); };
 void laihost_outw(u16 port, u16 val) { return outw(port, val); };
@@ -63,10 +64,10 @@ void laihost_pci_writed(u16 seg, u8 bus, u8 slot, u8 fn, u16 off, uint32_t val) 
 
 void laihost_sleep(u64 ms) { rtc_sleep(ms / 1000); }
 
-void* laihost_map(uintptr_t phys_addr, usize _) { return (void*)phys_addr; }
-void laihost_unmap(void* _, usize __) { (void)__; }
+void* laihost_map(uintptr_t phys_addr, size_t _) {  return (void*)(phys_addr + HHDM_START); }
+void laihost_unmap(void* _, size_t __) { (void)__; }
 
-void* laihost_scan(const char *sig, usize index) {
+void* laihost_scan(const char *sig, size_t index) {
     if (strneq((char*)sig, "RSD PTR ", 8)) {
         return (void *)__lai_core_acpi__->rsdp;
     }
@@ -75,13 +76,13 @@ void* laihost_scan(const char *sig, usize index) {
         return (void*)__lai_core_acpi__->fadt->dsdt;
     }
 
-    usize mcnt = 0;
-    for (u32 i = 0; i < rsdt_entries(__lai_core_acpi__->rsdt); i++) {
-        sdt_header_t* hdr = (sdt_header_t*)__lai_core_acpi__->rsdt->entries[i];
+    size_t mcnt = 0;
+    for (u32 i = 0; i < xsdt_entries(__lai_core_acpi__->xsdt); i++) {
+        sdt_header_t* hdr = (sdt_header_t*)__lai_core_acpi__->xsdt->entries[i];
         
         if (strneq(hdr->sig, (char*)sig, 4) && vchksum(hdr)) {
             if (mcnt == index) {
-                return (void*)__lai_core_acpi__->rsdt->entries[i];
+                return (void*)(__lai_core_acpi__->xsdt->entries[i] + HHDM_START);
             }
             mcnt++;
         }

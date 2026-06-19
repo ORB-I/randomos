@@ -5,18 +5,18 @@
 
 [[noreturn]] void panic(const char* msg) {
     asm("cli");
-    u32 eax, ebx, ecx, edx, esi, edi, ebp, esp, eip, eflags;
+    u64 eax, ebx, ecx, edx, esi, edi, ebp, esp, eip, eflags;
     u16 cs, ds, es;
 
     asm volatile(
-        "mov %%eax, %0\n\t"
-        "mov %%ebx, %1\n\t"
-        "mov %%ecx, %2\n\t"
-        "mov %%edx, %3\n\t"
-        "mov %%esi, %4\n\t"
-        "mov %%edi, %5\n\t"
-        "mov %%ebp, %6\n\t"
-        "mov %%esp, %7\n\t"
+        "mov %%rax, %0\n\t"
+        "mov %%rbx, %1\n\t"
+        "mov %%rcx, %2\n\t"
+        "mov %%rdx, %3\n\t"
+        "mov %%rsi, %4\n\t"
+        "mov %%rdi, %5\n\t"
+        "mov %%rbp, %6\n\t"
+        "mov %%rsp, %7\n\t"
         "mov %%cs, %8\n\t"
         "mov %%ds, %9\n\t"
         "mov %%es, %10\n\t"

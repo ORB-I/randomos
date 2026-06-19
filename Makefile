@@ -1,22 +1,20 @@
-CC := i686-elf-gcc
-LD := i686-elf-ld
+CC := x86_64-elf-gcc
+LD := x86_64-elf-ld
 AS := nasm
 XORRISO := xorriso
-QEMU := qemu-system-i386
+QEMU := qemu-system-x86_64
 
-GRUB_BSTAGE2 := share/stage2_eltorito
-GRUB_MENULST := share/menu.lst
-GRUB_BOOTDIR := iso/boot
-GRUB_GRUBDIR := $(GRUB_BOOTDIR)/grub
-
-ASFLAGS      := -felf32
-LDFLAGS      := -Tshare/link.ld -m32 -ffreestanding -O2 -nostdlib
-LIBS         := -Llib -llai -lff -lgcc
-CCFLAGS      := -m32 -nostdlib -fno-builtin -fno-stack-protector -Iinclude \
+ASFLAGS      := -felf64
+LDFLAGS      := -Tshare/link.ld -m64 -ffreestanding -O2 -nostdlib
+LIBS         := #-Llib -llai -lff -lgcc
+CCFLAGS      := -mcmodel=kernel -mno-red-zone -m64 -nostdlib -fno-builtin \
+				-fno-stack-protector -Iinclude \
 		        -nostartfiles -nodefaultlibs -ffreestanding -Wall -Wextra -g \
 				-MMD -MP
-XORRISOFLAGS := -as mkisofs -R -no-emul-boot -boot-load-size 4 -A os \
-		        -input-charset utf8 -quiet -boot-info-table
+XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
+        		-no-emul-boot -boot-load-size 4 -boot-info-table -hfsplus \
+        		-apm-block-size 2048 --efi-boot boot/limine/limine-uefi-cd.bin \
+        		-efi-boot-part --efi-boot-image --protective-msdos-label
 QFLAGS       := -M pc -boot d -m 1G \
 				-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
 				-drive id=disk,file=drive.img,format=raw,if=none \
@@ -33,17 +31,24 @@ DEPS := $(CC_SRC:.c=.d)
 SUBDIRS := user/libc user/progs
 
 all: $(ISO)
-	@for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir; \
-	done
+#	@for dir in $(SUBDIRS); do \
+#		$(MAKE) -C $$dir; \
+#	done
 
 $(ISO): $(EXE)
+	@$(MAKE) -C limine-binary
 	@echo "[ISO] $<"
-	@mkdir -p $(GRUB_GRUBDIR)
-	@cp $(GRUB_BSTAGE2) $(GRUB_GRUBDIR)/
-	@cp $< $(GRUB_BOOTDIR)/
-	@cp $(GRUB_MENULST) $(GRUB_GRUBDIR)/
-	@$(XORRISO) $(XORRISOFLAGS) -b boot/grub/stage2_eltorito -o $@ iso
+	@mkdir -p iso/boot/limine
+	@cp $< iso/boot/
+	@cp share/limine.conf limine-binary/limine-bios.sys \
+		limine-binary/limine-bios-cd.bin \
+      	limine-binary/limine-uefi-cd.bin \
+		iso/boot/limine/
+	@mkdir -p iso/EFI/BOOT
+	@cp limine-binary/BOOTX64.EFI limine-binary/BOOTIA32.EFI iso/EFI/BOOT/
+	@$(XORRISO) $(XORRISOFLAGS) -o $@ iso
+	./limine-binary/limine bios-install $@
+	@$(MAKE) -C limine-binary clean
 	@rm -rf iso
 
 $(EXE): $(OBJ)

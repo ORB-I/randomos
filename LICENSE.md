@@ -13,6 +13,11 @@ From https://github.com/managarm/lai
 Copyright (C) 2018-2023 The lai authors  
 LAI is licensed under the MIT license at [vendor/lai/lICENSE](/vendor/lai/LICENSE)  
 
+## Limine
+From https://github.com/limine-bootloader/limine  
+Copyright (C) Copyright (C) 2019-2026 Mintsuki and contributors.  
+Limine is licensed under the BSD-2-Clause license at [limine-binary/LICENSE](/limine-binary/LICENSE)  
+
 ## This project (full license)
 MIT License  
   

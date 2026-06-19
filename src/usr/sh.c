@@ -1,4 +1,3 @@
-#include <core/mem.h>
 #include <core/std.h>
 
 #include <lib/sh.h>
@@ -52,7 +51,7 @@ void sh() {
 
         if (argc == 0) {
             printf("no command provided\n");
-            kfree(cmd);
+            //kfree(cmd);
             continue;
         }
 
@@ -65,6 +64,6 @@ void sh() {
             printf("not found\n");
         }
 
-        kfree(cmd);
+        //kfree(cmd);
     }
 }

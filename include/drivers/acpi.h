@@ -2,14 +2,6 @@
 #include <core/std.h>
 
 typedef struct {
-    char sig[8];
-    u8 chksum;
-    char oem[6];
-    u8 rev;
-    u32 rsdt_addr;
-} __attribute__((packed)) rsdp_t;
-
-typedef struct {
     char sig[4];
     u32 len;
     u8 rev;
@@ -22,12 +14,30 @@ typedef struct {
 } __attribute__((packed)) sdt_header_t;
 
 typedef struct {
+    char sig[8];
+    u8 chksum;
+    char oem[6];
+    u8 rev;
+    u32 rsdt_addr;
+
+    u32 len;
+    u64 xsdt_addr;
+    u8 ext_chksum;
+    u8 reserved[3];
+} __attribute__((packed)) rsdp_t;
+
+typedef struct {
+    sdt_header_t hdr;
+    uint64_t entries[];
+} __attribute__((packed)) xsdt_t;
+
+typedef struct {
     sdt_header_t hdr;
     u32 entries[];
 } __attribute__((packed)) rsdt_t;
 
-static inline u32 rsdt_entries(rsdt_t* rsdt) {
-    return (rsdt->hdr.len - sizeof(sdt_header_t)) / 4;
+static inline u32 xsdt_entries(xsdt_t* xsdt) {
+    return (xsdt->hdr.len - sizeof(sdt_header_t)) / 4;
 }
 
 #define ADDRSPACE_SYS     0
@@ -125,11 +135,11 @@ typedef struct {
 
 typedef struct {
     rsdp_t* rsdp;
-    rsdt_t* rsdt;
+    xsdt_t* xsdt;
     fadt_t* fadt;
 } core_acpi_t;
 
-void init_acpi(core_acpi_t* acpi, u8* ebda);
+void init_acpi(core_acpi_t* acpi);
 
 s32 acpi_write8(genaddr_t* addr, u8 val);
 s32 acpi_write16(genaddr_t* addr, u16 val);
