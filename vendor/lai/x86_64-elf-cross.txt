@@ -1,0 +1,15 @@
+[binaries]
+c = 'x86_64-elf-gcc'
+cpp = 'x86_64-elf-g++'
+ar = 'x86_64-elf-ar'
+strip = 'x86_64-elf-strip'
+
+[host_machine]
+system = 'baremetal'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'
+
+[properties]
+c_args = [ '-mcmodel=kernel', '-mno-red-zone', '-ffreestanding', '-mno-mmx', '-mno-sse', '-mno-sse2' ]
+cpp_args =  [ '-mcmodel=kernel', '-mno-red-zone', '-ffreestanding', '-mno-mmx', '-mno-sse', '-mno-sse2' ]

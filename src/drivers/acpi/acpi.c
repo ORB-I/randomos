@@ -9,7 +9,7 @@
 #include <drivers/acpi.h>
 #include <drivers/pic.h>
 #include <drivers/rtc.h>
-#include <drivers/vga.h>
+#include <drivers/term.h>
 
 #include <lai/core.h>
 #include <lai/helpers/sci.h>
@@ -44,6 +44,17 @@ void* find_acpitbl(xsdt_t* xsdt, char name[4]) {
     return NULL;
 }
 
+void* find_acpitbl_32(rsdt_t* rsdt, char name[4]) {
+    u32 entries = (rsdt->hdr.len - sizeof(sdt_header_t)) / 4;
+    for (u32 i = 0; i < entries; i++) {
+        sdt_header_t* hdr = (sdt_header_t*)((u64)rsdt->entries[i] + HHDM_START);
+        if (strneq(hdr->sig, name, 4) && vchksum(hdr)) {
+            return (void*)hdr;
+        }
+    }
+    return NULL;
+}
+
 s32 acpi_ready(core_acpi_t* acpi) {
     if (acpi->fadt->xpm1a_ctrl_block.addr != 0 ||
         acpi->fadt->xpm1a_ctrl_block.accsz == 0) {
@@ -56,31 +67,37 @@ s32 acpi_ready(core_acpi_t* acpi) {
 }
 
 void init_acpi(core_acpi_t* acpi) {
-    printf("ACPI: Preparing to load LAI AML interpreter\n");
-    acpi->rsdp = rsdp_req.response->address + HHDM_START;
+    acpi->rsdp = xlate_limptr(rsdp_req.response->address);
     if (!acpi->rsdp) panic("CANNOT LOCATE VALID RSDP");
-    if (!acpi->rsdp->rsdt_addr) panic("NO RSDT FOUND");
 
-    acpi->xsdt = (xsdt_t*)(acpi->rsdp->xsdt_addr + HHDM_START);
-    if (!strneq(acpi->xsdt->hdr.sig, "XSDT", 4)) panic("RSDT INVALID");
-    acpi->fadt = find_acpitbl(acpi->xsdt, "FACP");
-    if (!acpi->fadt) panic("CANNOT FIND FADT");
+    printf("ACPI: Loading LAI AML interpreter (RSDP Rev: %d)\n", acpi->rsdp->rev);
+
+    if (acpi->rsdp->rev >= 2 && acpi->rsdp->xsdt_addr != 0) {
+        acpi->xsdt = (xsdt_t*)(acpi->rsdp->xsdt_addr + HHDM_START);
+        if (strneq(acpi->xsdt->hdr.sig, "XSDT", 4)) {
+            acpi->fadt = find_acpitbl(acpi->xsdt, "FACP");
+        }
+    }
+    
+    if (!acpi->fadt) {
+        if (!acpi->rsdp->rsdt_addr) panic("BOTH RSDT AND XSDT ARE NULL");
+        
+        acpi->rsdt = (rsdt_t*)((u64)acpi->rsdp->rsdt_addr + HHDM_START);
+        if (!strneq(acpi->rsdt->hdr.sig, "RSDT", 4)) {
+            panic("RSDT SIGNATURE INVALID: Got %04s", acpi->rsdt->hdr.sig);
+        }
+        
+        acpi->fadt = find_acpitbl_32(acpi->rsdt, "FACP");
+    }
+
+    if (!acpi->fadt) panic("CANNOT FIND FADT (FACP) TABLE");
 
     init_irq(acpi->fadt->sci_int, sci_hdlr);
-    
-    if (acpi->fadt->smi_port == 0 || (acpi->fadt->acpi_dis == 0 && acpi->fadt->acpi_en == 0) || acpi_ready(acpi)) return;
-
-    outb(acpi->fadt->smi_port, acpi->fadt->acpi_en);
-    asm volatile("sti");
-
-    rtc_sleep(3);
-
-    while (!acpi_ready(acpi));
-
     set_lai_acpi(acpi);
 
     lai_set_acpi_revision(acpi->rsdp->rev);
     lai_create_namespace();
+    lai_enable_acpi(0);
 }
 
 void c_sci_hdlr() {}

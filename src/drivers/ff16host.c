@@ -23,34 +23,34 @@ DSTATUS disk_status(BYTE _) {
     return STA_NOINIT;
 }
 
-DRESULT disk_read(BYTE _, BYTE* buff, LBA_t sector, UINT count) {
+DRESULT disk_read(BYTE _, BYTE* buf, LBA_t sector, UINT count) {
     if (ff16_drive < 0) return RES_NOTRDY;
     for (UINT i = 0; i < count; i++) {
-        ata_secread((u8)ff16_drive, sector + i, buff + (i * 512));
+        ata_secread((u8)ff16_drive, sector + i, buf + (i * 512));
     }
     return RES_OK;
 }
 
-DRESULT disk_write(BYTE _, const BYTE* buff, LBA_t sector, UINT count) {
+DRESULT disk_write(BYTE _, const BYTE* buf, LBA_t sector, UINT count) {
     if (ff16_drive < 0) return RES_NOTRDY;
     for (UINT i = 0; i < count; i++) {
-        ata_secwrite((u8)ff16_drive, sector + i, (u8*)(buff + (i * 512)));
+        ata_secwrite((u8)ff16_drive, sector + i, (u8*)(buf + (i * 512)));
     }
     return RES_OK;
 }
 
-DRESULT disk_ioctl(BYTE _, BYTE cmd, void* buff) {
+DRESULT disk_ioctl(BYTE _, BYTE cmd, void* buf) {
     switch (cmd) {
         case CTRL_SYNC:
             return RES_OK;
         case GET_SECTOR_SIZE:
-            *(WORD*)buff = 512;
+            *(WORD*)buf = 512;
             return RES_OK;
         case GET_BLOCK_SIZE:
-            *(DWORD*)buff = 1;
+            *(DWORD*)buf = 1;
             return RES_OK;
         case GET_SECTOR_COUNT:
-            *(LBA_t*)buff = 268435456; 
+            *(LBA_t*)buf = 268435456; 
             return RES_OK;
     }
     return RES_PARERR;

@@ -1,10 +1,11 @@
 #include <core/std.h>
+#include <core/liballoc.h>
 
 #include <lib/sh.h>
 #include <lib/loader.h>
 
 #include <drivers/kbd.h>
-#include <drivers/vga.h>
+#include <drivers/term.h>
 #include <lib/string.h>
 #include <drivers/rtc.h>
 #include <drivers/fs.h>
@@ -51,7 +52,7 @@ void sh() {
 
         if (argc == 0) {
             printf("no command provided\n");
-            //kfree(cmd);
+            free(cmd);
             continue;
         }
 
@@ -64,6 +65,6 @@ void sh() {
             printf("not found\n");
         }
 
-        //kfree(cmd);
+        free(cmd);
     }
 }

@@ -1,3 +1,3 @@
 #pragma once
 
-[[noreturn]] void panic(const char* msg);
+[[noreturn]] void panic(const char* msg, ...);

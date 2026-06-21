@@ -15,5 +15,5 @@ typedef int16_t s16;
 typedef int32_t s32;
 typedef int64_t s64;
 
-typedef u32 usize;
-typedef s32 isize;
+typedef u64 usize;
+typedef s64 isize;

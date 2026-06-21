@@ -13,7 +13,7 @@
 #include <drivers/rtc.h>
 #include <drivers/pic.h>
 #include <drivers/acpi.h>
-#include <drivers/vga.h>
+#include <drivers/term.h>
 #include <drivers/timer.h>
 #include <drivers/ata.h>
 #include <drivers/ff16_init.h>
@@ -30,7 +30,7 @@ void kmain() {
         for (;;) { asm("hlt"); }
     }
 
-    if (!hhdm_request.response || !mmap_req.response) {
+    if (!hhdm_request.response || !mmap_req.response || !rsdp_req.response || !kaddr_req.response) {
         for (;;) { asm("hlt"); }
     }
 
@@ -38,13 +38,8 @@ void kmain() {
     pmm_init();
     vmm_init();
 
-    
-    vga_init();
-    vga_clear();
-    vga_setdflcolor(VGA_LIGHT_GREEN);
-    vga_clearcolor();
-
-    printf("Hello!\n");
+    init_term();
+    term_clear();
 
     asm("cli");
     printf("IO: Initializing PIC\n");
@@ -73,12 +68,12 @@ void kmain() {
         printf("KERN: No drive available\n");
     }
 
-    //init_syscalls();
+    init_syscalls();
 
-    //printf("IO: Initializing and enabling keyboard\n");
-    //init_kbd();
-    //enable_kbd();
+    printf("IO: Initializing and enabling keyboard\n");
+    init_kbd();
+    enable_kbd();
 
-    //sh();
+    sh();
     for (;;);
 }

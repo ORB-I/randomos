@@ -1,7 +1,8 @@
 #include <core/idt.h>
 #include <core/panic.h>
+#include <core/mem/vmm.h>
 
-#include <drivers/vga.h>
+#include <drivers/term.h>
 #include <drivers/fs.h>
 #include <drivers/rtc.h>
 
@@ -10,134 +11,153 @@
 
 #include <lai/helpers/pm.h>
 
+#define MSR_STAR          0xC0000081
+#define MSR_LSTAR         0xC0000082
+#define MSR_SFMASK        0xC0000084
+#define MSR_KERNEL_GS_BASE 0xC0000102
+
 extern void syscall_s();
-extern u8* kern_stack;
+extern __attribute__((aligned(16))) u8 kern_stack[16384];
+static u64 gsblk[2];
+
+static inline void wrmsr(u32 msr, u64 val) {
+    u32 low = val & 0xFFFFFFFF;
+    u32 high = val >> 32;
+    asm volatile("wrmsr" : : "c"(msr), "a"(low), "d"(high));
+}
 
 void init_syscalls() {
-    idt_regintr(0x80, syscall_s, 0xEE);
+    gsblk[0] = 0;
+    gsblk[1] = (u64)kern_stack + 16384;
+
+    wrmsr(MSR_KERNEL_GS_BASE, (u64)&gsblk);
+    wrmsr(MSR_LSTAR, (u64)syscall_s);
+    wrmsr(MSR_STAR, ((u64)0x1B << 48) | ((u64)0x08 << 32));
+    wrmsr(MSR_SFMASK, 0x204);
 }
 
 struct sysregs {
-    u32 edi, esi, ebp, kernel_esp, 
-        ebx, edx, ecx, eax;
-    
-    u32 user_eip, user_cs, 
-        user_eflags, user_esp, 
-        user_ss;
+    u64 rax, rbx, rcx, rdx;
+    u64 rsi, rdi, r8, r9, r10, r11;
 };
 
-[[noreturn]] void sys_exit() {
-    u32 kesp = (u32)kern_stack + 4096;
+[[noreturn]] void sys_exit(page_table_t* uasp) {
+    u64 kesp = (u64)kern_stack + 4096;
+    vmm_dasp(uasp);
     asm volatile(
-        "mov %0, %%esp\n\t"
+        "mov %0, %%rsp\n\t"
         "push %1\n\t"
         "ret"
         :: "r"(kesp), "r"(sh)
         : "memory"
     );
 
+
+
     panic("System call EXIT failed");
 }
 
 void syscall_c(struct sysregs* args) {
-    switch (args->eax) {
-        case 1: sys_exit();
+    page_table_t* uasp = vmm_cpml4v();
+    vmm_skasp();
+    switch (args->rax) {
+        case 1: sys_exit(uasp);
         case 2: {
-            args->eax = read(args->ebx, (u8*)args->ecx, args->edx);
+            args->rax = read(args->rbx, (u8*)args->rcx, args->rdx);
             return;
         }
         case 3: {
-            args->eax = write(args->ebx, (u8*)args->ecx, args->edx);
+            args->rax = write(args->rbx, (u8*)args->rcx, args->rdx);
             return;
         }
         case 4: {
-            args->eax = open((char*)args->ebx, args->ecx);
+            args->rax = open((char*)args->rbx, args->rcx);
             return;
         }
         case 5: {
-            args->eax = close(args->ebx);
+            args->rax = close(args->rbx);
             return;
         }
         case 6: {
-            if (open((char*)args->ebx, O_CREAT) < 0) {
-                args->eax = -1;
+            if (open((char*)args->rbx, O_CREAT) < 0) {
+                args->rax = -1;
                 return;
             } else {
-                args->eax = close(args->eax);
+                args->rax = close(args->rax);
                 return;
             }
         }
         case 7: {
-            args->eax = unlink((char*)args->ebx);
+            args->rax = unlink((char*)args->rbx);
             return;
         }
         case 8: {
-            args->eax = chdir((char*)args->ebx);
+            args->rax = chdir((char*)args->rbx);
             return;
         }
         case 9: {
-            args->eax = lseek(args->ebx, args->ecx, args->edx);
+            args->rax = lseek(args->rbx, args->rcx, args->rdx);
             return;
         }
         case 10: {
-            args->eax = rename((char*)args->ebx, (char*)args->ecx);
+            args->rax = rename((char*)args->rbx, (char*)args->rcx);
             return;
         }
         case 11: {
-            args->eax = mkdir((char*)args->ebx);
+            args->rax = mkdir((char*)args->rbx);
             return;
         }
         case 12: {
-            args->eax = unlink((char*)args->ebx);
+            args->rax = unlink((char*)args->rbx);
             return;
         }
         case 13: {
-            if (lai_acpi_reset() == 0) args->eax = 0;
-            else args->eax = -1;
+            if (lai_acpi_reset() == 0) args->rax = 0;
+            else args->rax = -1;
             return;
         }
         case 14: {
-            args->eax = stat((char*)args->ebx, (struct stat*)args->ecx);
+            args->rax = stat((char*)args->rbx, (struct stat*)args->rcx);
             return;
         }
         case 15: {
-            if (lai_enter_sleep(5) == 0) args->eax = 0;
-            else args->eax = -1;
+            if (lai_enter_sleep(5) == 0) args->rax = 0;
+            else args->rax = -1;
             return;
         }
         case 16: {
-            rtc_sleep(args->ebx);
-            args->eax = 0;
+            rtc_sleep(args->rbx);
+            args->rax = 0;
             return;
         }
         case 17: {
-            args->eax = readdir((DIR*)args->ebx, (struct stat*)args->ecx);
+            args->rax = readdir((DIR*)args->rbx, (struct stat*)args->rcx);
             return;
         }
         case 18: {
-            args->eax = (u32)opendir((char*)args->ebx);
+            args->rax = (u64)opendir((char*)args->rbx);
             return;
         }
         case 19: {
-            args->eax = closedir((DIR*)args->ebx);
+            args->rax = closedir((DIR*)args->rbx);
             return;
         }
         case 20: {
-            args->eax = getcwd((char*)args->ebx, args->ecx);
+            args->rax = getcwd((char*)args->rbx, args->rcx);
             return;
         }
         case 21: {
-            args->eax = sync(args->ebx);
+            args->rax = sync(args->rbx);
             return;
         }
         case 22: {
-            args->eax = trunc(args->ebx);
+            args->rax = trunc(args->rbx);
             return;
         }
         case 23: {
-            args->eax = termctl(args->ebx, args->ecx);
+            args->rax = termctl(args->rbx, args->rcx);
         }
 
-        default: args->eax = -1;
+        default: args->rax = -1;
     }
 }

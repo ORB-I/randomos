@@ -3,7 +3,7 @@
 #include <core/idt.h>
 
 #include <drivers/kbd.h>
-#include <drivers/vga.h>
+#include <drivers/term.h>
 #include <drivers/pic.h>
 
 static const char sc_map[128] = {
@@ -36,7 +36,21 @@ bool shift_pressed = false;
 
 extern void kbd_hdlr();
 
-void init_kbd() { init_irq(1, kbd_hdlr); }
+void init_kbd() {
+    while (inb(0x64) & 1) inb(0x60);
+
+    outb(0x64, 0x20);
+    while (!(inb(0x64) & 1));
+    u8 cb = inb(0x60);
+
+    cb |= 0x01; 
+
+    outb(0x64, 0x60);
+    while (inb(0x64) & 2);
+    outb(0x60, cb);
+
+    init_irq(1, kbd_hdlr);
+}
 
 void enqueue_key(char c) {
     if (kb_full) {
@@ -66,22 +80,11 @@ bool kb_has_char(void) {
 }
 
 char getchar(void) {
-    while (1) {
-        asm volatile("cli");
-        if (kb_has_char()) {
-            asm volatile("sti");
-            break;
-        }
-        asm volatile(
-            "sti\n\t"
-            "hlt"
-        );
-    }
     while (!kb_has_char()) {
-        asm volatile("hlt");
+        asm volatile("pause");
     }
     char c = dequeue_key();
-    vga_putchar(c);
+    term_putchar(c);
     return c;
 }
 

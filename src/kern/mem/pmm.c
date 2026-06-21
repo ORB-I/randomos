@@ -2,24 +2,18 @@
 #include <lib/string.h>
 #include <core/limreqs.h>
 #include <core/panic.h>
+#include <core/mem/pmm.h>
 
 extern u64 _kernel_end;
 extern u64 _kernel_start;
-static u64 hhdm_offset = 0;
-
-struct pmm_state {
-    u64 mem_high;
-    u64 mem_low;
-
-    u32 nframes;
-    u32 mxframe;
-    u32 framesz;
-
-    u8* mmap;
-    u64 mmap_sz;
-};
+u64 hhdm_offset = 0;
 
 static struct pmm_state state;
+
+struct pmm_state* get_pmm_state() {
+    return &state;
+}
+
 u32 pmm_try_resv(u32 stidx, u32 cnt) {
     if (stidx + cnt > state.nframes) return 0;
     for (u32 i = 0; i < cnt; i++) {
@@ -66,14 +60,11 @@ void pmm_init() {
 
     memset(&state, 0, sizeof(state));
     state.framesz = 4096;
-    state.mem_low = ((u64)&_kernel_end - _kernel_start + 0xFFF) & ~0xFFF;
-    
+
     for (u64 i = 0; i < mmap_req.response->entry_count; i++) {
         struct limine_memmap_entry* entry = mmap_req.response->entries[i];
-        if (entry->type == LIMINE_MEMMAP_USABLE) {
-            u64 eend = entry->base + entry->length;
-            if (eend > state.mem_high) state.mem_high = eend;
-        }
+        u64 eend = entry->base + entry->length;
+        if (eend > state.mem_high) state.mem_high = eend;
     }
 
     if (state.mem_high == 0) panic("Couldn't find usable memory");
@@ -95,22 +86,26 @@ void pmm_init() {
 
     state.mmap = (u8*)(hhdm_offset + bmapaddr);
     for (u32 i = 0; i < state.mmap_sz; i++) {
-        state.mmap[i] = 0x00;
+        state.mmap[i] = 0xFF;
     }
-    state.mem_low = 0; 
+    state.mem_low = 0;
+
     for (u64 i = 0; i < mmap_req.response->entry_count; i++) {
         struct limine_memmap_entry* entry = mmap_req.response->entries[i];
-        if (entry->type != LIMINE_MEMMAP_USABLE) {
-            u64 sidx = entry->base / state.framesz;
-            u64 eidx = (entry->base + entry->length + (state.framesz - 1)) / state.framesz;
-            pmm_try_resv(sidx, eidx - sidx);
+        if (entry->type == LIMINE_MEMMAP_USABLE) {
+            u64 sidx = (entry->base + state.framesz - 1) / state.framesz;
+            u64 eidx = (entry->base + entry->length) / state.framesz;
+            
+            if (eidx > sidx) {
+                pmm_ffree((void*)(sidx * state.framesz), eidx - sidx);
+            }
         }
     }
 
     u64 bmapsidx = bmapaddr / state.framesz;
     u64 bmapfcnt = (state.mmap_sz + state.framesz - 1) / state.framesz;
     pmm_try_resv(bmapsidx, bmapfcnt);
-} 
+}
 
 /*s32 memstat(struct memstat* mst) {
     mst->pagesz = pmm_pagesz;

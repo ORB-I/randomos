@@ -52,7 +52,7 @@ u32 rtc_getticks() {
 }
 
 void rtc_sleep(s32 secs) {
-    u32 tgt = rtc_ticks + (secs * 1024);
     reset_rtc();
+    u32 tgt = rtc_ticks + (secs * 1024);
     while (rtc_getticks() < tgt) asm volatile("hlt");
 }

@@ -1,5 +1,4 @@
 #include <core/std.h>
-
 #include <lib/printf.h>
 
 void wputchar(writer_t wr, char c) {

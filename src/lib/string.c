@@ -49,11 +49,16 @@ s32 atoi(const char* str) {
     return sign * res;
 }
 
-void* memset(void *dest, int val, usize count) {
-    u8* temp = (u8*)dest;
-    for (usize i = 0; i < count; i++) {
-        temp[i] = (u8)val;
+void* memset(void* dest, int c, size_t n) {
+    u8* d = dest;
+    if (((uintptr_t)d & 7) == 0 && (n & 7) == 0) {
+        u64 val = ((u64)(u8)c) * 0x0101010101010101ULL;
+        u64* d64 = (u64*)d;
+        size_t n64 = n / 8;
+        for (size_t i = 0; i < n64; i++) d64[i] = val;
+        return dest;
     }
+    for (size_t i = 0; i < n; i++) d[i] = c;
     return dest;
 }
 

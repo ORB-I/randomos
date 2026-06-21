@@ -3,11 +3,11 @@
 #include <sys/sysfn.h>
 
 ssize read(int fd, void* buf, usize sz) {
-    return (ssize)__syscall3(SYS_READ, (u32)fd, (u32)buf, (u32)sz);
+    return (ssize)__syscall3(SYS_READ, (u32)fd, (u64)buf, (u32)sz);
 }
 
 ssize write(int fd, void* buf, usize sz) {
-    return (ssize)__syscall3(SYS_WRITE, (u32)fd, (u32)buf, (u32)sz);
+    return (ssize)__syscall3(SYS_WRITE, (u32)fd, (u64)buf, (u32)sz);
 }
 
 int reboot() {

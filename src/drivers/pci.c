@@ -46,21 +46,24 @@ void pci_cfg_outl(u8 bus, u8 slot, u8 fn, u8 off, u32 val) {
 }
 
 void pci_get_chdr(u32 bus, u32 slot, pci_chdr_t* hdr) {
-    u32 r0 = pci_cfg_inl(bus, slot, 0, 0);
-    u32 r1 = pci_cfg_inl(bus, slot, 1, 0);
-    u32 r2 = pci_cfg_inl(bus, slot, 2, 0);
-    u32 r3 = pci_cfg_inl(bus, slot, 3, 0);
+    u32 r0 = pci_cfg_inl(bus, slot, 0, 0x00);
+    u32 r1 = pci_cfg_inl(bus, slot, 0, 0x04);
+    u32 r2 = pci_cfg_inl(bus, slot, 0, 0x08);
+    u32 r3 = pci_cfg_inl(bus, slot, 0, 0x0C);
 
-    hdr->devid = (u16)(r0 & 0xFFFF0000);
-    hdr->vndid = (u16)(r0 & 0x0000FFFF);
-    hdr->stat = (u16)(r1 & 0xFFFF0000);
-    hdr->cmd = (u16)(r1 & 0x0000FFFF);
-    hdr->cls = (u8)(r2 & 0xFF000000);
-    hdr->subcls = (u8)(r2 & 0x00FF0000);
-    hdr->progif = (u8)(r2 & 0x0000FF00);
-    hdr->revid = (u8)(r2 & 0x000000FF);
-    hdr->bist = (u8)(r3 & 0xFF000000);
-    hdr->hdrt = (u8)(r3 & 0x00FF0000);
-    hdr->lattmr = (u8)(r3 & 0x0000FF00);
-    hdr->cachesz = (u8)(r3 & 0x000000FF);
+    hdr->devid    = (u16)((r0 >> 16) & 0xFFFF);
+    hdr->vndid    = (u16)(r0 & 0xFFFF);
+    
+    hdr->stat     = (u16)((r1 >> 16) & 0xFFFF);
+    hdr->cmd      = (u16)(r1 & 0xFFFF);
+    
+    hdr->cls      = (u8)((r2 >> 24) & 0xFF);
+    hdr->subcls   = (u8)((r2 >> 16) & 0xFF);
+    hdr->progif   = (u8)((r2 >> 8)  & 0xFF);
+    hdr->revid    = (u8)(r2 & 0xFF);
+    
+    hdr->bist     = (u8)((r3 >> 24) & 0xFF);
+    hdr->hdrt     = (u8)((r3 >> 16) & 0xFF);
+    hdr->lattmr   = (u8)((r3 >> 8)  & 0xFF);
+    hdr->cachesz  = (u8)(r3 & 0xFF);
 }

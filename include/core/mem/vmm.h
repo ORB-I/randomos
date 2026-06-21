@@ -15,6 +15,8 @@
 #define PD_IDX(addr)   (((addr) >> 21) & 0x1FF)
 #define PT_IDX(addr)   (((addr) >> 12) & 0x1FF)
 
+#define USER_START 0x0000000000000000
+#define USER_END   0xFFFF800000000000
 #define HHDM_START 0xFFFF800000000000
 #define HHDM_END   0xFFFF880000000000
 #define HHDM_SIZE  (HHDM_END - HHDM_START)
@@ -39,4 +41,7 @@ void vmm_unmap_pages(page_table_t* pml4v, u64 vst, size_t pgcnt);
 page_table_t* vmm_cpml4v();
 page_table_t* vmm_casp();
 void vmm_sasp(page_table_t* tpml4);
+void vmm_skasp();
 void vmm_dasp(page_table_t* tpml4);
+
+void* xlate_limptr(void* limine_vaddr);

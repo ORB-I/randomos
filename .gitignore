@@ -10,3 +10,7 @@ libc.a
 *.img
 *.iso
 iso
+ksyms.c
+
+.cache
+*.dSYM

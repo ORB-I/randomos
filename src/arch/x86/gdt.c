@@ -43,7 +43,7 @@ struct gdt_entry _gdt[7];
 struct gdtr _gdtr;
 struct tss_entry _tss;
 
-__attribute__((aligned(16))) static u8 kern_stack[16384];
+__attribute__((aligned(16))) u8 kern_stack[16384];
 
 #define NULLSS 0
 #define KCSS 1

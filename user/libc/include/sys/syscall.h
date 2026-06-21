@@ -25,9 +25,9 @@
 #define SYS_TRUNC    22
 #define SYS_TERMCTL  23
 
-u32 __syscall0(u32 nr);
-u32 __syscall1(u32 nr, u32 arg0);
-u32 __syscall2(u32 nr, u32 arg0, u32 arg1);
-u32 __syscall3(u32 nr, u32 arg0, u32 arg1, u32 arg2);
-u32 __syscall4(u32 nr, u32 arg0, u32 arg1, u32 arg2, u32 arg3);
-u32 __syscall5(u32 nr, u32 arg0, u32 arg1, u32 arg2, u32 arg3, u32 arg4);
+u64 __syscall0(u64 nr);
+u64 __syscall1(u64 nr, u64 arg0);
+u64 __syscall2(u64 nr, u64 arg0, u64 arg1);
+u64 __syscall3(u64 nr, u64 arg0, u64 arg1, u64 arg2);
+u64 __syscall4(u64 nr, u64 arg0, u64 arg1, u64 arg2, u64 arg3);
+u64 __syscall5(u64 nr, u64 arg0, u64 arg1, u64 arg2, u64 arg3, u64 arg4);

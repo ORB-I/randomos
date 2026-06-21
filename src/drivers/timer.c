@@ -1,7 +1,7 @@
 #include <core/std.h>
 #include <core/asmh.h>
 
-#include <drivers/vga.h>
+#include <drivers/term.h>
 #include <drivers/acpi.h>
 #include <drivers/pic.h>
 

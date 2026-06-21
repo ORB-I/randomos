@@ -2,7 +2,7 @@
 #include <core/std.h>
 #include <lib/string.h>
 #include <drivers/fs.h>
-#include <drivers/vga.h>
+#include <drivers/term.h>
 #include <drivers/kbd.h>
 
 FIL fp[128];
@@ -84,7 +84,8 @@ ssize write(int fd, void* buf, usize size) {
             case 0: return -1; // cant write to stdin yet
             case 1:
             case 2:
-                for (usize i = 0; i < size; i++) vga_putchar(((char*)buf)[i]);
+                for (usize i = 0; i < size; i++) term_putchar(((char*)buf)[i]);
+                term_flush();
                 return size;
             default: return -1;
         }

@@ -6,6 +6,7 @@ PHDRS {
     text            PT_LOAD;
     rodata          PT_LOAD;
     data            PT_LOAD;
+    ksyms           PT_LOAD;
 }
 
 SECTIONS {
@@ -30,6 +31,13 @@ SECTIONS {
         *(.bss .bss.*)
         *(COMMON)
     } :data
+    . = ALIGN(CONSTANT(MAXPAGESIZE));
+
+    .ksyms : { 
+        *(.ksyms)
+        PROVIDE(ksymtbl = 0);
+        PROVIDE(nksyms = 0);
+    } :ksyms
 
     /DISCARD/ : {
         *(.eh_frame*)

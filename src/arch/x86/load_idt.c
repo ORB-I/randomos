@@ -1,18 +1,20 @@
 #include <core/std.h>
 
-#include <drivers/vga.h>
+#include <drivers/term.h>
 
 typedef struct {
     u16 isr_low;
     u16 kernel_cs;
-    u8 reserved;
-    u8 attributes;
-    u16 isr_high;
+    u8  ist;
+    u8  attributes;
+    u16 isr_mid;
+    u32 isr_high;
+    u32 reserved;
 } __attribute__((packed)) idt_entry_t;
 
 typedef struct {
     u16 limit;
-    u32 base;
+    u64 base;
 } __attribute__((packed)) idtr_t;
 
 #define IDT_SIZE 256
@@ -21,11 +23,14 @@ static idtr_t idtr;
 
 void idt_regintr(u8 vector, void* isr, u8 flags) {
     idt_entry_t* dsc = &idt[vector];
+    u64 addr = (u64)isr;
 
-    dsc->isr_low = (u32)isr & 0xFFFF;
+    dsc->isr_low = addr & 0xFFFF;
     dsc->kernel_cs = 0x08;
+    dsc->ist = 0;
     dsc->attributes = flags;
-    dsc->isr_high = (u32)isr >> 16;
+    dsc->isr_mid = (addr >> 16) & 0xFFFF;
+    dsc->isr_high = (addr >> 32) & 0xFFFFFFFF;
     dsc->reserved = 0;
 }
 
@@ -44,7 +49,7 @@ void idt_init() {
     }
 
     idtr.limit = sizeof(idt) - 1;
-    idtr.base = (u32)&idt;
+    idtr.base = (u64)&idt;
 
     asm volatile("lidt %0" : : "m"(idtr));
 }

@@ -1,11 +1,10 @@
-[bits 32]
+[bits 64]
 global _start
 extern main
 
 section .text
 _start:
     call main
-
-    mov ebx, eax
-    mov eax, 1
-    int 0x80
+    mov rbx, rax
+    mov rax, 1
+    syscall

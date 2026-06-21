@@ -1,16 +1,17 @@
 CC := x86_64-elf-gcc
 LD := x86_64-elf-ld
 AS := nasm
+NM := x86_64-elf-nm
 XORRISO := xorriso
 QEMU := qemu-system-x86_64
 
 ASFLAGS      := -felf64
 LDFLAGS      := -Tshare/link.ld -m64 -ffreestanding -O2 -nostdlib
-LIBS         := #-Llib -llai -lff -lgcc
-CCFLAGS      := -mcmodel=kernel -mno-red-zone -m64 -nostdlib -fno-builtin \
-				-fno-stack-protector -Iinclude \
+LIBS         := -Llib -llai -lff -lflanterm -lgcc
+CCFLAGS      := -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
+				-m64 -nostdlib -fno-builtin -fno-stack-protector -Iinclude \
 		        -nostartfiles -nodefaultlibs -ffreestanding -Wall -Wextra -g \
-				-MMD -MP
+				-MMD -MP -O0
 XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
         		-no-emul-boot -boot-load-size 4 -boot-info-table -hfsplus \
         		-apm-block-size 2048 --efi-boot boot/limine/limine-uefi-cd.bin \
@@ -31,9 +32,9 @@ DEPS := $(CC_SRC:.c=.d)
 SUBDIRS := user/libc user/progs
 
 all: $(ISO)
-#	@for dir in $(SUBDIRS); do \
-#		$(MAKE) -C $$dir; \
-#	done
+	@for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir; \
+	done
 
 $(ISO): $(EXE)
 	@$(MAKE) -C limine-binary
@@ -54,6 +55,13 @@ $(ISO): $(EXE)
 $(EXE): $(OBJ)
 	@echo "[LD] $@"
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	python3 mkksyms.py $(NM) $@
+	$(CC) $(CCFLAGS) -c ksyms.c -o ksyms.o
+	$(CC) $(LDFLAGS) ksyms.o $^ -o $@  $(LIBS)
+	rm -f ksyms.o 
+
+ksyms.c: $(OBJ)
+	python3 mkksyms.py $(NM) $^
 
 %.o: %.c
 	@echo "[CC] $<"

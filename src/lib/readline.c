@@ -1,18 +1,18 @@
-#include <core/mem.h>
+#include <core/liballoc.h>
 
-#include <drivers/vga.h>
+#include <drivers/term.h>
 #include <drivers/kbd.h>
 
 #define INITBUFSZ 256
 
 char* readline(const char* prompt) {
     u32 bufsz = INITBUFSZ;
-    char* buf = (char*)kmalloc(bufsz);
+    char* buf = (char*)malloc(bufsz);
 
     if (!buf) return NULL;
     if (prompt != NULL) {
         printf("%s", prompt);
-        vga_flush();
+        term_flush();
     }
 
     u32 i = 0;
@@ -22,11 +22,11 @@ char* readline(const char* prompt) {
         if (c == '\n' || c == '\r') {
             break;
         }
-
+        
         if (i >= bufsz - 1) {
-            char* newptr = (char*)krealloc(buf, bufsz + 256);
+            char* newptr = (char*)realloc(buf, bufsz + 256);
             if (newptr == NULL) {
-                kfree(buf);
+                free(buf);
                 return NULL;
             }
             bufsz += 256;

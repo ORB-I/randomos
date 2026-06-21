@@ -1,0 +1,8 @@
+So everything *seems* to be working up to the shell. It seems what the problem is, is that the 8259 PIC 
+isn't sending any data nor interrupts whatsoever, which I've verified with QEMU's `-d int` flag.
+My suspicion is that it either has to do with my interrupt handlers (likely), or something weird when
+using the 8259 PIC in 64-bit long mode. I do plan to switch to another method for keyboard controlling at some point,
+whether that be VirtIO, USB, Serial, or something else I have not figured out yet though I do want to get the legacy
+PS/2 Keyboarx to work first. Anyways, that's all for today, it's 10pm and it's been a long day, so imma go do other things
+now. 
+    - Wdboyes13 (aka William)

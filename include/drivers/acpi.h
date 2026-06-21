@@ -36,10 +36,6 @@ typedef struct {
     u32 entries[];
 } __attribute__((packed)) rsdt_t;
 
-static inline u32 xsdt_entries(xsdt_t* xsdt) {
-    return (xsdt->hdr.len - sizeof(sdt_header_t)) / 4;
-}
-
 #define ADDRSPACE_SYS     0
 #define ADDRSPACE_IO      1
 #define ADDRSPACE_PCICFG  2 
@@ -135,6 +131,7 @@ typedef struct {
 
 typedef struct {
     rsdp_t* rsdp;
+    rsdt_t* rsdt;
     xsdt_t* xsdt;
     fadt_t* fadt;
 } core_acpi_t;
@@ -150,3 +147,13 @@ s32 acpi_read16(genaddr_t* addr, u16* out);
 s32 acpi_read32(genaddr_t* addr, u32* out);
 
 void set_lai_acpi(core_acpi_t* acpi);
+
+static inline u32 sdt_entries(core_acpi_t* acpi) {
+    if (acpi->xsdt != NULL) {
+        return (acpi->xsdt->hdr.len - sizeof(sdt_header_t)) / 4;
+    } else if (acpi->rsdt != NULL) {
+        return (acpi->rsdt->hdr.len - sizeof(sdt_header_t)) / 4;
+    } else {
+        return 0;
+    }
+}

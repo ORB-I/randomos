@@ -5,7 +5,7 @@
 
 #include <lib/string.h>
 
-#include <drivers/vga.h>
+#include <drivers/term.h>
 #include <drivers/acpi.h>
 #include <drivers/rtc.h>
 #include <drivers/pci.h>
@@ -68,21 +68,32 @@ void* laihost_map(uintptr_t phys_addr, size_t _) {  return (void*)(phys_addr + H
 void laihost_unmap(void* _, size_t __) { (void)__; }
 
 void* laihost_scan(const char *sig, size_t index) {
+    if (__lai_core_acpi__->xsdt == NULL && __lai_core_acpi__->rsdt == NULL) panic("No RSDT/XSDT found");
+
     if (strneq((char*)sig, "RSD PTR ", 8)) {
         return (void *)__lai_core_acpi__->rsdp;
     }
 
     if (strneq((char*)sig, "DSDT", 4)) {
-        return (void*)__lai_core_acpi__->fadt->dsdt;
+        if (__lai_core_acpi__->xsdt != NULL) {
+            return (void*)(__lai_core_acpi__->fadt->xdsdt + HHDM_START);
+        } else {
+            return (void*)(__lai_core_acpi__->fadt->dsdt + HHDM_START);
+        }
     }
 
     size_t mcnt = 0;
-    for (u32 i = 0; i < xsdt_entries(__lai_core_acpi__->xsdt); i++) {
-        sdt_header_t* hdr = (sdt_header_t*)__lai_core_acpi__->xsdt->entries[i];
-        
+    for (u32 i = 0; i < sdt_entries(__lai_core_acpi__); i++) {
+        sdt_header_t* hdr;
+        if (__lai_core_acpi__->xsdt != NULL) {
+            hdr = (sdt_header_t*)__lai_core_acpi__->xsdt->entries[i];
+        } else {
+            hdr = (sdt_header_t*)(((u64)__lai_core_acpi__->rsdt->entries[i]) + HHDM_START);
+        }
+
         if (strneq(hdr->sig, (char*)sig, 4) && vchksum(hdr)) {
             if (mcnt == index) {
-                return (void*)(__lai_core_acpi__->xsdt->entries[i] + HHDM_START);
+                return (void*)hdr;
             }
             mcnt++;
         }

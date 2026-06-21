@@ -69,10 +69,7 @@ static inline int getexp( unsigned int size )
 
 static void* 	liballoc_memset(void* s, int c, size_t n)
 {
-	int i;
-	for ( i = 0; i < n ; i++)
-		((char*)s)[i] = c;
-	
+	for (size_t i = 0; i < n ; i++) ((char*)s)[i] = c;
 	return s;
 }
 
@@ -206,7 +203,7 @@ static inline struct boundary_tag* split_tag( struct boundary_tag* tag )
 	unsigned int remainder = tag->real_size - sizeof(struct boundary_tag) - tag->size;
 		
 	struct boundary_tag *new_tag = 
-				   (struct boundary_tag*)((unsigned int)tag + sizeof(struct boundary_tag) + tag->size);	
+				   (struct boundary_tag*)((unsigned long)tag + sizeof(struct boundary_tag) + tag->size);	
 	
 						new_tag->magic = LIBALLOC_MAGIC;
 						new_tag->real_size = remainder;	
@@ -247,7 +244,7 @@ static struct boundary_tag* allocate_new_tag( unsigned int size )
 		if ( (usage % l_pageSize) != 0 ) pages += 1;
 
 		// Make sure it's >= the minimum size.
-		if ( pages < l_pageCount ) pages = l_pageCount;
+		if ( pages < (unsigned int)l_pageCount ) pages = l_pageCount;
 
 		tag = (struct boundary_tag*)liballoc_alloc( pages );
 
@@ -373,7 +370,7 @@ void *malloc(size_t size)
 		
 		
 
-	ptr = (void*)((unsigned int)tag + sizeof( struct boundary_tag ) );
+	ptr = (void*)((unsigned long)tag + sizeof( struct boundary_tag ) );
 
 
 	
@@ -402,7 +399,7 @@ void free(void *ptr)
 	liballoc_lock();
 	
 
-		tag = (struct boundary_tag*)((unsigned int)ptr - sizeof( struct boundary_tag ));
+		tag = (struct boundary_tag*)((unsigned long)ptr - sizeof( struct boundary_tag ));
 	
 		if ( tag->magic != LIBALLOC_MAGIC ) 
 		{
@@ -452,7 +449,7 @@ void free(void *ptr)
 				unsigned int pages = tag->real_size / l_pageSize;
 
 				if ( (tag->real_size % l_pageSize) != 0 ) pages += 1;
-				if ( pages < l_pageCount ) pages = l_pageCount;
+				if ( pages < (unsigned int)l_pageCount ) pages = l_pageCount;
 
 				liballoc_free( tag, pages );
 
@@ -517,7 +514,7 @@ void*   realloc(void *p, size_t size)
 	if ( p == NULL ) return malloc( size );
 
 	if ( liballoc_lock != NULL ) liballoc_lock();		// lockit
-		tag = (struct boundary_tag*)((unsigned int)p - sizeof( struct boundary_tag ));
+		tag = (struct boundary_tag*)((unsigned long)p - sizeof( struct boundary_tag ));
 		real_size = tag->size;
 	if ( liballoc_unlock != NULL ) liballoc_unlock();
 

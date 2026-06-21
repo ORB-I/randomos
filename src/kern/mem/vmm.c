@@ -1,9 +1,14 @@
+#include <core/limreqs.h>
 #include <core/mem/vmm.h>
 #include <core/mem/pmm.h>
 #include <lib/string.h>
 
 extern u64 hhdm_offset;
 static page_table_t* pml4 = NULL;
+static u64 lhhdm_off = 0;
+
+extern u64 _kernel_end;
+extern u64 _kernel_start;
 
 typedef struct vmm_region {
     u64 vaddr_base;
@@ -88,18 +93,62 @@ void vmm_map_page(page_table_t* pml4v, u64 virt, u64 phys, u64 flg) {
     }
 
     pt_virt[PT_IDX(virt)] = (phys & ~0xFFFULL) | flg | PAGE_PRESENT;
+    asm volatile("invlpg (%0)" :: "r"(virt) : "memory");
+}
+
+void vmm_map_huge_page(page_table_t* pml4v, u64 virt, u64 phys, u64 flg) {
+    u64 pml4e = pml4v[PML4_IDX(virt)];
+    page_table_t* pdpt_virt;
+    if (!(pml4e & PAGE_PRESENT)) {
+        pdpt_virt = alloctblpg();
+        pml4v[PML4_IDX(virt)] = ((u64)pdpt_virt - hhdm_offset) | PAGE_PRESENT | PAGE_WRITE | PAGE_USER;
+    } else {
+        pdpt_virt = (page_table_t*)(hhdm_offset + (pml4e & ~0xFFFULL));
+    }
+
+    u64 pdpte = pdpt_virt[PDPT_IDX(virt)];
+    page_table_t* pd_virt;
+    if (!(pdpte & PAGE_PRESENT)) {
+        pd_virt = alloctblpg();
+        pdpt_virt[PDPT_IDX(virt)] = ((u64)pd_virt - hhdm_offset) | PAGE_PRESENT | PAGE_WRITE | PAGE_USER;
+    } else {
+        pd_virt = (page_table_t*)(hhdm_offset + (pdpte & ~0xFFFULL));
+    }
+
+    pd_virt[PD_IDX(virt)] = (phys & ~0x1FFFFFULL) | flg | PAGE_PRESENT | PAGE_HUGE;
 }
 
 void vmm_init() {    
     pml4 = alloctblpg();
+
+    struct pmm_state* pmms = get_pmm_state();
+
+    u64 tpmem = pmms->mem_high;
+    for (u64 i = 0; i < tpmem; i += 0x200000) {
+        vmm_map_huge_page(pml4, HHDM_START + i, i, PAGE_WRITE);
+    }
+
+    u64 kphys = kaddr_req.response->physical_base;
+    u64 klen  = (u64)&_kernel_end - (u64)&_kernel_start;
+
+    for (u64 i = 0; i < klen; i += 4096) {
+        vmm_map_page(pml4, KERN_START + i, kphys + i, PAGE_WRITE);
+    }
+
     u64 lpml4p;
     asm volatile("mov %%cr3, %0" : "=r"(lpml4p));
     page_table_t* lpml4v = (page_table_t*)(hhdm_offset + lpml4p);
     for (int i = 256; i < 512; i++) {
-        pml4[i] = lpml4v[i];
+        if (pml4[i] == 0 && lpml4v[i] != 0) {
+            pml4[i] = lpml4v[i];
+        }
     }
+
     u64 pml4p = (u64)pml4 - hhdm_offset;
     asm volatile("mov %0, %%cr3" :: "r"(pml4p) : "memory");
+
+    lhhdm_off = hhdm_request.response->offset;
+    hhdm_offset = HHDM_START;
 
     vmmr_head = allocvmmr();
     if (vmmr_head) {
@@ -108,6 +157,12 @@ void vmm_init() {
         vmmr_head->is_free = 1;
         vmmr_head->next = NULL;
     }
+}
+
+void* xlate_limptr(void* limine_vaddr) {
+    if (!limine_vaddr) return NULL;
+    u64 paddr = (u64)limine_vaddr - lhhdm_off;
+    return (void*)(paddr + HHDM_START);
 }
 
 static u32 is_table_empty(page_table_t* table_virt) {
@@ -175,6 +230,10 @@ void* vmm_map_pages(page_table_t* pml4v, u64 vst, u64 pst, size_t pgcnt, u64 flg
             void* bphys = pmm_falloc(pgcnt);
             if (!bphys) return NULL;
             pst = (u64)bphys;
+            for (size_t i = 0; i < pgcnt; i++) {
+                vmm_map_page(pml4v, vst + (i * page_size), pst + (i * page_size), x86flgs);
+            }
+            return (void*)vst;
         } else {
             for (size_t i = 0; i < pgcnt; i++) {
                 void* phys_page = pmm_falloc(1);
@@ -291,6 +350,11 @@ void vmm_sasp(page_table_t* tpml4) {
     if (!tpml4) return;
     u64 ppml4 = (u64)tpml4 - hhdm_offset;
     asm volatile("mov %0, %%cr3" :: "r"(ppml4) : "memory");
+}
+
+void vmm_skasp() {
+    if (!pml4) return;
+    vmm_sasp(pml4);
 }
 
 void vmm_dasp(page_table_t* tpml4) {
