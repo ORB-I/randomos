@@ -8,6 +8,7 @@
 
 #include <lib/sh.h>
 #include <lib/loader.h>
+#include <core/asmh.h>
 
 #include <lai/helpers/pm.h>
 
@@ -20,12 +21,6 @@ extern void syscall_s();
 extern __attribute__((aligned(16))) u8 kern_stack[16384];
 static u64 gsblk[2];
 
-static inline void wrmsr(u32 msr, u64 val) {
-    u32 low = val & 0xFFFFFFFF;
-    u32 high = val >> 32;
-    asm volatile("wrmsr" : : "c"(msr), "a"(low), "d"(high));
-}
-
 void init_syscalls() {
     gsblk[0] = 0;
     gsblk[1] = (u64)kern_stack + 16384;
@@ -37,8 +32,8 @@ void init_syscalls() {
 }
 
 struct sysregs {
-    u64 rax, rbx, rcx, rdx;
-    u64 rsi, rdi, r8, r9, r10, r11;
+    u64 num, a0, a1, a2, a3, a4, a5;
+    u64 __a1, __r11;
 };
 
 [[noreturn]] void sys_exit(page_table_t* uasp) {
@@ -51,113 +46,110 @@ struct sysregs {
         :: "r"(kesp), "r"(sh)
         : "memory"
     );
-
-
-
     panic("System call EXIT failed");
 }
 
 void syscall_c(struct sysregs* args) {
     page_table_t* uasp = vmm_cpml4v();
     vmm_skasp();
-    switch (args->rax) {
+    switch (args->num) {
         case 1: sys_exit(uasp);
         case 2: {
-            args->rax = read(args->rbx, (u8*)args->rcx, args->rdx);
+            args->num = read(args->a0, (u8*)args->a1, args->a2);
             return;
         }
         case 3: {
-            args->rax = write(args->rbx, (u8*)args->rcx, args->rdx);
+            args->num = write(args->a0, (u8*)args->a1, args->a2);
             return;
         }
         case 4: {
-            args->rax = open((char*)args->rbx, args->rcx);
+            args->num = open((char*)args->a0, args->a1);
             return;
         }
         case 5: {
-            args->rax = close(args->rbx);
+            args->num = close(args->a0);
             return;
         }
         case 6: {
-            if (open((char*)args->rbx, O_CREAT) < 0) {
-                args->rax = -1;
+            if (open((char*)args->a0, O_CREAT) < 0) {
+                args->num = -1;
                 return;
             } else {
-                args->rax = close(args->rax);
+                args->num = close(args->num);
                 return;
             }
         }
         case 7: {
-            args->rax = unlink((char*)args->rbx);
+            args->num = unlink((char*)args->a0);
             return;
         }
         case 8: {
-            args->rax = chdir((char*)args->rbx);
+            args->num = chdir((char*)args->a0);
             return;
         }
         case 9: {
-            args->rax = lseek(args->rbx, args->rcx, args->rdx);
+            args->num = lseek(args->a0, args->a1, args->a2);
             return;
         }
         case 10: {
-            args->rax = rename((char*)args->rbx, (char*)args->rcx);
+            args->num = rename((char*)args->a0, (char*)args->a1);
             return;
         }
         case 11: {
-            args->rax = mkdir((char*)args->rbx);
+            args->num = mkdir((char*)args->a0);
             return;
         }
         case 12: {
-            args->rax = unlink((char*)args->rbx);
+            args->num = unlink((char*)args->a0);
             return;
         }
         case 13: {
-            if (lai_acpi_reset() == 0) args->rax = 0;
-            else args->rax = -1;
+            if (lai_acpi_reset() == 0) args->num = 0;
+            else args->num = -1;
             return;
         }
         case 14: {
-            args->rax = stat((char*)args->rbx, (struct stat*)args->rcx);
+            args->num = stat((char*)args->a0, (struct stat*)args->a1);
             return;
         }
         case 15: {
-            if (lai_enter_sleep(5) == 0) args->rax = 0;
-            else args->rax = -1;
+            if (lai_enter_sleep(5) == 0) args->num = 0;
+            else args->num = -1;
             return;
         }
         case 16: {
-            rtc_sleep(args->rbx);
-            args->rax = 0;
+            rtc_sleep(args->a0);
+            args->num = 0;
             return;
         }
         case 17: {
-            args->rax = readdir((DIR*)args->rbx, (struct stat*)args->rcx);
+            args->num = readdir((DIR*)args->a0, (struct stat*)args->a1);
             return;
         }
         case 18: {
-            args->rax = (u64)opendir((char*)args->rbx);
+            args->num = (u64)opendir((char*)args->a0);
             return;
         }
         case 19: {
-            args->rax = closedir((DIR*)args->rbx);
+            args->num = closedir((DIR*)args->a0);
             return;
         }
         case 20: {
-            args->rax = getcwd((char*)args->rbx, args->rcx);
+            args->num = getcwd((char*)args->a0, args->a1);
             return;
         }
         case 21: {
-            args->rax = sync(args->rbx);
+            args->num = sync(args->a0);
             return;
         }
         case 22: {
-            args->rax = trunc(args->rbx);
+            args->num = trunc(args->a0);
             return;
         }
         case 23: {
-            args->rax = termctl(args->rbx, args->rcx);
+            args->num = termctl(args->a0, args->a1);
         }
 
-        default: args->rax = -1;
+        default: args->num = -1;
     }
 }

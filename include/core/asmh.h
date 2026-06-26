@@ -14,3 +14,6 @@ u32 inl(u16 port);
 void io_wait(void);
 
 uint64_t rdtsc(void);
+
+void wrmsr(u32 msr, u64 val);
+u64 rdmsr(u32 msr);

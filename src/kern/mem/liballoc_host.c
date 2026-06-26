@@ -24,6 +24,6 @@ void* liballoc_alloc(int npg) {
 }
 
 int liballoc_free(void* addr, int npg) {
-    vmm_unmap_pages(vmm_cpml4v(), (u64)addr, npg);
+    vmm_unmap_pages(vmm_cpml4v(), (u64)addr, npg, 0);
     return 0;
 }

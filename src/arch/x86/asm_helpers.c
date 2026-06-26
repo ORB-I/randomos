@@ -42,3 +42,15 @@ uint64_t rdtsc(void) {
     asm volatile("rdtsc" : "=a"(low), "=d"(high));
     return ((uint64_t)high << 32) | low;
 }
+
+void wrmsr(u32 msr, u64 val) {
+    u32 low = val & 0xFFFFFFFF;
+    u32 high = val >> 32;
+    asm volatile("wrmsr" :: "c"(msr), "a"(low), "d"(high));
+}
+
+u64 rdmsr(u32 msr) {
+    u32 low, high;
+    asm volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
+    return ((u64)high << 32) | low;
+}

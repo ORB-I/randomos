@@ -3,8 +3,9 @@
 #include <lib/string.h>
 #include <core/mem/vmm.h>
 
-#define USERSTACK (64 * 1024)
-#define ARGMAX 16
+#define USTACK    (64 * 1024)
+#define USTACKPGS 16
+#define ARGMAX    16
 
 extern u64 ram_max;
 
@@ -12,7 +13,7 @@ int load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp) {
     usize npgs = phdr->p_memsz / 4096;
     if (phdr->p_memsz % 4096 != 0) npgs++;
 
-    void* addr = vmm_map_pages(nasp, phdr->p_vaddr, 0, npgs, MAP_ANYPHYS | PAGE_USER | PAGE_WRITE);
+    void* addr = vmm_map_pages(vmm_cpml4v(), USER_START + phdr->p_vaddr, 0, npgs, MAP_ANYPHYS | MAP_CONT | PAGE_WRITE);
     if (!addr) return -1;
 
     if (lseek(fd, phdr->p_offset, SEEK_SET) < 0) {
@@ -28,10 +29,18 @@ int load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp) {
         return -1;
     }
 
+    u64 paddr = vmm_get_phys(vmm_cpml4v(), (u64)addr);
+    if (!vmm_map_pages(nasp, phdr->p_vaddr, paddr, npgs, MAP_CONT | PAGE_USER)) {
+        return -1;
+    }
+
+    vmm_unmap_pages(vmm_cpml4v(), (u64)addr, npgs, UNMAP_KEEPPHYS);
+
     return 0;
 }
 
 int load_program(const char* path, char** argv) {
+    
     int fd = open(path, O_RDONLY);
     if (fd < 0) return -1;
 
@@ -83,7 +92,6 @@ int load_program(const char* path, char** argv) {
     }
 
     page_table_t* nasp = vmm_casp();
-    vmm_sasp(nasp);
     for (int i = 0; i < ehdr.e_phnum; i++) {
         if (phdrs[i].p_type == PT_LOAD) {
             if (load_segment(&phdrs[i], fd, nasp) < 0) {
@@ -95,13 +103,13 @@ int load_program(const char* path, char** argv) {
 
     close(fd);
 
-    u64 rsp = load_high + USERSTACK;
-    u64 rsp0 = load_low + rsp;
+    u64 rsp = 0x00007FFFFFFFF000;
     u64 ucode = 0x1B;
     u64 udata = 0x23;
 
+    vmm_map_pages(vmm_cpml4v(), rsp - USTACK, 0, USTACKPGS, MAP_ANYPHYS | PAGE_WRITE | MAP_CONT);
+
     u64 rsp_cpy = rsp;
-    u64 rsp0_cpy = rsp0;
 
     int ac = 0;
     while (argv[ac] != NULL && ac < ARGMAX) {
@@ -113,33 +121,37 @@ int load_program(const char* path, char** argv) {
     for (int i = ac - 1; i >= 0; i--) {
         u32 len = strlen(argv[i]) + 1;
         rsp_cpy -= len;
-        rsp0_cpy -= len;
 
-        memcpy((void*)rsp0_cpy, argv[i], len);
+        memcpy((void*)rsp_cpy, argv[i], len);
         avaddrs[i] = rsp_cpy;
     }
 
-    rsp0_cpy &= ~3;
-    rsp_cpy &= ~3;
+    rsp_cpy &= ~15;
 
-    rsp0_cpy -= sizeof(u32);
-    rsp_cpy -= sizeof(u32);
-    *(u32*)rsp0_cpy = 0;
+    rsp_cpy -= sizeof(u64);
+    *(u64*)rsp_cpy = 0;
 
     for (int i = ac - 1; i >= 0; i--) {
-        rsp0_cpy -= sizeof(u32);
-        rsp_cpy -= sizeof(u32);
-        *(u32*)rsp0_cpy = avaddrs[i];
+        rsp_cpy -= sizeof(u64);
+        *(u64*)rsp_cpy = (u64)avaddrs[i];
     }
 
     u64 vargvp = rsp_cpy;
 
-    rsp0_cpy -= sizeof(u32); rsp_cpy -= sizeof(u32);
-    *(u32*)rsp0_cpy = vargvp;
+    rsp_cpy -= sizeof(u64);
+    *(u64*)rsp_cpy = vargvp;
 
-    rsp0_cpy -= sizeof(u32); rsp_cpy -= sizeof(u32);
-    *(u32*)rsp0_cpy = (u32)ac;
+    rsp_cpy -= sizeof(u64);
+    *(u64*)rsp_cpy = (u64)ac;
 
+    rsp_cpy &= ~15;
+
+    u64 paddr = vmm_get_phys(vmm_cpml4v(), (u64)(rsp - USTACK));
+    if (!vmm_map_pages(nasp, rsp - USTACK, paddr, USTACKPGS, MAP_CONT | PAGE_USER | PAGE_WRITE)) {
+        return -1;
+    }
+    vmm_unmap_pages(vmm_cpml4v(), (u64)(rsp - USTACK), USTACKPGS, UNMAP_KEEPPHYS);
+    vmm_sasp(nasp);
     asm volatile(
         "cli\n\t"
         

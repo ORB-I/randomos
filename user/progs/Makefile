@@ -1,8 +1,8 @@
-CC := i686-elf-gcc
+CC := x86_64-elf-gcc
 CCFLAGS := -L../libc -lc ../libc/crt0.o \
     -nostdlib -fno-builtin -fno-stack-protector \
     -I../libc/include -nostartfiles -nodefaultlibs \
-    -ffreestanding -m32 -T../../share/user.ld \
+    -ffreestanding -m64 -T../../share/user.ld \
 	-g -MMD -MP
 
 PROGS := echo ls mkfile poweroff reboot sleep clear

@@ -64,6 +64,36 @@ static page_table_t* alloctblpg() {
     return virt_page;
 }
 
+u64 vmm_get_phys(page_table_t* pml4v, u64 virt) {
+    if (!pml4v) return 0;
+
+    u64 pml4e = pml4v[PML4_IDX(virt)];
+    if (!(pml4e & PAGE_PRESENT)) return 0;
+    page_table_t* pdpt_virt = (page_table_t*)(hhdm_offset + (pml4e & ~0xFFFULL));
+
+    u64 pdpte = pdpt_virt[PDPT_IDX(virt)];
+    if (!(pdpte & PAGE_PRESENT)) return 0;
+    page_table_t* pd_virt = (page_table_t*)(hhdm_offset + (pdpte & ~0xFFFULL));
+
+    u64 pde = pd_virt[PD_IDX(virt)];
+    if (!(pde & PAGE_PRESENT)) return 0;
+
+    if (pde & PAGE_HUGE) {
+        u64 phys_frame = pde & ~0x1FFFFFULL;
+        u64 page_offset = virt & 0x1FFFFFULL;
+        return phys_frame | page_offset;
+    }
+
+    page_table_t* pt_virt = (page_table_t*)(hhdm_offset + (pde & ~0xFFFULL));
+
+    u64 pte = pt_virt[PT_IDX(virt)];
+    if (!(pte & PAGE_PRESENT)) return 0;
+
+    u64 phys_frame = pte & ~0xFFFULL;
+    u64 page_offset = virt & 0xFFFULL;
+    return phys_frame | page_offset;
+}
+
 void vmm_map_page(page_table_t* pml4v, u64 virt, u64 phys, u64 flg) {
     u64 pml4e = pml4v[PML4_IDX(virt)];
     page_table_t* pdpt_virt;
@@ -174,7 +204,7 @@ static u32 is_table_empty(page_table_t* table_virt) {
     return 1;
 }
 
-void vmm_unmap_page(page_table_t* pml4v, u64 virt) {
+void vmm_unmap_page(page_table_t* pml4v, u64 virt, u64 flags) {
     extern u64 hhdm_offset;
 
     u64 pml4idx = PML4_IDX(virt);
@@ -199,8 +229,14 @@ void vmm_unmap_page(page_table_t* pml4v, u64 virt) {
     page_table_t* ptv = (page_table_t*)(hhdm_offset + ptp);
 
     u64 ptidx = PT_IDX(virt);
+    u64 pframe = ptv[ptidx] & ~0xFFFULL;
     ptv[ptidx] = 0;
+
     asm volatile("invlpg (%0)" :: "r"(virt) : "memory");
+
+    if ((flags & UNMAP_KEEPPHYS) != UNMAP_KEEPPHYS) {
+        pmm_ffree((void*)pframe, 1);
+    }
 
     if (is_table_empty(ptv)) {
         pmm_ffree((void*)ptp, 1);
@@ -250,11 +286,11 @@ void* vmm_map_pages(page_table_t* pml4v, u64 vst, u64 pst, size_t pgcnt, u64 flg
     return (void*)vst;
 }
 
-void vmm_unmap_pages(page_table_t* pml4v, u64 vst, size_t pgcnt) {
+void vmm_unmap_pages(page_table_t* pml4v, u64 vst, size_t pgcnt, u64 flags) {
     u64 page_size = 4096;
     u64 szrm = pgcnt * page_size;
     for (size_t i = 0; i < pgcnt; i++) {
-        vmm_unmap_page(pml4v, vst + (i * page_size));
+        vmm_unmap_page(pml4v, vst + (i * page_size), flags);
     }
     if (vst < HEAP_START || vst >= HEAP_END) return; 
 

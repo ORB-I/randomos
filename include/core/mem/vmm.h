@@ -10,6 +10,8 @@
 #define MAP_CONT      (1ULL << 61)
 #define MAP_ANYVIRT   (1ULL << 62)
 
+#define UNMAP_KEEPPHYS (1ULL << 0)
+
 #define PML4_IDX(addr) (((addr) >> 39) & 0x1FF)
 #define PDPT_IDX(addr) (((addr) >> 30) & 0x1FF)
 #define PD_IDX(addr)   (((addr) >> 21) & 0x1FF)
@@ -35,8 +37,9 @@ typedef u64 page_table_t;
 void vmm_init();
 void vmm_map_page(page_table_t* pml4v, u64 virt, u64 phys, u64 flg);
 void* vmm_map_pages(page_table_t* pml4v, u64 vst, u64 pst, size_t pgcnt, u64 flg);
-void vmm_unmap_page(page_table_t* pml4v, u64 virt);
-void vmm_unmap_pages(page_table_t* pml4v, u64 vst, size_t pgcnt);
+void vmm_unmap_page(page_table_t* pml4v, u64 virt, u64 flags);
+void vmm_unmap_pages(page_table_t* pml4v, u64 vst, size_t pgcnt, u64 flags);
+u64 vmm_get_phys(page_table_t* pml4v, u64 virt);
 
 page_table_t* vmm_cpml4v();
 page_table_t* vmm_casp();

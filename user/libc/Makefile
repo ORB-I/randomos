@@ -1,9 +1,9 @@
-CC := i686-elf-gcc
-AR := i686-elf-ar
+CC := x86_64-elf-gcc
+AR := x86_64-elf-ar
 AS := nasm
 
-ASFLAGS := -felf32
-CCFLAGS := -m32 -nostdlib -fno-builtin \
+ASFLAGS := -felf64
+CCFLAGS := -m64 -nostdlib -fno-builtin \
     -fno-stack-protector -Iinclude \
     -nostartfiles -nodefaultlibs \
     -ffreestanding -Wall -Wextra -g \

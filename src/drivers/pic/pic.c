@@ -22,6 +22,14 @@
 #define ICW4_BUF_MASTER 0x0C
 #define ICW4_SFNM 0x10
 
+#define IA32_APIC_BASE_MSR 0x1B
+
+void fuck_off_apic_you_interrupt_stealing_bitch() {
+    u64 apic_base = rdmsr(IA32_APIC_BASE_MSR);
+    apic_base &= ~(1 << 11);
+    wrmsr(IA32_APIC_BASE_MSR, apic_base);
+}
+
 #define CASCADE_IRQ 2
 
 void pic_send_eoi(u8 irq) {
@@ -32,6 +40,7 @@ void pic_send_eoi(u8 irq) {
 }
 
 void pic_remap(s32 offset1, s32 offset2) {
+    fuck_off_apic_you_interrupt_stealing_bitch();
     u8 mask1 = inb(PIC1_DATA);
     u8 mask2 = inb(PIC2_DATA);
 

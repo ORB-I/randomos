@@ -9,46 +9,46 @@ global __syscall5
 section .text
 
 __syscall0:
-    mov rax, [rsp + 16]
+    mov rax, rdi
     syscall
     ret
 
 __syscall1:
-    mov rax, [rsp + 16]
-    mov rbx, [rsp + 24]
+    mov rax, rdi
+    mov rdi, rsi
     syscall
     ret
 
 __syscall2:
-    mov rax, [rsp + 16]
-    mov rbx, [rsp + 24]
-    mov rcx, [rsp + 32]
+    mov rax, rdi
+    mov rdi, rsi
+    mov rsi, rdx
     syscall
     ret
 
 __syscall3:
-    mov rax, [rsp + 16]
-    mov rbx, [rsp + 24]
-    mov rcx, [rsp + 32]
-    mov rdx, [rsp + 40]
+    mov rax, rdi
+    mov rdi, rsi
+    mov rsi, rdx
+    mov rdx, rcx
     syscall
     ret
 
 __syscall4:
-    mov rax, [rsp + 16]
-    mov rbx, [rsp + 24]
-    mov rcx, [rsp + 32]
-    mov rdx, [rsp + 40]
-    mov rdi, [rsp + 48]
+    mov rax, rdi
+    mov rdi, rsi
+    mov rsi, rdx
+    mov rdx, rcx
+    mov r10, r8
     syscall
     ret
 
 __syscall5:
-    mov rax, [rsp + 16]
-    mov rbx, [rsp + 24]
-    mov rcx, [rsp + 32]
-    mov rdx, [rsp + 40]
-    mov rdi, [rsp + 48]
-    mov rsi, [rsp + 56]
+    mov rax, rdi
+    mov rdi, rsi
+    mov rsi, rdx
+    mov rdx, rcx
+    mov r10, r8
+    mov r8, r9
     syscall
     ret

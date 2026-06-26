@@ -9,30 +9,27 @@ syscall_s:
     mov rsp, [gs:8]
 
     push r11
-    push r10
+    push rcx
+
     push r9
     push r8
-    push rdi
-    push rsi
-
+    push r10
     push rdx
-    push rcx
-    push rbx
+    push rsi
+    push rdi
     push rax
 
-    mov rdi, rsp
     call syscall_c
 
     pop rax
-    pop rbx
-    pop rcx
-    pop rdx
-
-    pop rsi
     pop rdi
+    pop rsi
+    pop rdx
+    pop r10
     pop r8
     pop r9
-    pop r10
+    
+    pop rcx
     pop r11
 
     mov rsp, [gs:0]
