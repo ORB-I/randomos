@@ -9,5 +9,6 @@ struct kern_symbol* locate_symbol(u64 rip) {
             break;
         }
     }
+
     return closest;
 }

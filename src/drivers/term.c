@@ -33,9 +33,15 @@ void term_putchar(char c) {
     }
 }
 
+void term_write(const char* buf, usize sz) {
+    for (usize i = 0; i < sz; i++) {
+        term_putchar(buf[i]);
+    }
+}
+
 void term_puts(const char* str) {
     while (*str != '\0') {
-        flanterm_write(_term_ctx, str++, 1);
+        term_putchar(*str++);
     }
 }
 

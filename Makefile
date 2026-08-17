@@ -6,7 +6,7 @@ XORRISO := xorriso
 QEMU := qemu-system-x86_64
 
 ASFLAGS      := -felf64
-LDFLAGS      := -Tshare/link.ld -m64 -ffreestanding -O2 -nostdlib
+LDFLAGS      := -Tshare/link.ld -m64 -ffreestanding -O0 -nostdlib
 LIBS         := -Llib -llai -lff -lflanterm -lgcc
 CCFLAGS      := -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 				-m64 -nostdlib -fno-builtin -fno-stack-protector -Iinclude \
@@ -16,7 +16,7 @@ XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
         		-no-emul-boot -boot-load-size 4 -boot-info-table -hfsplus \
         		-apm-block-size 2048 --efi-boot boot/limine/limine-uefi-cd.bin \
         		-efi-boot-part --efi-boot-image --protective-msdos-label
-QFLAGS       := -M pc -boot d -m 1G \
+QFLAGS       := -M pc -boot d -m 1G -monitor stdio \
 				-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
 				-drive id=disk,file=drive.img,format=raw,if=none \
   				-device ide-hd,drive=disk,bus=ide.0,unit=0

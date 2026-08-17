@@ -1,5 +1,5 @@
 #pragma once
-#include <stdarg.h>
+#include <core/std.h>
 
 #define TCTL_FLUSH 0
 #define TCTL_CLEAR 1
@@ -27,6 +27,7 @@ typedef enum {
 
 void init_term();
 void term_putchar(char c);
+void term_write(const char* buf, usize sz);
 void term_puts(const char* str);
 void term_setfgcolor(term_color_t clr);
 void term_setbgcolor(term_color_t clr);

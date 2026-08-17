@@ -7,7 +7,7 @@ CCFLAGS := -m64 -nostdlib -fno-builtin \
     -fno-stack-protector -Iinclude \
     -nostartfiles -nodefaultlibs \
     -ffreestanding -Wall -Wextra -g \
-	-MMD -MP
+	-MMD -MP -mno-mmx -mno-sse -mno-sse2 -mno-red-zone
 
 LIBC := libc.a
 CRT := crt0.o

@@ -12,7 +12,6 @@
 #define SEEK_CUR 1
 #define SEEK_END 2
 
-typedef s32 ssize;
 typedef s32 off_t;
 
 // internal kernel structure

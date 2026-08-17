@@ -102,5 +102,5 @@ void irq_enable(u8 line) {
 }
 
 void init_irq(s32 irq, void (*hdlr)()) {
-    idt_regintr(0x20 + irq, hdlr, 0x8E);
+    idt_regintr(0x20 + irq, hdlr, 0x8E, 1);
 }

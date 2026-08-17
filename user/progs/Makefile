@@ -3,7 +3,8 @@ CCFLAGS := -L../libc -lc ../libc/crt0.o \
     -nostdlib -fno-builtin -fno-stack-protector \
     -I../libc/include -nostartfiles -nodefaultlibs \
     -ffreestanding -m64 -T../../share/user.ld \
-	-g -MMD -MP
+	-g -MMD -MP -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
+	-Wall -Wextra
 
 PROGS := echo ls mkfile poweroff reboot sleep clear
 DRIVE ?= ../../drive.img

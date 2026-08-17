@@ -6,7 +6,9 @@ struct kern_symbol {
     const char* name;
 };
 
-extern struct kern_symbol ksymtbl[];
+typedef struct kern_symbol ksymtab[];
+
+extern ksymtab ksymtbl;
 extern usize nksyms;
 
 struct kern_symbol* locate_symbol(u64 rip);

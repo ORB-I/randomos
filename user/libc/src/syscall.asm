@@ -8,31 +8,32 @@ global __syscall5
 
 section .text
 
-__syscall0:
-    mov rax, rdi
+%macro do_syscall 0
     syscall
     ret
+%endmacro
+
+__syscall0:
+    mov rax, rdi
+    do_syscall
 
 __syscall1:
     mov rax, rdi
     mov rdi, rsi
-    syscall
-    ret
+    do_syscall
 
 __syscall2:
     mov rax, rdi
     mov rdi, rsi
     mov rsi, rdx
-    syscall
-    ret
+    do_syscall
 
 __syscall3:
     mov rax, rdi
     mov rdi, rsi
     mov rsi, rdx
     mov rdx, rcx
-    syscall
-    ret
+    do_syscall
 
 __syscall4:
     mov rax, rdi
@@ -40,8 +41,7 @@ __syscall4:
     mov rsi, rdx
     mov rdx, rcx
     mov r10, r8
-    syscall
-    ret
+    do_syscall
 
 __syscall5:
     mov rax, rdi
@@ -50,5 +50,4 @@ __syscall5:
     mov rdx, rcx
     mov r10, r8
     mov r8, r9
-    syscall
-    ret
+    do_syscall

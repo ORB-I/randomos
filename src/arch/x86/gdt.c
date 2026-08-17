@@ -39,11 +39,13 @@ struct tss_entry {
 } __attribute__((packed));
 
 
-struct gdt_entry _gdt[7]; 
+struct gdt_entry _gdt[8]; 
 struct gdtr _gdtr;
 struct tss_entry _tss;
 
 __attribute__((aligned(16))) u8 kern_stack[16384];
+__attribute__((aligned(16))) u8 intr_stack[16384];
+__attribute__((aligned(16))) u8 exct_stack[16384];
 
 #define NULLSS 0
 #define KCSS 1
@@ -81,6 +83,11 @@ void set_gdt_tss(int n, u64 base, u32 lim, u8 acc) {
     t->reserved = 0;
 }
 
+void reset_rsp(u64 addr) {
+    _tss.rsp0 = addr;
+}
+
+void kmain_aftergdt();
 void gdt_init() {
     asm volatile("cli");
 
@@ -94,6 +101,9 @@ void gdt_init() {
 
     _tss.rsp0 = (u64)(kern_stack + sizeof(kern_stack));
     _tss.iomap_base = sizeof(struct tss_entry);
+
+    _tss.ist[0] = (u64)(intr_stack + sizeof(intr_stack));
+    _tss.ist[1] = (u64)(exct_stack + sizeof(exct_stack));
 
     u64 tss_base = (u64)&_tss;
     u32 tss_limit = sizeof(struct tss_entry) - 1;
@@ -122,8 +132,11 @@ void gdt_init() {
         "mov $0x28, %%ax\n\t"
         "ltr %%ax\n\t"
 
-        "mov %1, %%rsp"
-        ::"m"(_gdtr), "r"(kern_stack + sizeof(kern_stack))
+        "mov %1, %%rsp\n\t"
+
+        "sti\n\t"
+        "call %2"
+        ::"m"(_gdtr), "r"(kern_stack + sizeof(kern_stack)), "r"(kmain_aftergdt)
         : "rax", "memory"
     );
 

@@ -36,6 +36,24 @@
     pop rax
 %endmacro
 
+%macro IRQ_ENTER 0
+    test byte [rsp + 8], 3
+    jz %%kernint_enter
+    swapgs
+%%kernint_enter:
+    pushaq
+    cld
+%endmacro
+
+%macro IRQ_EXIT 0
+    popaq
+    test byte [rsp + 8], 3
+    jz %%kernint_exit
+    swapgs
+%%kernint_exit:
+    iretq
+%endmacro
+
 section .text
 extern c_kbd_hdlr
 extern c_timer_hdlr
@@ -43,32 +61,21 @@ extern c_sci_hdlr
 
 global kbd_hdlr
 kbd_hdlr:
-    pushaq
-
+    IRQ_ENTER
     call c_kbd_hdlr
-
-    mov al, 0x20
-    out 0x20, al
-
-    popaq
-    iretq
+    IRQ_EXIT
 
 global timer_hdlr
 timer_hdlr:
-    pushaq
+    IRQ_ENTER
     call c_timer_hdlr
-
-    mov al, 0x20
-    out 0x20, al
-
-    popaq
-    iretq
+    IRQ_EXIT
 
 global rtc_hdlr
 global rtc_ticks
 
 rtc_hdlr:
-    pushaq
+    IRQ_ENTER
 
     inc dword [rtc_ticks]
 
@@ -81,8 +88,8 @@ rtc_hdlr:
 
     mov al, 0x20
     out 0x20, al
-    popaq
-    iretq
+    
+    IRQ_EXIT
 
 section .data
 align 4
@@ -91,14 +98,6 @@ rtc_ticks: dd 0
 section .text
 global sci_hdlr
 sci_hdlr:
-    pushaq
-
+    IRQ_ENTER
     call c_sci_hdlr
-
-    mov al, 0x20
-    out 0xA0, al
-
-    mov al, 0x20
-    out 0x20, al
-    popaq
-    iretq
+    IRQ_EXIT

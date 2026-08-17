@@ -1,5 +1,4 @@
 #include <core/std.h>
-
 #include <drivers/term.h>
 
 typedef struct {
@@ -21,13 +20,13 @@ typedef struct {
 static idt_entry_t idt[IDT_SIZE];
 static idtr_t idtr;
 
-void idt_regintr(u8 vector, void* isr, u8 flags) {
+void idt_regintr(u8 vector, void* isr, u8 flags, int ist) {
     idt_entry_t* dsc = &idt[vector];
     u64 addr = (u64)isr;
 
     dsc->isr_low = addr & 0xFFFF;
     dsc->kernel_cs = 0x08;
-    dsc->ist = 0;
+    dsc->ist = ist;
     dsc->attributes = flags;
     dsc->isr_mid = (addr >> 16) & 0xFFFF;
     dsc->isr_high = (addr >> 32) & 0xFFFFFFFF;
@@ -44,7 +43,7 @@ void idt_init() {
     for (s32 i = 0; i < count; i++) {
         s32 vec = vectors[i];
         if (int_hdlr_table[vec]) {
-            idt_regintr(vec, int_hdlr_table[vec], 0x8E);
+            idt_regintr(vec, int_hdlr_table[vec], 0x8E, 2);
         }
     }
 

@@ -3,11 +3,11 @@
 #include <sys/sysfn.h>
 
 ssize read(int fd, void* buf, usize sz) {
-    return (ssize)__syscall3(SYS_READ, (u32)fd, (u64)buf, (u32)sz);
+    return (ssize)__syscall3(SYS_READ, (u64)fd, (u64)buf, (u64)sz);
 }
 
 ssize write(int fd, void* buf, usize sz) {
-    return (ssize)__syscall3(SYS_WRITE, (u32)fd, (u64)buf, (u32)sz);
+    return (ssize)__syscall3(SYS_WRITE, (u64)fd, (u64)buf, (u64)sz);
 }
 
 int reboot() {
@@ -19,9 +19,9 @@ int poweroff() {
 }
 
 void sleep(int secs) {
-    __syscall1(SYS_SLEEP, (u32)secs);
+    __syscall1(SYS_SLEEP, (u64)secs);
 }
 
 int termctl(int code, int arg) {
-    return (int)__syscall2(SYS_TERMCTL, (u32)code, (u32)arg);
+    return (int)__syscall2(SYS_TERMCTL, (u64)code, (u64)arg);
 }

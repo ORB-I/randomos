@@ -84,7 +84,7 @@ ssize write(int fd, void* buf, usize size) {
             case 0: return -1; // cant write to stdin yet
             case 1:
             case 2:
-                for (usize i = 0; i < size; i++) term_putchar(((char*)buf)[i]);
+                term_write(buf, size);
                 term_flush();
                 return size;
             default: return -1;

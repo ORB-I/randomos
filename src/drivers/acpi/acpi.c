@@ -66,6 +66,7 @@ s32 acpi_ready(core_acpi_t* acpi) {
     return (out & 1) != 0;
 }
 
+s32 acpi_sci_irqno;
 void init_acpi(core_acpi_t* acpi) {
     acpi->rsdp = xlate_limptr(rsdp_req.response->address);
     if (!acpi->rsdp) panic("CANNOT LOCATE VALID RSDP");
@@ -92,6 +93,7 @@ void init_acpi(core_acpi_t* acpi) {
 
     if (!acpi->fadt) panic("CANNOT FIND FADT (FACP) TABLE");
 
+    acpi_sci_irqno = acpi->fadt->sci_int;
     init_irq(acpi->fadt->sci_int, sci_hdlr);
     set_lai_acpi(acpi);
 
@@ -100,4 +102,6 @@ void init_acpi(core_acpi_t* acpi) {
     lai_enable_acpi(0);
 }
 
-void c_sci_hdlr() {}
+void c_sci_hdlr() {
+    pic_send_eoi(acpi_sci_irqno);
+}

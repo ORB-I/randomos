@@ -8,8 +8,17 @@ syscall_s:
     mov [gs:0], rsp
     mov rsp, [gs:8]
 
-    push r11
     push rcx
+    push r11
+    
+    mov rcx, ds
+    push rcx
+    mov rcx, es
+    push rcx
+
+    mov rcx, 0x10
+    mov ds, rcx
+    mov es, rcx
 
     push r9
     push r8
@@ -19,6 +28,7 @@ syscall_s:
     push rdi
     push rax
 
+    mov rdi, rsp
     call syscall_c
 
     pop rax
@@ -30,8 +40,18 @@ syscall_s:
     pop r9
     
     pop rcx
-    pop r11
+    mov es, rcx
+    pop rcx
+    mov ds, rcx
 
-    mov rsp, [gs:0]
+    pop r11
+    pop rcx
+
+    push qword 0x23
+    push qword [gs:0]
+    push r11
+    push qword 0x1B
+    push rcx
+
     swapgs
-    sysret
+    iretq    

@@ -35,6 +35,10 @@ void kmain() {
     }
 
     gdt_init();
+    
+}
+
+void kmain_aftergdt() {
     pmm_init();
     vmm_init();
 

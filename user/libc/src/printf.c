@@ -3,7 +3,10 @@
 #include <stdarg.h>
 #include <stddef.h>
 
-void fputchar(int fd, char c) { write(fd, &c, 1); }
+void fputchar(int fd, char c) {
+    char buf[2] = {c, 0}; 
+    write(fd, buf, 1);
+}
 
 void putchar(char c) { fputchar(STDOUT, c); }
 

@@ -10,7 +10,7 @@ static void printf_base_numerical(writer_t wr, long n, s32 min_width, char pad) 
     char buf[32];
     s32 i = 0;
     s32 negative = 0;
-
+    
     if (n == 0) {
         while (min_width-- > 1) {
             wputchar(wr, pad);

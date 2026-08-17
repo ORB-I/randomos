@@ -8,6 +8,7 @@
 uint64_t tick = 0;
 void c_timer_hdlr() {
     tick++;
+    pic_send_eoi(0);
 }
 
 extern void timer_hdlr();

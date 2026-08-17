@@ -2,8 +2,11 @@
 #include <drivers/fs.h>
 #include <lib/string.h>
 #include <core/mem/vmm.h>
+#include <core/liballoc.h>
+#include <drivers/term.h>
+#include <lib/loader.h>
 
-#define USTACK    (64 * 1024)
+#define USTACK    (16 * 4096)
 #define USTACKPGS 16
 #define ARGMAX    16
 
@@ -40,7 +43,6 @@ int load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp) {
 }
 
 int load_program(const char* path, char** argv) {
-    
     int fd = open(path, O_RDONLY);
     if (fd < 0) return -1;
 
@@ -103,11 +105,13 @@ int load_program(const char* path, char** argv) {
 
     close(fd);
 
-    u64 rsp = 0x00007FFFFFFFF000;
-    u64 ucode = 0x1B;
-    u64 udata = 0x23;
+    u64 rsp = USER_END;
 
-    vmm_map_pages(vmm_cpml4v(), rsp - USTACK, 0, USTACKPGS, MAP_ANYPHYS | PAGE_WRITE | MAP_CONT);
+    void* stkptr = vmm_map_pages(vmm_cpml4v(), rsp - USTACK, 0, USTACKPGS, MAP_ANYPHYS | PAGE_WRITE | MAP_CONT);
+    if (!stkptr) {
+        close(fd);
+        return -1;
+    }
 
     u64 rsp_cpy = rsp;
 
@@ -119,9 +123,8 @@ int load_program(const char* path, char** argv) {
     u64 avaddrs[ARGMAX] = {0};
 
     for (int i = ac - 1; i >= 0; i--) {
-        u32 len = strlen(argv[i]) + 1;
-        rsp_cpy -= len;
-
+        usize len = strlen(argv[i]) + 1;
+        rsp_cpy -= (u64)len;
         memcpy((void*)rsp_cpy, argv[i], len);
         avaddrs[i] = rsp_cpy;
     }
@@ -151,30 +154,34 @@ int load_program(const char* path, char** argv) {
         return -1;
     }
     vmm_unmap_pages(vmm_cpml4v(), (u64)(rsp - USTACK), USTACKPGS, UNMAP_KEEPPHYS);
+    init_syscalls();
+
     vmm_sasp(nasp);
     asm volatile(
         "cli\n\t"
         
-        "mov %0, %%ds\n\t"
-        "mov %0, %%es\n\t"
-        "mov %0, %%fs\n\t"
-        "mov %0, %%gs\n\t"
+        "mov $0x23, %%ax\n\t"
+        "mov %%ax, %%ds\n\t"
+        "mov %%ax, %%es\n\t"
+        
+        "xor %%ax, %%ax\n\t"
+        "mov %%ax, %%fs\n\t"
+        "mov %%ax, %%gs\n\t"
 
-        "pushq %0\n\t"
-        "pushq %1\n\t"
-
+        "pushq $0x23\n\t"
+        "pushq %%rsi\n\t"
+        
         "pushfq\n\t"
         "popq %%rax\n\t"
         "orq $0x200, %%rax\n\t"
         "pushq %%rax\n\t"
         
-        "pushq %2\n\t"
-        "pushq %3\n\t"
+        "pushq $0x1b\n\t"
+        "pushq %%rdi\n\t"
 
         "iretq\n\t"
-
-        :: "r"(udata), "r"(rsp_cpy), 
-           "r"(ucode), "r"(ehdr.e_entry)
+        :
+        : "D"(ehdr.e_entry), "S"(rsp_cpy)
         : "rax", "memory"
     );
 

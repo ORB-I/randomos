@@ -124,11 +124,13 @@ void c_kbd_hdlr() {
         if (released == 0x2A || released == 0x36) {
             shift_pressed = false;
         }
+        pic_send_eoi(1);
         return;
     }
 
     if (sc == 0x2A || sc == 0x36) {
         shift_pressed = true;
+        pic_send_eoi(1);
         return;
     }
 
@@ -139,4 +141,6 @@ void c_kbd_hdlr() {
             enqueue_key(c);
         }
     }
+    
+    pic_send_eoi(1);
 }

@@ -40,9 +40,9 @@
 
     va_end(lst);
 
-    printf("RAX: %016x  RBX: %016x  RCX: %016x  RDX: %016x\n", rax, rbx, rcx, rdx);
-    printf("RSI: %016x  RDI: %016x  RBP: %016x  RSP: %016x\n", rsi, rdi, rbp, rsp);
-    printf("RIP: %016x  RFLAGS: %016x\n", rip, rflags);
+    printf("RAX: %016lx  RBX: %016lx  RCX: %016lx  RDX: %016lx\n", rax, rbx, rcx, rdx);
+    printf("RSI: %016lx  RDI: %016lx  RBP: %016lx  RSP: %016lx\n", rsi, rdi, rbp, rsp);
+    printf("RIP: %016lx  RFLAGS: %016lx\n", rip, rflags);
     printf("CS:  %04x   DS: %04x   ES: %04x\n\n", cs, ds, es);
 
     printf("*** HALTING NOW ***");
