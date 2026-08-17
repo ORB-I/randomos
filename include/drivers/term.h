@@ -25,6 +25,14 @@ typedef enum {
     TERM_BRIGHT_GREY = 15,
 } term_color_t;
 
+typedef struct {
+    usize x;
+    usize y;
+} term_pos_t;
+
+#define TERMSET_ONLYY 0x0001
+#define TERMSET_ONLYX 0x0010
+
 void init_term();
 void term_putchar(char c);
 void term_write(const char* buf, usize sz);
@@ -35,6 +43,8 @@ void term_rstfgcolor();
 void term_rstbgcolor();
 void term_clear();
 void term_flush();
+void term_get_pos(term_pos_t* pos);
+void term_set_pos(term_pos_t* pos, int flags);
 void printf(const char* fmt, ...);
 void vprintf(const char* fmt, va_list lst);
 int termctl(int code, int arg0);

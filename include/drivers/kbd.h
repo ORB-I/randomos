@@ -3,6 +3,7 @@
 
 void init_kbd();
 
+void noecho(int on);
 char getchar(void);
 usize getstr(char* buf, usize ntoread);
 void enable_kbd();

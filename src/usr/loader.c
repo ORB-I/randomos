@@ -5,6 +5,7 @@
 #include <core/liballoc.h>
 #include <drivers/term.h>
 #include <lib/loader.h>
+#include <lib/syscall.h>
 
 #define USTACK    (16 * 4096)
 #define USTACKPGS 16
@@ -120,7 +121,7 @@ int load_program(const char* path, char** argv) {
         ac++;
     }
 
-    u64 avaddrs[ARGMAX] = {0};
+    u64 avaddrs[ARGMAX + 1] = {0};
 
     for (int i = ac - 1; i >= 0; i--) {
         usize len = strlen(argv[i]) + 1;
@@ -139,15 +140,8 @@ int load_program(const char* path, char** argv) {
         *(u64*)rsp_cpy = (u64)avaddrs[i];
     }
 
-    u64 vargvp = rsp_cpy;
-
-    rsp_cpy -= sizeof(u64);
-    *(u64*)rsp_cpy = vargvp;
-
     rsp_cpy -= sizeof(u64);
     *(u64*)rsp_cpy = (u64)ac;
-
-    rsp_cpy &= ~15;
 
     u64 paddr = vmm_get_phys(vmm_cpml4v(), (u64)(rsp - USTACK));
     if (!vmm_map_pages(nasp, rsp - USTACK, paddr, USTACKPGS, MAP_CONT | PAGE_USER | PAGE_WRITE)) {

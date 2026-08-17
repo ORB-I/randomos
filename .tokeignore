@@ -1,0 +1,7 @@
+vendor/
+limine-binary/
+include/acpispec
+include/flanterm
+include/lai
+include/ff16
+ksyms.c

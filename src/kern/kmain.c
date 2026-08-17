@@ -8,6 +8,7 @@
 
 #include <lib/sh.h>
 #include <lib/loader.h>
+#include <lib/syscall.h>
 
 #include <drivers/kbd.h>
 #include <drivers/rtc.h>
@@ -72,7 +73,7 @@ void kmain_aftergdt() {
         printf("KERN: No drive available\n");
     }
 
-    init_syscalls();
+    init_syscalls(); // do an initial init before the other init cuz y not
 
     printf("IO: Initializing and enabling keyboard\n");
     init_kbd();

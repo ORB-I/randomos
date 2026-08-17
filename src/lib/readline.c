@@ -15,12 +15,25 @@ char* readline(const char* prompt) {
         term_flush();
     }
 
-    u32 i = 0;
+    usize i = 0;
+    noecho(1);
 
     while (1) {
         char c = (char)getchar();
         if (c == '\n' || c == '\r') {
+            term_putchar(c);
             break;
+        } else if (c == '\b') {
+            if (i == 0) continue;
+            else {
+                buf[i--] = '\0';
+                term_putchar('\b');
+                term_putchar(' ');
+                term_putchar('\b');
+                continue;
+            }
+        } else {
+            term_putchar(c);
         }
         
         if (i >= bufsz - 1) {
@@ -36,6 +49,7 @@ char* readline(const char* prompt) {
         buf[i] = c;
         i++;
     }
+    noecho(0);
 
     buf[i] = '\0';
     return buf;

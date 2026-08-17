@@ -8,7 +8,7 @@
 
 static const char sc_map[128] = {
     0, 0, '1', '2', '3', '4', '5', '6', '7', '8', 
-    '9', '0', '-', '=', 0, 0, 'q', 'w', 'e', 
+    '9', '0', '-', '=', '\b', '\t', 'q', 'w', 'e', 
     'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', 
     '\n', 0, 'a', 's', 'd', 'f', 'g', 'h', 'j', 
     'k', 'l', ';', '\'', '`', 0, '\\', 'z', 'x', 
@@ -79,12 +79,19 @@ bool kb_has_char(void) {
     return (kb_head != kb_tail) || kb_full;
 }
 
+int _kbd_noecho = 0;
+void noecho(int on) {
+    _kbd_noecho = on;
+}
+
 char getchar(void) {
     while (!kb_has_char()) {
         asm volatile("pause");
     }
     char c = dequeue_key();
-    term_putchar(c);
+    if (!_kbd_noecho) {
+        term_putchar(c);
+    }
     return c;
 }
 

@@ -62,7 +62,7 @@ void sh() {
                 printf("failed to load program\n");
             }
         } else {
-            printf("not found\n");
+            printf("command not found: \"%s\"\n", argv[0]);
         }
 
         free(cmd);

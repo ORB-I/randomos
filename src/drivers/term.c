@@ -79,6 +79,22 @@ void term_flush() {
     flanterm_flush(_term_ctx);
 }
 
+void term_get_pos(term_pos_t* pos) {
+    flanterm_get_cursor_pos(_term_ctx, &pos->x, &pos->y);
+}
+
+void term_set_pos(term_pos_t* pos, int flags) {
+    if ((flags & TERMSET_ONLYX && flags & TERMSET_ONLYY) || flags == 0) {
+        flanterm_set_cursor_pos(_term_ctx, pos->x, pos->y);
+    } else {
+        term_pos_t cpos;
+        term_get_pos(&cpos);
+
+        if (flags & TERMSET_ONLYX) flanterm_set_cursor_pos(_term_ctx, pos->x, cpos.y);
+        if (flags & TERMSET_ONLYY) flanterm_set_cursor_pos(_term_ctx, cpos.x, pos->y);
+    }
+}
+
 static void term_printf_write(const char* str, usize len) {
     for (usize i = 0; i < len; i++) {
         term_putchar(str[i]);

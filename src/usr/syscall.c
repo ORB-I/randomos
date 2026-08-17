@@ -1,4 +1,4 @@
-#include "core/std.h"
+#include <core/std.h>
 #include <core/idt.h>
 #include <core/panic.h>
 #include <core/mem/vmm.h>
@@ -10,6 +10,7 @@
 #include <lib/sh.h>
 #include <lib/loader.h>
 #include <core/asmh.h>
+#include <lib/syscall.h>
 
 #include <lai/helpers/pm.h>
 
@@ -72,102 +73,103 @@ void syscall_c(struct sysregs* args) {
     //printf("*** ENTER SYSCALL ***\nNUM: %p\nA0: %p A1: %p A2: %p\nA3: %p A4: %p A5: %p\n", args->num, args->a0, args->a1, args->a2, args->a3, args->a4, args->a5);
     
     switch (args->num) {
-        case 1: 
+        case SYS_EXIT: 
             vmm_skasp();
             sys_exit(uasp);
-        case 2: {
+        case SYS_READ: {
             args->num = read(args->a0, (u8*)args->a1, args->a2);
             goto ret;
         }
-        case 3: {
+        case SYS_WRITE: {
             args->num = write(args->a0, (u8*)args->a1, args->a2);
             goto ret;
         }
-        case 4: {
+        case SYS_OPEN: {
             args->num = open((char*)args->a0, args->a1);
             goto ret;
         }
-        case 5: {
+        case SYS_CLOSE: {
             args->num = close(args->a0);
             goto ret;
         }
-        case 6: {
-            if (open((char*)args->a0, O_CREAT) < 0) {
+        case SYS_CREAT: {
+            int fd;
+            if ((fd = open((char*)args->a0, O_CREAT)) < 0) {
                 args->num = -1;
                 goto ret;
             } else {
-                args->num = close(args->num);
+                args->num = close(fd);
                 goto ret;
             }
         }
-        case 7: {
+        case SYS_UNLINK: {
             args->num = unlink((char*)args->a0);
             goto ret;
         }
-        case 8: {
+        case SYS_CHDIR: {
             args->num = chdir((char*)args->a0);
             goto ret;
         }
-        case 9: {
+        case SYS_LSEEK: {
             args->num = lseek(args->a0, args->a1, args->a2);
             goto ret;
         }
-        case 10: {
+        case SYS_RENAME: {
             args->num = rename((char*)args->a0, (char*)args->a1);
             goto ret;
         }
-        case 11: {
+        case SYS_MKDIR: {
             args->num = mkdir((char*)args->a0);
             goto ret;
         }
-        case 12: {
+        case SYS_RMDIR: {
             args->num = unlink((char*)args->a0);
             goto ret;
         }
-        case 13: {
+        case SYS_REBOOT: {
             if (lai_acpi_reset() == 0) args->num = 0;
             else args->num = -1;
             goto ret;
         }
-        case 14: {
+        case SYS_STAT: {
             args->num = stat((char*)args->a0, (struct stat*)args->a1);
             goto ret;
         }
-        case 15: {
+        case SYS_POWEROFF: {
             if (lai_enter_sleep(5) == 0) args->num = 0;
             else args->num = -1;
             goto ret;
         }
-        case 16: {
+        case SYS_SLEEP: {
             rtc_sleep(args->a0);
             args->num = 0;
             goto ret;
         }
-        case 17: {
+        case SYS_READDIR: {
             args->num = readdir((DIR*)args->a0, (struct stat*)args->a1);
             goto ret;
         }
-        case 18: {
+        case SYS_OPENDIR: {
             args->num = (u64)opendir((char*)args->a0);
             goto ret;
         }
-        case 19: {
+        case SYS_CLOSEDIR: {
             args->num = closedir((DIR*)args->a0);
             goto ret;
         }
-        case 20: {
+        case SYS_GETCWD: {
             args->num = getcwd((char*)args->a0, args->a1);
             goto ret;
         }
-        case 21: {
+        case SYS_SYNC: {
             args->num = sync(args->a0);
             goto ret;
         }
-        case 22: {
+        case SYS_TRUNC: {
             args->num = trunc(args->a0);
             goto ret;
         }
-        case 23: {
+        case SYS_TERMCTL: {
             args->num = termctl(args->a0, args->a1);
             goto ret;
         }
