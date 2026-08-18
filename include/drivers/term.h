@@ -46,6 +46,4 @@ void term_clear();
 void term_flush();
 void term_get_pos(term_pos_t* pos);
 void term_set_pos(term_pos_t* pos, int flags);
-void printf(const char* fmt, ...);
-void vprintf(const char* fmt, va_list lst);
 int termctl(int code, int arg0);

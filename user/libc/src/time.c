@@ -1,6 +1,7 @@
 #include <time.h>
 #include <sys/syscall.h>
 #include <str.h>
+#include <mem.h>
 
 u64 getclock(int clock) {
     if (clock == CLOCK_MONOMS) {

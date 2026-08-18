@@ -114,24 +114,6 @@ void term_set_pos(term_pos_t* pos, int flags) {
     }
 }
 
-static void term_printf_write(const char* str, usize len) {
-    term_write(str, len);
-}
-
-void vprintf(const char* fmt, va_list lst) {
-    _term_flush = 0;
-    vwprintf(term_printf_write, fmt, lst);
-    _term_flush = 1;
-    term_flush();
-}
-
-void printf(const char* fmt, ...) {
-    va_list lst;
-    va_start(lst, fmt);
-    vprintf(fmt, lst);
-    va_end(lst);
-}
-
 int termctl(int code, int arg0) {
     switch (code) {
         case TCTL_FLUSH:

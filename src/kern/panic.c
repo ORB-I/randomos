@@ -1,7 +1,6 @@
 #include <core/panic.h>
 #include <core/std.h>
-
-#include <drivers/term.h>
+#include <core/printf.h>
 
 [[noreturn]] void panic(const char* msg, ...) {
     asm("cli");

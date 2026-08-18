@@ -1,5 +1,6 @@
 #include <ff16/ff.h>
 #include <core/std.h>
+#include <core/printf.h>
 #include <lib/string.h>
 #include <drivers/fs.h>
 #include <drivers/term.h>

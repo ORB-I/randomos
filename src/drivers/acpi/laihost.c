@@ -1,11 +1,11 @@
-#include "core/mem/vmm.h"
+#include <core/mem/vmm.h>
 #include <core/panic.h>
 #include <core/liballoc.h>
 #include <core/asmh.h>
+#include <core/printf.h>
 
 #include <lib/string.h>
 
-#include <drivers/term.h>
 #include <drivers/acpi.h>
 #include <drivers/tsc.h>
 #include <drivers/pci.h>

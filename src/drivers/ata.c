@@ -1,8 +1,7 @@
 #include <core/asmh.h>
 #include <core/std.h>
 #include <core/panic.h>
-
-#include <drivers/term.h>
+#include <core/printf.h>
 
 #define D1IOB 0x1F0
 #define D1CTRLB 0x3F6

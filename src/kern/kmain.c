@@ -5,6 +5,7 @@
 #include <core/panic.h>
 #include <core/asmh.h>
 #include <core/idt.h>
+#include <core/printf.h>
 
 #include <lib/sh.h>
 #include <lib/loader.h>

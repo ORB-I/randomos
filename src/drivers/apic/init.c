@@ -2,7 +2,7 @@
 #include <drivers/pic.h>
 #include <drivers/acpi.h>
 #include <lai/core.h>
-#include <drivers/term.h>
+#include <core/printf.h>
 #include <core/asmh.h>
 
 #define IA32_APIC_BASE_MSR 0x1B

@@ -1,7 +1,7 @@
-#include "core/debug.h"
+#include <core/debug.h>
 #include <core/panic.h>
 #include <core/std.h>
-#include <drivers/term.h>
+#include <core/printf.h>
 
 struct CpuState {
     u64 r15, r14, r13, r12, r11, r10, r9, r8;

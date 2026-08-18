@@ -5,7 +5,7 @@
 #include <lib/loader.h>
 
 #include <drivers/kbd.h>
-#include <drivers/term.h>
+#include <core/printf.h>
 #include <lib/string.h>
 #include <drivers/rtc.h>
 #include <drivers/fs.h>
