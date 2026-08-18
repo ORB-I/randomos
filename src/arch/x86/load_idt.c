@@ -1,5 +1,5 @@
 #include <core/std.h>
-#include <drivers/term.h>
+#include <core/printf.h>
 
 typedef struct {
     u16 isr_low;

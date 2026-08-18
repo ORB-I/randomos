@@ -224,12 +224,15 @@ void syscall_c(struct sysregs* args) {
         }
         case SYS_GETTIMEMONO: {
             args->num = rdtsc();
+            goto ret;
         }
         case SYS_MMAP: {
             args->num = (u64)user_mmap(uasp, (void*)args->a0, args->a1);
+            goto ret;
         }
         case SYS_MUNMAP: {
             args->num = user_munmap(uasp, (void*)args->a0, args->a1);
+            goto ret;
         }
         case SYS_GETRAWSC: {
             args->num = kbd_get_raw();

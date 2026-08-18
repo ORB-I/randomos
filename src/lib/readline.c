@@ -1,6 +1,6 @@
 #include <core/liballoc.h>
-
 #include <drivers/term.h>
+#include <core/printf.h>
 #include <drivers/kbd.h>
 
 #define INITBUFSZ 256

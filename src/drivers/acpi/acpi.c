@@ -1,15 +1,15 @@
-#include "core/mem/vmm.h"
+#include <core/mem/vmm.h>
 #include <core/asmh.h>
 #include <core/panic.h>
 #include <core/std.h>
 #include <core/limreqs.h>
+#include <core/printf.h>
 
 #include <lib/string.h>
 
 #include <drivers/acpi.h>
 #include <drivers/pic.h>
 #include <drivers/rtc.h>
-#include <drivers/term.h>
 
 #include <lai/core.h>
 #include <lai/helpers/sci.h>

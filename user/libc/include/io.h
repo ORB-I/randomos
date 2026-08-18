@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdarg.h>
+#include <sys/types.h>
 
 void fputchar(int fd, char c);
 void putchar(char c);
@@ -10,3 +11,5 @@ void printf(const char* fmt, ...);
 void fprintf(int fd, const char* fmt, ...);
 void flprintf(int flush, const char* fmt, ...);
 void vflprintf(int flush, const char* fmt, va_list lst);
+void snprintf(char* str, usize len, const char* fmt, ...);
+void vsnprintf(char* str, usize len, const char* fmt, va_list lst);
