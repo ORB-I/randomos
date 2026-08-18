@@ -6,11 +6,32 @@
 #include <drivers/uhci.h>
 #include <drivers/tsc.h>
 #include <drivers/term.h>
+#include <drivers/kbd.h>
 #include <lib/string.h>
 
 #define MAX_UHCI_CONTROLLERS 4
 static uhci_controller_t controllers[MAX_UHCI_CONTROLLERS];
 static usize num_controllers = 0;
+
+static const char hid_scancode_map[256] = {
+    0, 0, 0, 0,
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+    '\n', 0x1B, '\b', '\t', ' ', '-', '=', '[', ']', '\\',
+    0, ';', '\'', '`', ',', '.', '/', 0
+};
+
+static const char hid_scancode_map_shift[256] = {
+    0, 0, 0, 0,
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    '!', '@', '#', '$', '%', '^', '&', '*', '(', ')',
+    '\n', 0x1B, '\b', '\t', ' ', '_', '+', '{', '}', '|',
+    0, ':', '"', '~', '<', '>', '?', 0
+};
+
+static usb_hid_kbd_report_t prev_report = {0};
 
 static inline u16 uhci_inw(uhci_controller_t* hc, u16 reg) {
     return inw(hc->io_base + reg);
@@ -19,7 +40,6 @@ static inline u16 uhci_inw(uhci_controller_t* hc, u16 reg) {
 static inline void uhci_outw(uhci_controller_t* hc, u16 reg, u16 val) {
     outw(hc->io_base + reg, val);
 }
-
 
 static inline void uhci_outl(uhci_controller_t* hc, u16 reg, u32 val) {
     outl(hc->io_base + reg, val);
@@ -208,4 +228,85 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
 
     pmm_ffree(page_phys, 1);
     return ret;
+}
+
+void usb_hid_kbd_init() {
+    usb_device_request_t req;
+    req.req_type = 0x21;
+    req.req = 0x0A;
+    req.val = 0;
+    req.idx = 0;
+    req.len = 0;
+
+    for (usize i = 0; i < num_controllers; i++) {
+        uhci_control_transfer(&controllers[i], 0, true, &req, NULL, 0);
+    }
+}
+
+void usb_hid_kbd_poll() {
+    if (num_controllers == 0) {
+        return;
+    }
+
+    usb_hid_kbd_report_t curr_report = {0};
+
+    void* page_phys = pmm_falloc(1);
+    if (!page_phys) {
+        return;
+    }
+
+    uintptr_t page_virt = (uintptr_t)page_phys + HHDM_START;
+    memset((void*)page_virt, 0, 4096);
+
+    uhci_td_t* in_td = (uhci_td_t*)(page_virt + 64);
+    uintptr_t in_td_phys = (uintptr_t)page_phys + 64;
+
+    in_td->link = UHCI_TD_PTR_T;
+    in_td->ctrl = UHCI_TD_CTRL_ACT | UHCI_TD_CTRL_CERR | UHCI_TD_CTRL_LS | UHCI_TD_CTRL_IOC;
+    in_td->token = (7 << 21) | (0 << 19) | (1 << 15) | (0 << 8) | UHCI_PID_IN;
+    in_td->buffer = (u32)(uintptr_t)page_phys;
+
+    uhci_controller_t* hc = &controllers[0];
+    hc->queue_head->element = (u32)in_td_phys;
+
+    for (int i = 0; i < 10; i++) {
+        if (!(in_td->ctrl & UHCI_TD_CTRL_ACT)) {
+            break;
+        }
+        tsc_sleep(1);
+    }
+
+    hc->queue_head->element = UHCI_TD_PTR_T;
+
+    if (!(in_td->ctrl & UHCI_TD_CTRL_ACT)) {
+        memcpy(&curr_report, (void*)page_virt, sizeof(usb_hid_kbd_report_t));
+
+        bool shift = (curr_report.modifiers & 0x22) != 0;
+
+        for (int i = 0; i < 6; i++) {
+            u8 key = curr_report.keys[i];
+            if (key == 0) {
+                continue;
+            }
+
+            bool was_pressed = false;
+            for (int j = 0; j < 6; j++) {
+                if (prev_report.keys[j] == key) {
+                    was_pressed = true;
+                    break;
+                }
+            }
+
+            if (!was_pressed) {
+                char c = shift ? hid_scancode_map_shift[key] : hid_scancode_map[key];
+                if (c) {
+                    enqueue_key(c);
+                }
+            }
+        }
+
+        prev_report = curr_report;
+    }
+
+    pmm_ffree(page_phys, 1);
 }

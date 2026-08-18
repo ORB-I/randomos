@@ -107,6 +107,7 @@ void kmain_aftergdt() {
     }
 
     init_uhci();
+    usb_hid_kbd_init();
 
     init_syscalls();
 

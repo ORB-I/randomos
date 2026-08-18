@@ -5,6 +5,7 @@
 #include <drivers/kbd.h>
 #include <drivers/term.h>
 #include <drivers/pic.h>
+#include <drivers/uhci.h>
 
 static const char sc_map[128] = {
     0, 0, '1', '2', '3', '4', '5', '6', '7', '8', 
@@ -86,6 +87,7 @@ void noecho(int on) {
 
 char getchar(void) {
     while (!kb_has_char()) {
+        usb_hid_kbd_poll();
         asm volatile("pause");
     }
     char c = dequeue_key();

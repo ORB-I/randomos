@@ -10,4 +10,5 @@ void enable_kbd();
 void disable_kbd();
 s32 kbd_enabled();
 
+void enqueue_key(char c);
 char* readline(const char* prompt);
