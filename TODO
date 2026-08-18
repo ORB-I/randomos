@@ -1,4 +1,4 @@
-- Switch from 8259 PIC to IOAPIC
+- Switch from 8259 PIC to IOAPIC [ DONE ]
 - Write UHCI or xHCI driver
 - Implement USB HID keyboard driver
 - Create userspace wm

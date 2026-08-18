@@ -14,6 +14,7 @@
 #include <drivers/kbd.h>
 #include <drivers/rtc.h>
 #include <drivers/pic.h>
+#include <drivers/apic.h>
 #include <drivers/acpi.h>
 #include <drivers/term.h>
 #include <drivers/timer.h>
@@ -56,10 +57,7 @@ void init_allterm() {
         for(;;)asm("hlt");
     }
 
-    create_fb(FBTYPE_GUI); // a gui framebuffer isnt required so we will just
-                                // discard the retval and we can query for it later
-                                // if needed and if it failed then thats fine due to
-                                // aforementioned reason
+    create_fb(FBTYPE_GUI);
 
     if (init_term(termfb) < 0) {
         for(;;)asm("hlt");
@@ -81,18 +79,20 @@ void kmain_aftergdt() {
     init_allterm();
 
     asm("cli");
-    printf("IO: Initializing PIC\n");
     pic_remap(0x20, 0x28);
-    
-    printf("IO: Shutting down ALL IO\n");
     pic_disable();
 
     idt_init();
-    asm("sti");
 
     core_acpi_t acpi;
     acpi_hdl = &acpi;
     init_acpi(&acpi);
+
+    printf("IO: Initializing APIC & IOAPIC\n");
+    apic_init();
+
+    asm("sti");
+
     init_gettimeofday();
 
     int drive = ata_init();
@@ -105,7 +105,7 @@ void kmain_aftergdt() {
         printf("KERN: No drive available\n");
     }
 
-    init_syscalls(); // do an initial init before the other init cuz y not
+    init_syscalls();
 
     printf("IO: Initializing and enabling keyboard\n");
     init_kbd();
