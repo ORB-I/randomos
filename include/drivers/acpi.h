@@ -148,6 +148,11 @@ s32 acpi_read32(genaddr_t* addr, u32* out);
 
 void set_lai_acpi(core_acpi_t* acpi);
 
+void* find_acpitbl_32(rsdt_t* rsdt, char name[4]);
+void* find_acpitbl(xsdt_t* xsdt, char name[4]);
+
+extern core_acpi_t* acpi_hdl;
+
 static inline u32 sdt_entries(core_acpi_t* acpi) {
     if (acpi->xsdt != NULL) {
         return (acpi->xsdt->hdr.len - sizeof(sdt_header_t)) / 4;

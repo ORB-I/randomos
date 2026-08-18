@@ -17,3 +17,5 @@ uint64_t rdtsc(void);
 
 void wrmsr(u32 msr, u64 val);
 u64 rdmsr(u32 msr);
+
+void cpuid(u32 leaf, u32 subleaf, u32* eax, u32* ebx, u32* ecx, u32* edx);

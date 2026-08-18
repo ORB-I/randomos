@@ -371,5 +371,64 @@
         "nargs": 0,
         "returns": "int",
         "args": null
+    },
+    "SYS_GETTIMEOFDAY": {
+        "nr": 32,
+        "nargs": 0,
+        "returns": "u64",
+        "args": null
+    },
+    "SYS_GETMTIMEOFDAY": {
+        "nr": 33,
+        "nargs": 1,
+        "returns": null,
+        "args": [
+            {
+                "type": "struct millitime*",
+                "name": "timebuf"
+            }
+        ]
+    },
+    "SYS_GETTIMEMONOMS": {
+        "nr": 34,
+        "nargs": 0,
+        "returns": "u64",
+        "args": null
+    },
+    "SYS_GETTIMEMONO": {
+        "nr": 35,
+        "nargs": 0,
+        "returns": "u64",
+        "args": null
+    },
+    "SYS_MMAP": {
+        "nr": 36,
+        "nargs": 2,
+        "returns": "void*",
+        "args": [
+            {
+                "type": "void*",
+                "name": "reqaddr"
+            },
+            {
+                "type": "u64",
+                "name": "npages"
+            }
+        ]
+    },
+    "SYS_MUNMAP": {
+        "nr": 37,
+        "nargs": 2,
+        "returns": "int",
+        "args": [
+            {
+                "type": "void*",
+                "name": "addr"
+            },
+            {
+                "type": "u64",
+                "name": "npages"
+            }
+        ]
     }
 }

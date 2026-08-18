@@ -78,6 +78,7 @@ void init_acpi(core_acpi_t* acpi) {
         if (strneq(acpi->xsdt->hdr.sig, "XSDT", 4)) {
             acpi->fadt = find_acpitbl(acpi->xsdt, "FACP");
         }
+        acpi->rsdt = NULL;
     }
     
     if (!acpi->fadt) {
@@ -89,6 +90,7 @@ void init_acpi(core_acpi_t* acpi) {
         }
         
         acpi->fadt = find_acpitbl_32(acpi->rsdt, "FACP");
+        acpi->xsdt = NULL;
     }
 
     if (!acpi->fadt) panic("CANNOT FIND FADT (FACP) TABLE");

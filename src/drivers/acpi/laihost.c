@@ -7,7 +7,7 @@
 
 #include <drivers/term.h>
 #include <drivers/acpi.h>
-#include <drivers/rtc.h>
+#include <drivers/tsc.h>
 #include <drivers/pci.h>
 
 #include <lai/host.h>
@@ -17,12 +17,12 @@ s32 vchksum(sdt_header_t* hdr);
 core_acpi_t* __lai_core_acpi__;
 void set_lai_acpi(core_acpi_t* acpi) { __lai_core_acpi__ = acpi; }
 
-void laihost_log(int _, const char* msg) { printf("ACPI: %s\n", msg); }
+void laihost_log(int _, const char* msg) { (void)_; printf("ACPI: %s\n", msg); }
 __attribute__((noreturn)) void laihost_panic(const char* msg) { panic(msg); }
 
 void* laihost_malloc(size_t sz) { return malloc(sz); }
-void* laihost_realloc(void* ptr, size_t newsize, size_t _) { return realloc(ptr, newsize); }
-void laihost_free(void* ptr, size_t _) { free(ptr); }
+void* laihost_realloc(void* ptr, size_t newsize, size_t _) { (void)_; return realloc(ptr, newsize); }
+void laihost_free(void* ptr, size_t _) { (void)_; free(ptr); }
 
 void laihost_outb(u16 port, u8 val) { return outb(port, val); };
 void laihost_outw(u16 port, u16 val) { return outw(port, val); };
@@ -62,10 +62,10 @@ void laihost_pci_writed(u16 seg, u8 bus, u8 slot, u8 fn, u16 off, uint32_t val) 
     pci_cfg_outl(bus, slot, fn, off, val);
 }
 
-void laihost_sleep(u64 ms) { rtc_sleep(ms / 1000); }
+void laihost_sleep(u64 ms) { tsc_sleep(ms); }
 
-void* laihost_map(uintptr_t phys_addr, size_t _) {  return (void*)(phys_addr + HHDM_START); }
-void laihost_unmap(void* _, size_t __) { (void)__; }
+void* laihost_map(uintptr_t phys_addr, size_t _) {  (void)_; return (void*)(phys_addr + HHDM_START); }
+void laihost_unmap(void* _, size_t __) { (void)__; (void)__; }
 
 void* laihost_scan(const char *sig, size_t index) {
     if (__lai_core_acpi__->xsdt == NULL && __lai_core_acpi__->rsdt == NULL) panic("No RSDT/XSDT found");

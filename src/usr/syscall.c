@@ -2,15 +2,16 @@
 #include <core/idt.h>
 #include <core/panic.h>
 #include <core/mem/vmm.h>
+#include <core/asmh.h>
 
+#include <drivers/gettimeofday.h>
 #include <drivers/term.h>
 #include <drivers/fs.h>
-#include <drivers/rtc.h>
 #include <drivers/fb.h>
+#include <drivers/tsc.h>
 
 #include <lib/sh.h>
 #include <lib/loader.h>
-#include <core/asmh.h>
 #include <lib/syscall.h>
 
 #include <lai/helpers/pm.h>
@@ -45,6 +46,7 @@ struct sysregs {
 };
 
 [[noreturn]] void sys_exit(page_table_t* uasp) {
+    vmm_remumap(uasp);
     vmm_dasp(uasp);
 
     u64 krsp = (u64)(kern_stack + sizeof(kern_stack));
@@ -140,7 +142,7 @@ void syscall_c(struct sysregs* args) {
             goto ret;
         }
         case SYS_SLEEP: {
-            rtc_sleep(args->a0);
+            tsc_sleep(args->a0);
             args->num = 0;
             goto ret;
         }
@@ -205,6 +207,28 @@ void syscall_c(struct sysregs* args) {
         }
         case SYS_GETCURFB: {
             args->num = get_currfb();
+            goto ret;
+        }
+        case SYS_GETTIMEOFDAY: {
+            args->num = gettimeofday();
+            goto ret;
+        }
+        case SYS_GETMTIMEOFDAY: {
+            getmtimeofday((struct millitime*)args->a0);
+            goto ret;
+        }
+        case SYS_GETTIMEMONOMS: {
+            args->num = get_tscms();
+            goto ret;
+        }
+        case SYS_GETTIMEMONO: {
+            args->num = rdtsc();
+        }
+        case SYS_MMAP: {
+            args->num = (u64)user_mmap(uasp, (void*)args->a0, args->a1);
+        }
+        case SYS_MUNMAP: {
+            args->num = user_munmap(uasp, (void*)args->a0, args->a1);
         }
 
         default: args->num = -1;

@@ -10,6 +10,7 @@
 #include <lib/loader.h>
 #include <lib/syscall.h>
 
+#include <drivers/gettimeofday.h>
 #include <drivers/kbd.h>
 #include <drivers/rtc.h>
 #include <drivers/pic.h>
@@ -20,12 +21,14 @@
 #include <drivers/ff16_init.h>
 #include <drivers/fs.h>
 #include <drivers/fb.h>
+#include <drivers/tsc.h>
 
 #include <lai/helpers/pm.h>
 #include <ff16/ff.h>
 
 u64 ram_max = 0;
 extern void gdt_init();
+core_acpi_t* acpi_hdl = NULL;
 
 void kmain() {
     if (!LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision)) {
@@ -70,6 +73,8 @@ void init_allterm() {
 }
 
 void kmain_aftergdt() {
+    init_tsc();
+    
     pmm_init();
     vmm_init();
 
@@ -83,14 +88,12 @@ void kmain_aftergdt() {
     pic_disable();
 
     idt_init();
-
-    printf("IO: Initializing and enabling clock RTC\n");
-    init_rtc();
-    enable_rtc();
     asm("sti");
 
     core_acpi_t acpi;
+    acpi_hdl = &acpi;
     init_acpi(&acpi);
+    init_gettimeofday();
 
     int drive = ata_init();
     if (drive > 0) {

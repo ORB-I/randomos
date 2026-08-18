@@ -31,7 +31,7 @@ struct stat {
     char st_name[256];
     u8 st_attrib;
     usize st_size;
-};
+} __attribute__((packed));
 
 int open(char* path, u32 flags);
 int close(int fd);

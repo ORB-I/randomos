@@ -90,9 +90,11 @@ int load_program(const char* path, char** argv) {
             return -1;
         }
 
-        if (phdrs[i].p_vaddr > load_high) load_high = phdrs[i].p_vaddr;
+        if (phdrs[i].p_vaddr + phdrs[i].p_memsz > load_high) load_high = phdrs[i].p_vaddr + phdrs[i].p_memsz;
         if (phdrs[i].p_vaddr < load_low)  load_low  = phdrs[i].p_vaddr;
     }
+
+    vmm_setumapbase(load_high);
 
     page_table_t* nasp = vmm_casp();
     for (int i = 0; i < ehdr.e_phnum; i++) {

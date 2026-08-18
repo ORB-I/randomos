@@ -9,6 +9,7 @@
 #define MAP_ANYPHYS   (1ULL << 60)
 #define MAP_CONT      (1ULL << 61)
 #define MAP_ANYVIRT   (1ULL << 62)
+#define MAP_USRMAP    (1ULL << 63)
 
 #define UNMAP_KEEPPHYS (1ULL << 0)
 
@@ -46,5 +47,11 @@ page_table_t* vmm_casp();
 void vmm_sasp(page_table_t* tpml4);
 void vmm_skasp();
 void vmm_dasp(page_table_t* tpml4);
+
+void* user_mmap(page_table_t* uasp, void* reqaddr, u64 npages);
+int user_munmap(page_table_t* uasp, void* addr, u64 npages);
+int vmm_rangeinusrmap(u64 addr, u64 npages);
+void vmm_setumapbase(u64 base);
+void vmm_remumap(page_table_t* uasp);
 
 void* xlate_limptr(void* limine_vaddr);

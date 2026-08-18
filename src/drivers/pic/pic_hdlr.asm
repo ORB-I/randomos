@@ -71,30 +71,6 @@ timer_hdlr:
     call c_timer_hdlr
     IRQ_EXIT
 
-global rtc_hdlr
-global rtc_ticks
-
-rtc_hdlr:
-    IRQ_ENTER
-
-    inc dword [rtc_ticks]
-
-    mov al, 0x0C
-    out 0x70, al
-    in al, 0x71
-
-    mov al, 0x20
-    out 0xA0, al
-
-    mov al, 0x20
-    out 0x20, al
-    
-    IRQ_EXIT
-
-section .data
-align 4
-rtc_ticks: dd 0
-
 section .text
 global sci_hdlr
 sci_hdlr:

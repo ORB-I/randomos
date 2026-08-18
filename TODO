@@ -1,0 +1,8 @@
+- Switch from 8259 PIC to IOAPIC
+- Write UHCI or xHCI driver
+- Implement USB HID keyboard driver
+- Create userspace wm
+- Test userspace framebuffer stuff
+- Make a way to query framebuffer pixel layout (IN PROGRESS @Wdboyes13)
+- Finish implenenting user `time` program (IN PROGRESS @Wdboyes13)
+- Implement strftime (IN PROGRESS @Wdboyes13)

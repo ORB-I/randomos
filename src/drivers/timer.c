@@ -27,3 +27,7 @@ void pit_init(u16 frq) {
     outb(0x40, divisor & 0xFF);
     outb(0x40, divisor >> 8);
 }
+
+void pit_stop() {
+    irq_disable(0);
+}
