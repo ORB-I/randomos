@@ -195,12 +195,12 @@ int main(void) {
             if (id >= 0) wm_focus(id);
         }
 
-        if (sc == 0x0C) {
+        if (sc == 0x3C) {
             int id = wm_top();
             if (id >= 0) wm_destroy(id);
         }
 
-        if (sc == 0x35) {
+        if (sc == 0x3D) {
             termctl(TCTL_AFLSH, 0);
             termctl(TCTL_SCLR, 7);
             printf("wm: %ux%u\n", (unsigned)gui_w, (unsigned)gui_h);
