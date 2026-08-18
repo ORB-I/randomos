@@ -38,6 +38,7 @@
 #define SYS_GETTIMEMONO   35
 #define SYS_MMAP          36
 #define SYS_MUNMAP        37
+#define SYS_GETRAWSC      38
 
 u64 __syscall0(u64 nr);
 u64 __syscall1(u64 nr, u64 arg0);

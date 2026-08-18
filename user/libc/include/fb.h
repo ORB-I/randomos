@@ -1,4 +1,5 @@
 #include <sys/types.h>
+#pragma once
 #define FBTYPE_TERM 0
 #define FBTYPE_GUI  1
 

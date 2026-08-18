@@ -6,7 +6,7 @@ CCFLAGS := -L../libc -lc ../libc/crt0.o \
 	-g -MMD -MP -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 	-Wall -Wextra
 
-PROGS := echo ls mkfile poweroff reboot sleep clear rm
+PROGS := echo ls mkfile poweroff reboot sleep clear rm wm
 DRIVE ?= ../../drive.img
 
 DEPLIBS := ../libc/libc.a ../libc/crt0.o

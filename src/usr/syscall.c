@@ -9,6 +9,7 @@
 #include <drivers/fs.h>
 #include <drivers/fb.h>
 #include <drivers/tsc.h>
+#include <drivers/kbd.h>
 
 #include <lib/sh.h>
 #include <lib/loader.h>
@@ -229,6 +230,10 @@ void syscall_c(struct sysregs* args) {
         }
         case SYS_MUNMAP: {
             args->num = user_munmap(uasp, (void*)args->a0, args->a1);
+        }
+        case SYS_GETRAWSC: {
+            args->num = kbd_get_raw();
+            goto ret;
         }
 
         default: args->num = -1;

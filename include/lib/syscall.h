@@ -37,5 +37,6 @@
 #define SYS_GETTIMEMONO   35
 #define SYS_MMAP          36
 #define SYS_MUNMAP        37
+#define SYS_GETRAWSC      38
 
 void init_syscalls();

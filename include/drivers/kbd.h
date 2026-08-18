@@ -12,3 +12,5 @@ s32 kbd_enabled();
 
 void enqueue_key(char c);
 char* readline(const char* prompt);
+
+u8 kbd_get_raw(void);

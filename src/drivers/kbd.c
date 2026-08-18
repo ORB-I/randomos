@@ -35,6 +35,15 @@ u32 kb_tail = 0;
 bool kb_full = false;
 bool shift_pressed = false;
 
+u8 kbd_raw_sc = 0;
+bool kbd_raw_ready = false;
+
+u8 kbd_get_raw(void) {
+    if (!kbd_raw_ready) return 0;
+    kbd_raw_ready = false;
+    return kbd_raw_sc;
+}
+
 extern void kbd_hdlr();
 
 void init_kbd() {
@@ -133,23 +142,29 @@ void c_kbd_hdlr() {
         if (released == 0x2A || released == 0x36) {
             shift_pressed = false;
         }
+        kbd_raw_sc = sc;
+        kbd_raw_ready = true;
         pic_send_eoi(1);
         return;
     }
 
     if (sc == 0x2A || sc == 0x36) {
         shift_pressed = true;
+        kbd_raw_sc = sc;
+        kbd_raw_ready = true;
         pic_send_eoi(1);
         return;
     }
 
     if (sc < 128) {
         char c = shift_pressed ? sc_map_shift[sc] : sc_map[sc];
-        
+
         if (c) {
             enqueue_key(c);
         }
     }
-    
+
+    kbd_raw_sc = sc;
+    kbd_raw_ready = true;
     pic_send_eoi(1);
 }
