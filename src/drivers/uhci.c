@@ -20,9 +20,6 @@ static inline void uhci_outw(uhci_controller_t* hc, u16 reg, u16 val) {
     outw(hc->io_base + reg, val);
 }
 
-static inline u32 uhci_inl(uhci_controller_t* hc, u16 reg) {
-    return inl(hc->io_base + reg);
-}
 
 static inline void uhci_outl(uhci_controller_t* hc, u16 reg, u32 val) {
     outl(hc->io_base + reg, val);
