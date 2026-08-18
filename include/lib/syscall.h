@@ -23,5 +23,13 @@
 #define SYS_SYNC     21
 #define SYS_TRUNC    22
 #define SYS_TERMCTL  23
+#define SYS_CREATEFB 24
+#define SYS_RMFB     25
+#define SYS_SWITCHFB 26
+#define SYS_CLEARFB  27
+#define SYS_FLUSHSCR 28
+#define SYS_GETFBINF 29
+#define SYS_GETFBTYP 30
+#define SYS_GETCURFB 31
 
 void init_syscalls();

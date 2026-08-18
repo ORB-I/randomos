@@ -4,10 +4,6 @@
 #include <sys/syscall.h>
 #include <sys/sysfn.h>
 
-void _putchar(char c) {
-    __syscall3(SYS_WRITE, STDOUT, (u64)&c, 1);
-}
-
 int list_dir(char* path) {
     DIR* d = opendir(path);
     if (!d) {
@@ -17,11 +13,9 @@ int list_dir(char* path) {
 
     struct stat st;
     while ((readdir(d, &st)) != -1) {
-        putchar('\t');
-        const char* name = st.st_name;
-        while (*name != '\0') _putchar(*name++);
-        putchar('\n');
+        flprintf(0, "\t%s\n", st.st_name);
     }
+    termctl(TCTL_FLUSH, 0);
 
     closedir(d);
     return 0;

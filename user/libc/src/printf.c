@@ -161,16 +161,44 @@ void vfprintf(int fd, const char* fmt, va_list lst) {
     }
 }
 
-void printf(const char* fmt, ...) {
+void vflprintf(int flush, const char* fmt, va_list lst) {
+    int tctl_stat = -1;
+    if (flush == 0 || flush == 1) {
+        tctl_stat = termctl(TCTL_GAFLH, 0);
+        termctl(TCTL_AFLSH, 0);
+    }
+
+    vfprintf(STDOUT, fmt, lst);
+
+    if (flush == 1) {
+        termctl(TCTL_AFLSH, tctl_stat);
+        termctl(TCTL_FLUSH, 0);
+    } else if (flush == 0) {
+        termctl(TCTL_AFLSH, tctl_stat);
+    }
+}
+
+void flprintf(int flush, const char* fmt, ...) {
     va_list lst;
     va_start(lst, fmt);
-    vfprintf(STDOUT, fmt, lst);
+    vflprintf(flush, fmt, lst);
+    va_end(lst);
+}
+
+void printf(const char* fmt, ...) {
+    va_list lst;
+    vflprintf(1, fmt, lst);
     va_end(lst);
 }
 
 void fprintf(int fd, const char* fmt, ...) {
     va_list lst;
     va_start(lst, fmt);
-    vfprintf(fd, fmt, lst);
+
+    if (fd == STDERR || fd == STDOUT) {
+        vflprintf(1, fmt, lst);
+    } else {
+        vfprintf(fd, fmt, lst);
+    }
     va_end(lst);
 }

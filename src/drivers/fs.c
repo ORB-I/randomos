@@ -85,7 +85,6 @@ ssize write(int fd, void* buf, usize size) {
             case 1:
             case 2:
                 term_write(buf, size);
-                term_flush();
                 return size;
             default: return -1;
         }

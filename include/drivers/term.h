@@ -5,6 +5,8 @@
 #define TCTL_CLEAR 1
 #define TCTL_SCLR  2
 #define TCTL_CCLR  3
+#define TCTL_AFLSH 4
+#define TCTL_GAFLH 5
 
 typedef enum {
     TERM_BLACK = 0,
@@ -33,10 +35,9 @@ typedef struct {
 #define TERMSET_ONLYY 0x0001
 #define TERMSET_ONLYX 0x0010
 
-void init_term();
+int init_term(int fb);
 void term_putchar(char c);
 void term_write(const char* buf, usize sz);
-void term_puts(const char* str);
 void term_setfgcolor(term_color_t clr);
 void term_setbgcolor(term_color_t clr);
 void term_rstfgcolor();

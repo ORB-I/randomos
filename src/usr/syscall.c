@@ -6,6 +6,7 @@
 #include <drivers/term.h>
 #include <drivers/fs.h>
 #include <drivers/rtc.h>
+#include <drivers/fb.h>
 
 #include <lib/sh.h>
 #include <lib/loader.h>
@@ -69,8 +70,6 @@ void syscall_c(struct sysregs* args) {
     page_table_t* uasp = vmm_cpml4v();
     struct sysregs svargs;
     memcpy(&svargs, args, sizeof(*args));
-
-    //printf("*** ENTER SYSCALL ***\nNUM: %p\nA0: %p A1: %p A2: %p\nA3: %p A4: %p A5: %p\n", args->num, args->a0, args->a1, args->a2, args->a3, args->a4, args->a5);
     
     switch (args->num) {
         case SYS_EXIT: 
@@ -173,11 +172,44 @@ void syscall_c(struct sysregs* args) {
             args->num = termctl(args->a0, args->a1);
             goto ret;
         }
+        case SYS_CREATEFB: {
+            args->num = create_fb(args->a0);
+            goto ret;
+        }
+        case SYS_RMFB: {
+            free_fb(args->a0);
+            args->num = 0;
+            goto ret;
+        }
+        case SYS_SWITCHFB: {
+            args->num = switch_fb(args->a0);
+            goto ret;
+        }
+        case SYS_CLEARFB: {
+            clear_fb(args->a0);
+            args->num = 0;
+            goto ret;
+        }
+        case SYS_FLUSHSCR: {
+            flush_scr();
+            args->num = 0;
+            goto ret;
+        }
+        case SYS_GETFBINF: {
+            args->num = get_fbinfo(args->a0, (framebuf_info_t*)args->a1);
+            goto ret;
+        }
+        case SYS_GETFBTYP: {
+            args->num = get_typefb(args->a0);
+            goto ret;
+        }
+        case SYS_GETCURFB: {
+            args->num = get_currfb();
+        }
 
         default: args->num = -1;
     }
 ret: {
-    // printf("\n*** EXIT SYSCALL ***\n");
 
     u64 ret = args->num;
     memcpy(args, &svargs, sizeof(*args));

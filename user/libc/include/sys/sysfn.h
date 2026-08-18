@@ -5,6 +5,8 @@
 #define TCTL_CLEAR 1
 #define TCTL_SCLR  2
 #define TCTL_CCLR  3
+#define TCTL_AFLSH 4
+#define TCTL_GAFLH 5
 
 #define STDIN  0
 #define STDOUT 1

@@ -19,6 +19,7 @@
 #include <drivers/ata.h>
 #include <drivers/ff16_init.h>
 #include <drivers/fs.h>
+#include <drivers/fb.h>
 
 #include <lai/helpers/pm.h>
 #include <ff16/ff.h>
@@ -28,23 +29,51 @@ extern void gdt_init();
 
 void kmain() {
     if (!LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision)) {
-        for (;;) { asm("hlt"); }
+        for (;;) asm("hlt");
     }
 
     if (!hhdm_request.response || !mmap_req.response || !rsdp_req.response || !kaddr_req.response) {
-        for (;;) { asm("hlt"); }
+        for (;;) asm("hlt");
     }
 
     gdt_init();
-    
+}
+
+void init_allterm() {
+    if (!fb_req.response || fb_req.response->framebuffer_count == 0) {
+        for (;;) asm("hlt");
+    }
+
+    if (init_fbdrv(fb_req.response->framebuffers[0]) < 0) {
+        for(;;)asm("hlt");
+    }
+
+    int termfb = create_fb(FBTYPE_TERM);
+    if (termfb < 0) {
+        for(;;)asm("hlt");
+    }
+
+    create_fb(FBTYPE_GUI); // a gui framebuffer isnt required so we will just
+                                // discard the retval and we can query for it later
+                                // if needed and if it failed then thats fine due to
+                                // aforementioned reason
+
+    if (init_term(termfb) < 0) {
+        for(;;)asm("hlt");
+    }
+
+    if (switch_fb(termfb) < 0) {
+        for(;;)asm("hlt");
+    }
+
+    term_clear();
 }
 
 void kmain_aftergdt() {
     pmm_init();
     vmm_init();
 
-    init_term();
-    term_clear();
+    init_allterm();
 
     asm("cli");
     printf("IO: Initializing PIC\n");

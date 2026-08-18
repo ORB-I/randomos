@@ -3,46 +3,64 @@
 #include <flanterm/flanterm_backends/fb.h>
 #include <core/limreqs.h>
 #include <lib/printf.h>
+#include <drivers/fb.h>
 
 struct flanterm_context* _term_ctx;
+int _term_flush = 1;
+int _term_cfb = -1;
+int init_term(int fb) {
+    framebuf_info_t fbinfo;
+    if (get_fbinfo(fb, &fbinfo) < 0) return -1;
 
-void init_term() {
-    struct limine_framebuffer* fb = fb_req.response->framebuffers[0];
+    _term_cfb = fb;
     _term_ctx = flanterm_fb_init(
         NULL, NULL,
-        fb->address,
-        fb->width, fb->height,
-        fb->pitch,
-        fb->red_mask_size, fb->red_mask_shift,
-        fb->green_mask_size, fb->green_mask_shift,
-        fb->blue_mask_size, fb->blue_mask_shift,
+        fbinfo.ptr,
+        fbinfo.width, fbinfo.height,
+        fbinfo.pitch,
+        fbinfo.mask_sizes[MASK_RED], fbinfo.mask_shifts[MASK_RED],
+        fbinfo.mask_sizes[MASK_GREEN], fbinfo.mask_shifts[MASK_GREEN],
+        fbinfo.mask_sizes[MASK_BLUE], fbinfo.mask_shifts[MASK_BLUE],
         NULL, NULL, NULL,
         NULL, NULL, NULL, NULL,
         NULL, 
         0, 0, 0, 0, 0, 0,
         FLANTERM_FB_ROTATE_0
     );
-    flanterm_set_autoflush(_term_ctx, true);
+
+    flanterm_set_autoflush(_term_ctx, false);
+    return 0;
 }
 
+int get_termfb() {
+    return _term_cfb;
+}
+
+void _term_flushscr() {
+    flanterm_flush(_term_ctx);
+    flush_scr();
+}
+
+// calling `term_putchar` is the absolute slowest way of writing stuff
+// due to it having to copy the framebuffer over EVERY TIME
 void term_putchar(char c) {
     if (c == '\n') {
         flanterm_write(_term_ctx, "\r\n", 2);
+        if (_term_flush) _term_flushscr();
     } else {
         flanterm_write(_term_ctx, &c, 1);
+        if (_term_flush) _term_flushscr();
     }
 }
 
 void term_write(const char* buf, usize sz) {
+    int _term_flush_szd = _term_flush;
+    _term_flush = 0;
     for (usize i = 0; i < sz; i++) {
         term_putchar(buf[i]);
     }
-}
-
-void term_puts(const char* str) {
-    while (*str != '\0') {
-        term_putchar(*str++);
-    }
+    _term_flush = _term_flush_szd;
+    if (_term_flush) _term_flushscr();
 }
 
 void term_setfgcolor(term_color_t clr) {
@@ -73,10 +91,11 @@ void term_rstbgcolor() {
 
 void term_clear() {
     flanterm_clear(_term_ctx, true);
+    if (_term_flush) _term_flushscr();
 }
 
 void term_flush() {
-    flanterm_flush(_term_ctx);
+    _term_flushscr();
 }
 
 void term_get_pos(term_pos_t* pos) {
@@ -96,13 +115,14 @@ void term_set_pos(term_pos_t* pos, int flags) {
 }
 
 static void term_printf_write(const char* str, usize len) {
-    for (usize i = 0; i < len; i++) {
-        term_putchar(str[i]);
-    }
+    term_write(str, len);
 }
 
 void vprintf(const char* fmt, va_list lst) {
+    _term_flush = 0;
     vwprintf(term_printf_write, fmt, lst);
+    _term_flush = 1;
+    term_flush();
 }
 
 void printf(const char* fmt, ...) {
@@ -127,6 +147,11 @@ int termctl(int code, int arg0) {
         case TCTL_CCLR:
             term_rstfgcolor();
             return 0;
+        case TCTL_AFLSH:
+            _term_flush = arg0;
+            return 0;
+        case TCTL_GAFLH:
+            return _term_flush;
         default: return -1;
     }
 }
