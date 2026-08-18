@@ -494,6 +494,35 @@
   },
   {
     "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
+    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/uhci.c",
+    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/uhci.o",
+    "arguments": [
+      "gcc",
+      "-mcmodel=kernel",
+      "-mno-mmx",
+      "-mno-sse",
+      "-mno-sse2",
+      "-mno-red-zone",
+      "-m64",
+      "-nostdlib",
+      "-fno-builtin",
+      "-fno-stack-protector",
+      "-Iinclude",
+      "-nostartfiles",
+      "-nodefaultlibs",
+      "-ffreestanding",
+      "-Wall",
+      "-Wextra",
+      "-g",
+      "-O0",
+      "-c",
+      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/uhci.c",
+      "-o",
+      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/uhci.o"
+    ]
+  },
+  {
+    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
     "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/acpi/acpi.c",
     "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/acpi/acpi.o",
     "arguments": [
@@ -1819,6 +1848,36 @@
       "c-header",
       "-c",
       "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/tsc.h",
+      "-o",
+      "/dev/null"
+    ]
+  },
+  {
+    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
+    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/uhci.h",
+    "arguments": [
+      "gcc",
+      "-mcmodel=kernel",
+      "-mno-mmx",
+      "-mno-sse",
+      "-mno-sse2",
+      "-mno-red-zone",
+      "-m64",
+      "-nostdlib",
+      "-fno-builtin",
+      "-fno-stack-protector",
+      "-Iinclude",
+      "-nostartfiles",
+      "-nodefaultlibs",
+      "-ffreestanding",
+      "-Wall",
+      "-Wextra",
+      "-g",
+      "-O0",
+      "-x",
+      "c-header",
+      "-c",
+      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/uhci.h",
       "-o",
       "/dev/null"
     ]

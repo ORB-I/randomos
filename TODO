@@ -1,5 +1,5 @@
 - Switch from 8259 PIC to IOAPIC [ DONE ]
-- Write UHCI or xHCI driver
+- Write UHCI or xHCI driver [ DONE ]
 - Implement USB HID keyboard driver
 - Create userspace wm
 - Test userspace framebuffer stuff

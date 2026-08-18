@@ -67,3 +67,10 @@ void pci_get_chdr(u32 bus, u32 slot, pci_chdr_t* hdr) {
     hdr->lattmr   = (u8)((r3 >> 8)  & 0xFF);
     hdr->cachesz  = (u8)(r3 & 0xFF);
 }
+
+u32 pci_read_bar(u8 bus, u8 slot, u8 fn, u8 bar_idx) {
+    if (bar_idx >= 6) {
+        return 0;
+    }
+    return pci_cfg_inl(bus, slot, fn, 0x10 + (bar_idx * 4));
+}

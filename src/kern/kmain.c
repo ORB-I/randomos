@@ -23,6 +23,7 @@
 #include <drivers/fs.h>
 #include <drivers/fb.h>
 #include <drivers/tsc.h>
+#include <drivers/uhci.h>
 
 #include <lai/helpers/pm.h>
 #include <ff16/ff.h>
@@ -104,6 +105,8 @@ void kmain_aftergdt() {
     } else {
         printf("KERN: No drive available\n");
     }
+
+    init_uhci();
 
     init_syscalls();
 
