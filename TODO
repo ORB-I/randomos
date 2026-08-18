@@ -3,6 +3,9 @@
 - Implement USB HID keyboard driver [ DONE by @44tl ]
 - Create userspace wm [ DONE by @44tl ]
 - Test userspace framebuffer stuff [ DONE by @44tl ]
+
+- Get userspace to actually work [ TODO @44tl ]
+
 - Make a way to query framebuffer pixel layout (IN PROGRESS @Wdboyes13)
 - Finish implenenting user `time` program (IN PROGRESS @Wdboyes13)
 - Implement strftime (IN PROGRESS @Wdboyes13)
