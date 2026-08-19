@@ -14,8 +14,6 @@
 #include <lai/core.h>
 #include <lai/helpers/sci.h>
 
-extern void sci_hdlr();
-
 s32 is_rsdp(char* sig) {
     return strneq(sig, "RSD PTR ", 8);
 }
@@ -98,7 +96,8 @@ void init_acpi(core_acpi_t* acpi) {
     if (!acpi->fadt) panic("CANNOT FIND FADT (FACP) TABLE");
 
     acpi_sci_irqno = acpi->fadt->sci_int;
-    init_irq(acpi->fadt->sci_int, sci_hdlr);
+    // NOTE: SCI IRQ routing is set up later in kmain_aftergdt(), once
+    // apic_init() has built the IOAPIC redirection table.
     set_lai_acpi(acpi);
 
     lai_set_acpi_revision(acpi->rsdp->rev);
