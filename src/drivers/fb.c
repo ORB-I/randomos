@@ -58,13 +58,14 @@ int create_fb(int type) {
 
 void free_fb(int fb) {
     if (!fbctx) return;
+    if (fb < 0 || fb >= MAX_FBS) return;
 
     framebuf_t* fbp = fbctx->fbs[fb];
     if (!fbp) return;
 
-    fbctx->nfbs--;
     free(fbp->ptr);
     free(fbp);
+    fbctx->fbs[fb] = NULL;
 }
 
 int switch_fb(int fb) {

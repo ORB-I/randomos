@@ -62,7 +62,7 @@ void get_ctime(ctime_t* ct) {
     }
 
     while (ct->day >= dmos[ct->leap][ct->mon]) {
-        ct->day = dmos[ct->leap][ct->mon];
+        ct->day -= dmos[ct->leap][ct->mon];
         ct->mon++;
     }
 }

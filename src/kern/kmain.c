@@ -20,11 +20,11 @@
 #include <drivers/acpi.h>
 #include <drivers/term.h>
 #include <drivers/timer.h>
+#include <drivers/tsc.h>
 #include <drivers/ata.h>
 #include <drivers/ff16_init.h>
 #include <drivers/fs.h>
 #include <drivers/fb.h>
-#include <drivers/tsc.h>
 #include <drivers/uhci.h>
 
 #include <lai/helpers/pm.h>
