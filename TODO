@@ -1,2 +1,3 @@
 - Make a way to query framebuffer pixel layout (IN PROGRESS @Wdboyes13)
 - Add SOFILE support and dynamic ELFs
+- Fix USB HID driver is_usb_devicetype failing to get configuration descriptor
