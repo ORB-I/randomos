@@ -39,7 +39,6 @@ int load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp) {
     }
 
     vmm_unmap_pages(vmm_cpml4v(), (u64)addr, npgs, UNMAP_KEEPPHYS);
-
     return 0;
 }
 

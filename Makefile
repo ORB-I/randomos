@@ -19,7 +19,9 @@ XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
 QFLAGS       := -M pc -boot d -m 1G -monitor stdio \
 				-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
 				-drive id=disk,file=drive.img,format=raw,if=none \
-  				-device ide-hd,drive=disk,bus=ide.0,unit=0
+  				-device ide-hd,drive=disk,bus=ide.0,unit=0 \
+				-device piix3-usb-uhci,id=uhci \
+				-device usb-kbd,bus=uhci.0
 
 AS_SRC := $(shell find src -name '*.asm')
 CC_SRC := $(shell find src -name '*.c')

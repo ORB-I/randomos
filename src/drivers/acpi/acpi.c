@@ -56,7 +56,9 @@ void* find_acpitbl_32(rsdt_t* rsdt, char name[4]) {
 }
 
 s32 acpi_ready(core_acpi_t* acpi) {
-    if (acpi->fadt->xpm1a_ctrl_block.addr != 0 ||
+    // If the 64-bit PM1 control block is not available, fall back to
+    // the legacy 32-bit one.
+    if (acpi->fadt->xpm1a_ctrl_block.addr == 0 ||
         acpi->fadt->xpm1a_ctrl_block.accsz == 0) {
             return (inw(acpi->fadt->pm1a_ctrl_block) & 1) != 0;
     }
