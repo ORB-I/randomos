@@ -12,9 +12,11 @@ int list_dir(char* path) {
     }
 
     struct stat st;
+    termctl(TCTL_AFLSH, 0);
     while ((readdir(d, &st)) != -1) {
-        flprintf(0, "\t%s\n", st.st_name);
+        printf("\t%s\n", st.st_name);
     }
+    termctl(TCTL_AFLSH, 1);
     termctl(TCTL_FLUSH, 0);
 
     closedir(d);

@@ -6,6 +6,7 @@
 #include <core/asmh.h>
 #include <core/idt.h>
 #include <core/printf.h>
+#include <core/fpu.h>
 
 #include <lib/sh.h>
 #include <lib/loader.h>
@@ -73,6 +74,7 @@ void init_allterm() {
 }
 
 void kmain_aftergdt() {
+    init_fpu();
     init_tsc();
     
     pmm_init();

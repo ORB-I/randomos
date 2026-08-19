@@ -36,6 +36,7 @@
 #include <stdarg.h>
 
 #include <sys/types.h>
+#include <io.h>
 #include <mem.h>
 #include <sys/sysfn.h>
 #include <str.h>
@@ -932,4 +933,22 @@ int fctprintf(void (*out)(char character, void* arg), void* arg, const char* for
   const int ret = _vsnprintf(_out_fct, (char*)(uintptr_t)&out_fct_wrap, (usize)-1, format, va);
   va_end(va);
   return ret;
+}
+
+int vfctprintf(void (*out)(char character, void* arg), void* arg, const char* format, va_list lst)
+{
+  const out_fct_wrap_type out_fct_wrap = { out, arg };
+  const int ret = _vsnprintf(_out_fct, (char*)(uintptr_t)&out_fct_wrap, (usize)-1, format, lst);
+  return ret;
+}
+
+void _fprintf_putchar(char c, void* arg) {
+    fputchar((int)arg, c);
+}
+int fprintf(int fd, const char* fmt, ...) {
+    va_list lst;
+    va_start(lst, fmt);
+    const int ret = fctprintf(_fprintf_putchar, (void*)fd, fmt, lst);
+    va_end(lst);
+    return ret;
 }
