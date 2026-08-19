@@ -18,6 +18,7 @@
 extern u64 ram_max;
 
 int load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp, u64 load_base) {
+    if (phdr->p_memsz == 0) return 0;
     u64 seg_vaddr = load_base + phdr->p_vaddr;
 
     usize npgs = phdr->p_memsz / 4096;
