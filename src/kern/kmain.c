@@ -132,7 +132,7 @@ void kmain_aftergdt() {
 
     init_syscalls();
 
-    printf("IO: Initializing and enabling keyboard\n");
+    printf("IO: Requesting keyboard type %d\n", kbtype);
     init_kbd(kbtype);
 
     sh();

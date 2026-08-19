@@ -308,6 +308,89 @@ static inline void uhci_outl(uhci_controller_t* hc, u16 reg, u32 val) {
     outl(hc->io_base + reg, val);
 }
 
+#define USB_REQ_GET_STATUS        0x00
+#define USB_REQ_SET_ADDRESS       0x05
+#define USB_REQ_GET_DESCRIPTOR    0x06
+#define USB_REQ_SET_CONFIGURATION 0x09
+
+#define USB_DESC_DEVICE           0x01
+#define USB_DESC_CONFIGURATION    0x02
+
+typedef struct {
+    u8  bLength;
+    u8  bDescriptorType;
+    u16 bcdUSB;
+    u8  bDeviceClass;
+    u8  bDeviceSubClass;
+    u8  bDeviceProtocol;
+    u8  bMaxPacketSize0;
+    u16 idVendor;
+    u16 idProduct;
+    u16 bcdDevice;
+    u8  iManufacturer;
+    u8  iProduct;
+    u8  iSerialNumber;
+    u8  bNumConfigurations;
+} __attribute__((packed)) usb_device_descriptor_t;
+
+typedef struct {
+    u8  bLength;
+    u8  bDescriptorType;
+    u8  bInterfaceNumber;
+    u8  bAlternateSetting;
+    u8  bNumEndpoints;
+    u8  bInterfaceClass;
+    u8  bInterfaceSubClass;
+    u8  bInterfaceProtocol;
+    u8  iInterface;
+} __attribute__((packed)) usb_interface_descriptor_t;
+
+typedef struct {
+    u8  bLength;
+    u8  bDescriptorType;
+    u16 wTotalLength;
+    u8  bNumInterfaces;
+    u8  bConfigurationValue;
+    u8  iConfiguration;
+    u8  bmAttributes;
+    u8  bMaxPower;
+} __attribute__((packed)) usb_config_descriptor_t;
+
+int usb_set_address(uhci_controller_t* hc, u8 old_addr, u8 new_addr) {
+    usb_device_request_t req = {
+        .req_type = 0x00,
+        .req      = USB_REQ_SET_ADDRESS,
+        .val      = new_addr,
+        .idx      = 0,
+        .len      = 0
+    };
+    int ret = uhci_control_transfer(hc, old_addr, true, &req, NULL, 0);
+    tsc_sleep(10);
+    return ret;
+}
+
+int usb_get_device_descriptor(uhci_controller_t* hc, u8 addr, usb_device_descriptor_t* desc) {
+    usb_device_request_t req = {
+        .req_type = 0x80,
+        .req      = USB_REQ_GET_DESCRIPTOR,
+        .val      = (USB_DESC_DEVICE << 8) | 0,
+        .idx      = 0,
+        .len      = sizeof(usb_device_descriptor_t)
+    };
+    return uhci_control_transfer(hc, addr, true, &req, desc, sizeof(usb_device_descriptor_t));
+}
+
+int usb_set_configuration(uhci_controller_t* hc, u8 addr, u8 config_val) {
+    usb_device_request_t req = {
+        .req_type = 0x00,
+        .req      = USB_REQ_SET_CONFIGURATION,
+        .val      = config_val,
+        .idx      = 0,
+        .len      = 0
+    };
+    return uhci_control_transfer(hc, addr, true, &req, NULL, 0);
+}
+
 static void uhci_reset_port(uhci_controller_t* hc, u16 port_reg) {
     u16 val = uhci_inw(hc, port_reg);
     if (!(val & UHCI_PORT_CONN)) {
@@ -327,6 +410,68 @@ static void uhci_reset_port(uhci_controller_t* hc, u16 port_reg) {
         uhci_outw(hc, port_reg, val | UHCI_PORT_ENABLE);
         tsc_sleep(10);
     }
+}
+
+int is_usb_devtype(uhci_controller_t* hc, u8 addr, u8 dev_class, u8 iface_class, u8 iface_subclass, u8 iface_proto) {
+    u8 buf[256] = {0};
+
+    usb_device_descriptor_t dev_desc;
+    if (usb_get_device_descriptor(hc, addr, &dev_desc) != 0) {
+        return 0;
+    }
+
+    if (dev_class != 0xFF && dev_desc.bDeviceClass != dev_class && dev_desc.bDeviceClass != 0x00) {
+        return 0;
+    }
+
+    usb_device_request_t req = {
+        .req_type = 0x80,
+        .req      = USB_REQ_GET_DESCRIPTOR,
+        .val      = USB_DESC_CONFIGURATION << 8,
+        .idx      = 0,
+        .len      = 9
+    };
+
+    if (uhci_control_transfer(hc, addr, true, &req, buf, 9) != 0) {
+        printf("Failed to get config descriptor (1)\n");
+        return 0;
+    }
+
+    usb_config_descriptor_t* cfg = (usb_config_descriptor_t*)buf;
+    u16 total_len = cfg->wTotalLength;
+
+    req.len = total_len;
+    if (uhci_control_transfer(hc, addr, true, &req, buf, total_len) != 0) {
+        printf("Failed to get config descriptor (2)\n");
+        return 0;
+    }
+
+    u16 offset = 0;
+    while (offset < total_len) {
+        u8 len = buf[offset];
+        u8 type = buf[offset + 1];
+
+        if (len == 0) break;
+
+        if (type == 0x04) {
+            usb_interface_descriptor_t* iface = (usb_interface_descriptor_t*)&buf[offset];
+
+            bool match_class    = (iface_class    == 0xFF || iface->bInterfaceClass    == iface_class);
+            bool match_subclass = (iface_subclass == 0xFF || iface->bInterfaceSubClass == iface_subclass);
+            bool match_proto    = (iface_proto    == 0xFF || iface->bInterfaceProtocol   == iface_proto);
+
+            if (!match_class) printf("Wrong class\n");
+            if (!match_subclass) printf("Wrong Subclass\n");
+            if (!match_proto) printf("Wrong proto\n");
+
+            if (match_class && match_subclass && match_proto) {
+                return 1;
+            }
+        }
+        offset += len;
+    }
+
+    return 0;
 }
 
 static int uhci_init_controller(u8 bus, u8 slot, u8 fn) {
@@ -426,6 +571,10 @@ int init_uhci() {
                 u8 progif = (u8)((r2 >> 8) & 0xFF);
 
                 if (cls == 0x0C && subcls == 0x03 && progif == 0x00) {
+                    u16 legsup = pci_cfg_inw(bus, slot, fn, 0xC0);
+                    if (legsup & 0x2000) {
+                        pci_cfg_outw(bus, slot, fn, 0xC0, 0x8F00);
+                    }
                     return uhci_init_controller(bus, slot, fn);
                 }
             }
@@ -511,24 +660,56 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
     return ret;
 }
 
-int usb_hid_kbd_init() {
-    usb_device_request_t req;
-    req.req_type = 0x21;
-    req.req = 0x0A;
-    req.val = 0;
-    req.idx = 0;
-    req.len = 0;
+typedef struct {
+    uhci_controller_t* ctrl;
+    int port;
+} usb_dev_info_t;
 
+static usb_dev_info_t _uhci_usbhid_kbd = {NULL, -1};
+
+int usb_hid_kbd_init() {
     for (usize i = 0; i < num_controllers; i++) {
-        if (uhci_control_transfer(&controllers[i], 0, true, &req, NULL, 0) == 0) {
+        uhci_controller_t* hc = &controllers[i];
+
+        uhci_reset_port(hc, UHCI_PORTSC1);
+
+        if (!is_usb_devtype(hc, 0, 0x00, 3, 1, 1) &&
+            !is_usb_devtype(hc, 0, 0x03, 3, 1, 1)) {
+                printf("Wrong device type\n");
+                continue;
+        }
+
+        if (usb_set_address(hc, 0, 1) != 0) {
+            printf("Failed to set address\n");
+            continue;
+        }
+
+        if (usb_set_configuration(hc, 1, 1) != 0) {
+            printf("Failed to set config\n");
+            continue;
+        }
+
+        usb_device_request_t idle_req = {
+            .req_type = 0x21,
+            .req      = 0x0A,
+            .val      = 0,
+            .idx      = 0,
+            .len      = 0
+        };
+
+        if (uhci_control_transfer(hc, 1, true, &idle_req, NULL, 0) == 0) {
+            printf("Idle request failed\n");
             return 0;
         }
+
+        _uhci_usbhid_kbd.ctrl = hc;
+        _uhci_usbhid_kbd.port = 1;
     }
     return -1;
 }
 
 void usb_hid_kbd_poll() {
-    if (num_controllers == 0) {
+    if (!_uhci_usbhid_kbd.ctrl || _uhci_usbhid_kbd.port == -1) {
         return;
     }
 
@@ -547,10 +728,10 @@ void usb_hid_kbd_poll() {
 
     in_td->link = UHCI_TD_PTR_T;
     in_td->ctrl = UHCI_TD_CTRL_ACT | UHCI_TD_CTRL_CERR | UHCI_TD_CTRL_LS | UHCI_TD_CTRL_IOC;
-    in_td->token = (7 << 21) | (0 << 19) | (1 << 15) | (0 << 8) | UHCI_PID_IN;
+    in_td->token = (7 << 21) | (0 << 19) | (1 << 15) | (_uhci_usbhid_kbd.port << 8) | UHCI_PID_IN;
     in_td->buffer = (u32)(uintptr_t)page_phys;
 
-    uhci_controller_t* hc = &controllers[0];
+    uhci_controller_t* hc = _uhci_usbhid_kbd.ctrl;
     hc->queue_head->element = (u32)in_td_phys;
 
     for (int i = 0; i < 10; i++) {

@@ -75,7 +75,7 @@ void init_kbd(int kbd_type) {
         if (usb_hid_kbd_init() < 0) {
             init_kbdps2();
             kb_type = KBD_PS2;
-            printf("KBD: Using PS/2 Keyboard\n");
+            printf("KBD: Using PS/2 Keyboard (USB HID Failed)\n");
         } else {
             printf("KBD: Using USB HID Keyboard\n");
         }
