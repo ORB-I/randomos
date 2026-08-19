@@ -738,6 +738,12 @@ int is_usb_devicetype(uhci_controller_t* hc, u8 dev_addr, bool low_speed, u8 cls
     return found;
 }
 
+typedef struct {
+    uhci_controller_t* ctrl;
+    int port;
+} usb_dev_info_t;
+static usb_dev_info_t _uhci_usbhid_kbd = {NULL, -1};
+
 int usb_hid_kbd_init() {
     usb_device_request_t req;
     req.req_type = 0x21;
@@ -747,11 +753,28 @@ int usb_hid_kbd_init() {
     req.len = 0;
 
     for (usize i = 0; i < num_controllers; i++) {
+        uhci_controller_t* hc = &controllers[i];
+
+        uhci_reset_port(hc, UHCI_PORTSC1);
         // skip if its not actually a HID keyboard
         if (!is_usb_devicetype(&controllers[i], 0, true, 0x03, 0x01)) {
             continue;
         }
-        uhci_control_transfer(&controllers[i], 0, true, &req, NULL, 0);
+
+        if (usb_set_address(hc, 0, 1) != 0) {
+            continue;
+        }
+
+        if (usb_set_configuration(hc, 1, 1) != 0) {
+            continue;
+        }
+        
+        if (uhci_control_transfer(&controllers[i], 0, true, &req, NULL, 0) != 0) {
+            return -1;
+        }
+
+        _uhci_usbhid_kbd.ctrl = hc;
+        _uhci_usbhid_kbd.port = 1;
     }
     return -1;
 }
