@@ -111,3 +111,49 @@ typedef struct {
 #define STT_NOTYPE 0
 #define STT_OBJECT 1
 #define STT_FUNC   2
+
+// dynamic linking stuff
+
+typedef struct {
+	Elf64_Sxword	d_tag;
+	union {
+		Elf64_Xword	d_val;
+		Elf64_Addr	d_ptr;
+	} d_un;
+} Elf64_Dyn;
+
+typedef struct {
+	Elf64_Addr	r_offset;
+	Elf64_Xword	r_info;
+	Elf64_Sxword	r_addend;
+} Elf64_Rela;
+
+#define ELF64_R_SYM(i)   ((i) >> 32)
+#define ELF64_R_TYPE(i)  ((i) & 0xFFFFFFFF)
+
+// d_tag values
+#define DT_NULL     0
+#define DT_NEEDED   1
+#define DT_HASH     4
+#define DT_STRTAB   5
+#define DT_SYMTAB   6
+#define DT_RELA     7
+#define DT_RELASZ   8
+#define DT_RELAENT  9
+#define DT_STRSZ   10
+#define DT_SYMENT  11
+#define DT_JMPREL  23
+
+// reloc types (x86_64)
+#define R_X86_64_NONE      0
+#define R_X86_64_64        1
+#define R_X86_64_GLOB_DAT  6
+#define R_X86_64_JUMP_SLOT 7
+#define R_X86_64_RELATIVE  8
+
+// section types
+#define SHT_NULL    0
+#define SHT_SYMTAB  2
+#define SHT_STRTAB  3
+#define SHT_RELA    4
+#define SHT_DYNSYM 11

@@ -1,4 +1,5 @@
 ENTRY(_start)
+OUTPUT_FORMAT(elf64-x86-64)
 
 PHDRS {
     text    PT_LOAD;
@@ -8,7 +9,8 @@ PHDRS {
 }
 
 SECTIONS {
-    . = 0x00400000;
+    /* Position-independent: base at 0 */
+    . = 0;
 
     .text : ALIGN(4) {
         *(.text)
@@ -71,5 +73,6 @@ SECTIONS {
     /DISCARD/ : {
         *(.comment)
         *(.eh_frame)
+        *(.note .note.*)
     }
 }

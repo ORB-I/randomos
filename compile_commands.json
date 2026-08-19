@@ -1,8 +1,8 @@
 [
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/limine_req.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/limine_req.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/limine_req.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/limine_req.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -23,15 +23,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/limine_req.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/limine_req.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/limine_req.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/limine_req.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/asm_helpers.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/asm_helpers.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/asm_helpers.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/asm_helpers.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -52,15 +52,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/asm_helpers.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/asm_helpers.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/asm_helpers.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/asm_helpers.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/debug.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/debug.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/debug.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/debug.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -81,15 +81,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/debug.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/debug.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/debug.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/debug.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/gdt.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/gdt.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/gdt.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/gdt.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -110,15 +110,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/gdt.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/gdt.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/gdt.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/gdt.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/int_hdlr.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/int_hdlr.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/int_hdlr.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/int_hdlr.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -139,15 +139,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/int_hdlr.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/int_hdlr.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/int_hdlr.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/int_hdlr.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/load_idt.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/load_idt.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/load_idt.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/load_idt.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -168,15 +168,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/load_idt.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/load_idt.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/arch/x86/load_idt.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/arch/x86/load_idt.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/ata.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/ata.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/ata.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/ata.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -197,15 +197,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/ata.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/ata.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/ata.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/ata.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/fb.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/fb.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/fb.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/fb.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -226,15 +226,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/fb.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/fb.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/fb.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/fb.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/ff16host.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/ff16host.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/ff16host.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/ff16host.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -255,15 +255,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/ff16host.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/ff16host.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/ff16host.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/ff16host.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/fs.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/fs.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/fs.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/fs.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -284,15 +284,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/fs.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/fs.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/fs.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/fs.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/gettimeofday.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/gettimeofday.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/gettimeofday.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/gettimeofday.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -313,15 +313,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/gettimeofday.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/gettimeofday.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/gettimeofday.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/gettimeofday.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/kbd.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/kbd.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/kbd.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/kbd.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -342,15 +342,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/kbd.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/kbd.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/kbd.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/kbd.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/pci.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/pci.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/pci.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/pci.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -371,15 +371,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/pci.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/pci.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/pci.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/pci.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/rtc.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/rtc.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/rtc.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/rtc.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -400,15 +400,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/rtc.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/rtc.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/rtc.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/rtc.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/term.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/term.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/term.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/term.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -429,15 +429,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/term.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/term.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/term.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/term.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/timer.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/timer.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/timer.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/timer.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -458,15 +458,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/timer.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/timer.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/timer.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/timer.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/tsc.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/tsc.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/tsc.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/tsc.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -487,15 +487,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/tsc.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/tsc.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/tsc.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/tsc.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/uhci.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/uhci.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/uhci.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/uhci.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -516,15 +516,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/uhci.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/uhci.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/uhci.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/uhci.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/acpi/acpi.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/acpi/acpi.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/acpi/acpi.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/acpi/acpi.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -545,15 +545,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/acpi/acpi.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/acpi/acpi.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/acpi/acpi.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/acpi/acpi.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/acpi/acpiio.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/acpi/acpiio.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/acpi/acpiio.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/acpi/acpiio.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -574,15 +574,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/acpi/acpiio.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/acpi/acpiio.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/acpi/acpiio.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/acpi/acpiio.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/acpi/laihost.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/acpi/laihost.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/acpi/laihost.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/acpi/laihost.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -603,15 +603,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/acpi/laihost.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/acpi/laihost.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/acpi/laihost.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/acpi/laihost.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/apic/init.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/apic/init.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/apic/init.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/apic/init.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -632,15 +632,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/apic/init.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/apic/init.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/apic/init.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/apic/init.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/pic/pic.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/pic/pic.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/drivers/pic/pic.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/drivers/pic/pic.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -661,15 +661,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/pic/pic.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/pic/pic.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/drivers/pic/pic.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/drivers/pic/pic.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/kmain.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/kmain.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/kern/kmain.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/kern/kmain.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -690,15 +690,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/kmain.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/kern/kmain.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/kmain.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/kern/kmain.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/lock.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/lock.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/kern/lock.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/kern/lock.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -719,15 +719,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/lock.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/kern/lock.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/lock.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/kern/lock.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/panic.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/panic.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/kern/panic.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/kern/panic.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -748,15 +748,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/panic.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/kern/panic.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/panic.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/kern/panic.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/liballoc.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/liballoc.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/liballoc.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/liballoc.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -777,15 +777,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/liballoc.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/liballoc.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/liballoc.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/liballoc.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/liballoc_host.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/liballoc_host.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/liballoc_host.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/liballoc_host.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -806,15 +806,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/liballoc_host.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/liballoc_host.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/liballoc_host.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/liballoc_host.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/pmm.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/pmm.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/pmm.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/pmm.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -835,15 +835,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/pmm.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/pmm.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/pmm.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/pmm.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/vmm.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/vmm.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/vmm.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/vmm.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -864,15 +864,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/vmm.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/vmm.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/kern/mem/vmm.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/kern/mem/vmm.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/lib/printf.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/lib/printf.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/lib/printf.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/lib/printf.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -893,15 +893,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/lib/printf.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/lib/printf.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/lib/printf.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/lib/printf.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/lib/readline.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/lib/readline.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/lib/readline.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/lib/readline.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -922,15 +922,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/lib/readline.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/lib/readline.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/lib/readline.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/lib/readline.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/lib/string.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/lib/string.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/lib/string.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/lib/string.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -951,15 +951,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/lib/string.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/lib/string.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/lib/string.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/lib/string.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/loader.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/loader.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/usr/loader.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/usr/loader.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -980,15 +980,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/loader.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/usr/loader.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/loader.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/usr/loader.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/sh.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/sh.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/usr/sh.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/usr/sh.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1009,15 +1009,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/sh.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/usr/sh.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/sh.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/usr/sh.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/syscall.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/syscall.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/usr/syscall.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/usr/syscall.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1038,15 +1038,15 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/syscall.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/usr/syscall.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/syscall.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/usr/syscall.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/user_mmap.c",
-    "output": "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/user_mmap.o",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/src/usr/user_mmap.c",
+    "output": "/run/media/eskrid/44/404/projects/randomos/src/usr/user_mmap.o",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1067,14 +1067,14 @@
       "-g",
       "-O0",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/user_mmap.c",
+      "/run/media/eskrid/44/404/projects/randomos/src/usr/user_mmap.c",
       "-o",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/src/usr/user_mmap.o"
+      "/run/media/eskrid/44/404/projects/randomos/src/usr/user_mmap.o"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/asmh.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/core/asmh.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1097,14 +1097,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/asmh.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/core/asmh.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/debug.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/core/debug.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1127,14 +1127,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/debug.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/core/debug.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/elf.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/core/elf.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1157,14 +1157,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/elf.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/core/elf.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/idt.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/core/idt.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1187,14 +1187,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/idt.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/core/idt.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/liballoc.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/core/liballoc.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1217,14 +1217,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/liballoc.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/core/liballoc.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/limine.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/core/limine.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1247,14 +1247,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/limine.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/core/limine.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/limreqs.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/core/limreqs.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1277,14 +1277,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/limreqs.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/core/limreqs.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/lock.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/core/lock.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1307,14 +1307,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/lock.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/core/lock.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/panic.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/core/panic.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1337,14 +1337,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/panic.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/core/panic.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/std.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/core/std.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1367,14 +1367,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/std.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/core/std.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/mem/pmm.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/core/mem/pmm.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1397,14 +1397,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/mem/pmm.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/core/mem/pmm.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/mem/vmm.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/core/mem/vmm.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1427,14 +1427,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/core/mem/vmm.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/core/mem/vmm.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/acpi.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/acpi.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1457,14 +1457,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/acpi.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/acpi.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/apic.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/apic.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1487,14 +1487,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/apic.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/apic.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/ata.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/ata.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1517,14 +1517,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/ata.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/ata.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/fb.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/fb.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1547,14 +1547,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/fb.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/fb.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/ff16_init.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/ff16_init.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1577,14 +1577,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/ff16_init.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/ff16_init.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/fs.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/fs.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1607,14 +1607,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/fs.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/fs.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/gettimeofday.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/gettimeofday.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1637,14 +1637,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/gettimeofday.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/gettimeofday.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/kbd.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/kbd.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1667,14 +1667,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/kbd.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/kbd.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/pci.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/pci.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1697,14 +1697,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/pci.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/pci.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/pic.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/pic.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1727,14 +1727,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/pic.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/pic.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/rtc.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/rtc.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1757,14 +1757,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/rtc.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/rtc.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/term.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/term.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1787,14 +1787,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/term.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/term.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/timer.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/timer.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1817,14 +1817,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/timer.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/timer.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/tsc.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/tsc.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1847,14 +1847,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/tsc.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/tsc.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/uhci.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/drivers/uhci.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1877,14 +1877,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/drivers/uhci.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/drivers/uhci.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/lib/loader.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/lib/loader.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1907,14 +1907,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/lib/loader.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/lib/loader.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/lib/printf.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/lib/printf.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1937,14 +1937,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/lib/printf.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/lib/printf.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/lib/sh.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/lib/sh.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1967,14 +1967,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/lib/sh.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/lib/sh.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/lib/string.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/lib/string.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -1997,14 +1997,14 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/lib/string.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/lib/string.h",
       "-o",
       "/dev/null"
     ]
   },
   {
-    "directory": "/run/media/eskrid/44/404/projects/RandomOS/randomos",
-    "file": "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/lib/syscall.h",
+    "directory": "/run/media/eskrid/44/404/projects/randomos",
+    "file": "/run/media/eskrid/44/404/projects/randomos/include/lib/syscall.h",
     "arguments": [
       "gcc",
       "-mcmodel=kernel",
@@ -2027,7 +2027,7 @@
       "-x",
       "c-header",
       "-c",
-      "/run/media/eskrid/44/404/projects/RandomOS/randomos/include/lib/syscall.h",
+      "/run/media/eskrid/44/404/projects/randomos/include/lib/syscall.h",
       "-o",
       "/dev/null"
     ]
