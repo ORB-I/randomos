@@ -5,6 +5,9 @@
 #define PAGE_WRITE    (1ULL << 1)
 #define PAGE_USER     (1ULL << 2)
 #define PAGE_HUGE     (1ULL << 7)
+#define PAGE_PWT      (1ULL << 3)
+#define PAGE_PCD      (1ULL << 4)
+#define PAGE_UNCACHE  (PAGE_PCD | PAGE_PWT)
 
 #define MAP_ANYPHYS   (1ULL << 60)
 #define MAP_CONT      (1ULL << 61)

@@ -231,7 +231,7 @@ void vmm_init() {
 
     u64 tpmem = pmms->mem_high;
     for (u64 i = 0; i < tpmem; i += 0x200000) {
-        vmm_map_huge_page(pml4, HHDM_START + i, i, PAGE_WRITE);
+        vmm_map_huge_page(pml4, HHDM_START + i, i, PAGE_WRITE | PAGE_UNCACHE);
     }
 
     u64 kphys = kaddr_req.response->physical_base;

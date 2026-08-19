@@ -53,9 +53,6 @@ void kmain() {
         }
     }
 
-    printf("KERN: RandomOS booting (HHDM offset: 0x%lx)\n",
-           hhdm_request.response->offset);
-
     gdt_init();
 }
 
@@ -113,9 +110,6 @@ void kmain_aftergdt() {
     // Register the SCI interrupt now that apic_init() has built the
     // IOAPIC redirection table.
     init_irq(acpi.fadt->sci_int, sci_hdlr);
-
-    pit_init(100);
-    irq_enable(0);
 
     asm("sti");
 
