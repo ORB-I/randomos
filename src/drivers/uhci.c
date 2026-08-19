@@ -313,8 +313,9 @@ static inline void uhci_outl(uhci_controller_t* hc, u16 reg, u32 val) {
 #define USB_REQ_GET_DESCRIPTOR    0x06
 #define USB_REQ_SET_CONFIGURATION 0x09
 
-#define USB_DESC_DEVICE           0x01
-#define USB_DESC_CONFIGURATION    0x02
+#define USB_DESC_DEVICE    0x01
+#define USB_DESC_CONFIG    0x02
+#define USB_DESC_INTERFACE 0x04
 
 typedef struct {
     u8  bLength;
@@ -412,74 +413,6 @@ static void uhci_reset_port(uhci_controller_t* hc, u16 port_reg) {
     }
 }
 
-int is_usb_devtype(uhci_controller_t* hc, u8 addr, u8 dev_class, u8 iface_class, u8 iface_subclass, u8 iface_proto) {
-    u8 buf[256] = {0};
-
-    usb_device_descriptor_t dev_desc;
-    if (usb_get_device_descriptor(hc, addr, &dev_desc) != 0) {
-        return 0;
-    }
-
-    if (dev_class != 0xFF && dev_desc.bDeviceClass != dev_class && dev_desc.bDeviceClass != 0x00) {
-        return 0;
-    }
-
-    usb_device_request_t req = {
-        .req_type = 0x80,
-        .req      = USB_REQ_GET_DESCRIPTOR,
-        .val      = USB_DESC_CONFIGURATION << 8,
-        .idx      = 0,
-        .len      = 9
-    };
-
-    if (uhci_control_transfer(hc, addr, true, &req, buf, 9) != 0) {
-        printf("Failed to get config descriptor (1)\n");
-        return 0;
-    }
-
-    usb_config_descriptor_t* cfg = (usb_config_descriptor_t*)buf;
-    u16 total_len = cfg->wTotalLength;
-    if (total_len < sizeof(usb_config_descriptor_t)) {
-        return 0;
-    }
-    if (total_len > sizeof(buf)) {
-        total_len = sizeof(buf);
-    }
-
-    req.len = total_len;
-    if (uhci_control_transfer(hc, addr, true, &req, buf, total_len) != 0) {
-        printf("Failed to get config descriptor (2)\n");
-        return 0;
-    }
-
-    u16 offset = 0;
-    while ((offset + 1) < total_len) {
-        u8 len = buf[offset];
-        u8 type = buf[offset + 1];
-
-        if (len == 0 || (offset + len) > total_len) break;
-
-        if (type == 0x04) {
-            usb_interface_descriptor_t* iface = (usb_interface_descriptor_t*)&buf[offset];
-
-            bool match_class    = (iface_class    == 0xFF || iface->bInterfaceClass    == iface_class);
-            bool match_subclass = (iface_subclass == 0xFF || iface->bInterfaceSubClass == iface_subclass);
-            bool match_proto    = (iface_proto    == 0xFF || iface->bInterfaceProtocol   == iface_proto);
-
-            if (!match_class) printf("Wrong class\n");
-            if (!match_subclass) printf("Wrong Subclass\n");
-            if (!match_proto) printf("Wrong proto\n");
-
-            if (match_class && match_subclass && match_proto) {
-                return 1;
-            }
-        }
-        offset += len;
-    }
-
-    return 0;
-}
-
 static int uhci_init_controller(u8 bus, u8 slot, u8 fn) {
     if (num_controllers >= MAX_UHCI_CONTROLLERS) {
         return -1;
@@ -525,7 +458,7 @@ static int uhci_init_controller(u8 bus, u8 slot, u8 fn) {
         return -1;
     }
 
-    hc->frame_list_phys = (uintptr_t)fl_phys;
+    hc->frame_list_phys = (u64)fl_phys;
     hc->frame_list = (u32*)(hc->frame_list_phys + HHDM_START);
     memset(hc->frame_list, 0, 4096);
 
@@ -534,7 +467,7 @@ static int uhci_init_controller(u8 bus, u8 slot, u8 fn) {
         return -1;
     }
 
-    hc->queue_head_phys = (uintptr_t)qh_phys;
+    hc->queue_head_phys = (u64)qh_phys;
     hc->queue_head = (uhci_qh_t*)(hc->queue_head_phys + HHDM_START);
     memset(hc->queue_head, 0, 4096);
 
@@ -594,77 +527,116 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
         return -1;
     }
 
-    void* page_phys = pmm_falloc(1);
-    if (!page_phys) {
-        return -1;
-    }
+    u64 dtvirt = (u64)data + HHDM_START;
 
-    uintptr_t page_virt = (uintptr_t)page_phys + HHDM_START;
-    memset((void*)page_virt, 0, 4096);
+    void* pgphys = pmm_falloc(1);
+    if (!pgphys) return -1;
 
-    usb_device_request_t* req_buf = (usb_device_request_t*)page_virt;
-    *req_buf = *req;
+    u64 pvirt = (u64)pgphys + HHDM_START;
+    memset((void*)pvirt, 0, 4096);
 
-    // bmRequestType bit 7: 0 = host-to-device (OUT), 1 = device-to-host (IN)
+    usb_device_request_t* reqbuf = (usb_device_request_t*)pvirt;
+    *reqbuf = *req;
+
+    u64 dtbovirt = pvirt + 0x400;
+    u64 dtbophys = (u64)pgphys + 0x400;
+
     bool data_in = (req->req_type & 0x80) != 0;
     u8 data_pid = data_in ? UHCI_PID_IN : UHCI_PID_OUT;
 
-    u32 ctrl_base = UHCI_TD_CTRL_ACT | UHCI_TD_CTRL_CERR;
+    if (len && data && !data_in) {
+        if (len > 2048) {
+            pmm_ffree(pgphys, 1);
+            return -1;
+        }
+        memcpy((void*)dtbovirt, (void*)dtvirt, len);
+    }
+
+    u32 ctrlb = UHCI_TD_CTRL_ACT | (3 << 21);
     if (low_speed) {
-        ctrl_base |= UHCI_TD_CTRL_LS;
+        ctrlb |= UHCI_TD_CTRL_LS;
     }
 
-    uhci_td_t* setup_td = (uhci_td_t*)(page_virt + 64);
-    uintptr_t setup_td_phys = (uintptr_t)page_phys + 64;
+    uhci_td_t* tds = (uhci_td_t*)(pvirt + 0x040);
+    u64 tdsp = (u64)pgphys + 0x040;
+    int tdcnt = 0;
 
-    setup_td->link = (u32)((uintptr_t)page_phys + 128) | UHCI_TD_PTR_VF;
-    setup_td->ctrl = ctrl_base;
-    setup_td->token = (7 << 21) | (0 << 19) | ((u32)dev_addr << 8) | UHCI_PID_SETUP;
-    setup_td->buffer = (u32)(uintptr_t)page_phys;
+    uhci_td_t* setup_td = &tds[tdcnt];
+    u64 setup_tdp = tdsp + (tdcnt * sizeof(uhci_td_t));
+    tdcnt++;
 
-    uhci_td_t* status_td;
-    uintptr_t status_td_phys;
+    setup_td->ctrl = ctrlb;
+    setup_td->token = ((7) << 21) | (0 << 15) | ((u32)dev_addr << 8) | UHCI_PID_SETUP;
+    setup_td->buffer = (u32)((u64)pgphys);
 
-    if (len && data) {
-        // data stage
-        uhci_td_t* data_td = (uhci_td_t*)(page_virt + 128);
-        status_td = (uhci_td_t*)(page_virt + 192);
-        status_td_phys = (uintptr_t)page_phys + 192;
+    uhci_td_t* last_td = setup_td;
+    u64 lst_tdp = setup_tdp;
 
-        data_td->link = (u32)(status_td_phys | UHCI_TD_PTR_VF);
-        data_td->ctrl = ctrl_base;
-        // maxlen is len-1 (uhci spec), and toggle must be DATA1 after setup
-        data_td->token = (((u32)(len - 1)) << 21) | (1 << 19) | ((u32)dev_addr << 8) | data_pid;
-        data_td->buffer = (u32)(uintptr_t)data;
-    } else {
-        status_td = (uhci_td_t*)(page_virt + 128);
-        status_td_phys = (uintptr_t)page_phys + 128;
+    u16 brem = len;
+    u16 dtoff = 0;
+    u8 tgl = 1;
+
+    while (brem > 0) {        
+        u16 pksz = brem;
+        if (pksz > 8) {
+            pksz = 8;
+        }
+
+        uhci_td_t* data_td = &tds[tdcnt];
+        u64 data_tdp = tdsp + (tdcnt * sizeof(uhci_td_t));
+        tdcnt++;
+
+        u32 mlene = (u32)(pksz - 1) & 0x7FF;
+        data_td->token = (mlene << 21) | ((u32)tgl << 19) | (0 << 15) | ((u32)dev_addr << 8) | data_pid;
+        data_td->buffer = (u32)(dtbophys + dtoff);
+        data_td->ctrl = ctrlb;
+        if (data_in) {
+            data_td->ctrl |= (1 << 29); 
+        }
+
+        last_td->link = (u32)(data_tdp | UHCI_TD_PTR_VF);
+        last_td = data_td;
+
+        tgl ^= 1;
+        dtoff += pksz;
+        brem -= pksz;
     }
 
-    // status stage: zero-length packet, direction opposite of data stage
-    status_td->link = UHCI_TD_PTR_T;
-    status_td->ctrl = ctrl_base | UHCI_TD_CTRL_IOC;
-    status_td->token = (0 << 21) | (1 << 19) | ((u32)dev_addr << 8) | (data_in ? UHCI_PID_OUT : UHCI_PID_IN);
-    status_td->buffer = 0;
+    uhci_td_t* status_td = &tds[tdcnt];
+    u64 status_td_phys = tdsp + (tdcnt * sizeof(uhci_td_t));
+    tdcnt++;
 
-    hc->queue_head->element = (u32)setup_td_phys;
+    status_td->link = UHCI_TD_PTR_T; 
+    status_td->ctrl = ctrlb | UHCI_TD_CTRL_IOC;
+    status_td->token = (0x7FF << 21) | (1 << 19) | (0 << 15) | ((u32)dev_addr << 8) | (data_in ? UHCI_PID_OUT : UHCI_PID_IN);
+    status_td->buffer = (u32)((u64)pgphys + 0x300);
 
+    last_td->link = (u32)(status_td_phys | UHCI_TD_PTR_VF);
+    hc->queue_head->element = (u32)setup_tdp;
+
+    int ret = 0;
     for (int i = 0; i < 1000; i++) {
-        if (!(status_td->ctrl & UHCI_TD_CTRL_ACT)) {
+        volatile u32* status_ctrl = (volatile u32*)&status_td->ctrl;
+        if (!(*status_ctrl & UHCI_TD_CTRL_ACT)) {
             break;
         }
         tsc_sleep(1);
     }
 
     hc->queue_head->element = UHCI_TD_PTR_T;
-
-    int ret = 0;
     if (status_td->ctrl & UHCI_TD_CTRL_ACT) {
-        printf("UHCICT: Controller didnt clear TDActive\n");
+        printf("UHCICT: Controller didn't clear TDActive (Timeout, flags: 0x%08x)\n", status_td->ctrl);
+        ret = -1;
+    } else if (status_td->ctrl & 0x1F0000) {
+        printf("UHCICT: Transfer failed with status error flags: 0x%08x\n", status_td->ctrl);
         ret = -1;
     }
 
-    pmm_ffree(page_phys, 1);
+    if (ret == 0 && len && (void*)dtvirt && data_in) {
+        memcpy((void*)dtvirt, (void*)dtbovirt, len);
+    }
+
+    pmm_ffree(pgphys, 1);
     return ret;
 }
 
@@ -674,44 +646,24 @@ int is_usb_devicetype(uhci_controller_t* hc, u8 dev_addr, bool low_speed, u8 cls
     void* buf_phys = pmm_falloc(1);
     if (!buf_phys) return 0;
 
-    uintptr_t buf_virt = (uintptr_t)buf_phys + HHDM_START;
+    u64 buf_virt = (u64)buf_phys + HHDM_START;
     memset((void*)buf_virt, 0, 4096);
 
-    // grab the config descriptor header first so we know how big the whole thing is
     usb_device_request_t req;
     req.req_type = 0x80;
-    req.req = 0x06;      // GET_DESCRIPTOR
-    req.val = 0x0200;    // config desc, idx 0
+    req.req = 6;
+    req.val = (2 << 8) | 0;
     req.idx = 0;
-    req.len = 9;
+    req.len = 255;
 
-    if (uhci_control_transfer(hc, dev_addr, low_speed, &req, (void*)buf_phys, 9) < 0) {
+    if (uhci_control_transfer(hc, dev_addr, low_speed, &req, (void*)buf_phys, 255) < 0) {
+        printf("Failed to read configuration space\n");
         pmm_ffree(buf_phys, 1);
         return 0;
     }
 
-    // pull wTotalLength out of the header
     u8* desc = (u8*)buf_virt;
-    if (desc[1] != USB_DESC_CONFIG) {
-        pmm_ffree(buf_phys, 1);
-        return 0;
-    }
-
     u16 total_len = (u16)desc[2] | ((u16)desc[3] << 8);
-    if (total_len > 4096) total_len = 4096;
-    if (total_len < 9) {
-        pmm_ffree(buf_phys, 1);
-        return 0;
-    }
-
-    // now read the whole thing
-    memset((void*)buf_virt, 0, 4096);
-    req.len = total_len;
-
-    if (uhci_control_transfer(hc, dev_addr, low_speed, &req, (void*)buf_phys, total_len) < 0) {
-        pmm_ffree(buf_phys, 1);
-        return 0;
-    }
 
     // walk through looking for a matching interface descriptor
     u16 offset = 0;
@@ -756,16 +708,8 @@ int usb_hid_kbd_init() {
         uhci_controller_t* hc = &controllers[i];
 
         uhci_reset_port(hc, UHCI_PORTSC1);
-        // skip if its not actually a HID keyboard
+
         if (!is_usb_devicetype(&controllers[i], 0, true, 0x03, 0x01)) {
-            continue;
-        }
-
-        if (usb_set_address(hc, 0, 1) != 0) {
-            continue;
-        }
-
-        if (usb_set_configuration(hc, 1, 1) != 0) {
             continue;
         }
         
@@ -774,7 +718,8 @@ int usb_hid_kbd_init() {
         }
 
         _uhci_usbhid_kbd.ctrl = hc;
-        _uhci_usbhid_kbd.port = 1;
+        _uhci_usbhid_kbd.port = 0;
+        return 0;
     }
     return -1;
 }
@@ -791,16 +736,16 @@ void usb_hid_kbd_poll() {
         return;
     }
 
-    uintptr_t page_virt = (uintptr_t)page_phys + HHDM_START;
+    u64 page_virt = (u64)page_phys + HHDM_START;
     memset((void*)page_virt, 0, 4096);
 
     uhci_td_t* in_td = (uhci_td_t*)(page_virt + 64);
-    uintptr_t in_td_phys = (uintptr_t)page_phys + 64;
+    u64 in_td_phys = (u64)page_phys + 64;
 
     in_td->link = UHCI_TD_PTR_T;
     in_td->ctrl = UHCI_TD_CTRL_ACT | UHCI_TD_CTRL_CERR | UHCI_TD_CTRL_LS | UHCI_TD_CTRL_IOC;
     in_td->token = (7 << 21) | (0 << 19) | (1 << 15) | (_uhci_usbhid_kbd.port << 8) | UHCI_PID_IN;
-    in_td->buffer = (u32)(uintptr_t)page_phys;
+    in_td->buffer = (u32)(u64)page_phys;
 
     uhci_controller_t* hc = _uhci_usbhid_kbd.ctrl;
     hc->queue_head->element = (u32)in_td_phys;

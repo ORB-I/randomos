@@ -54,8 +54,7 @@ typedef struct uhci_td {
     u32 ctrl;
     u32 token;
     u32 buffer;
-    u32 resv[4];
-} __attribute__((aligned(16), packed)) uhci_td_t;
+} __attribute__((packed, aligned(16))) uhci_td_t;
 
 typedef struct uhci_qh {
     u32 head;
@@ -89,14 +88,7 @@ typedef struct {
     u8 keys[6];
 } __attribute__((packed)) usb_hid_kbd_report_t;
 
-#define USB_DESC_DEVICE    0x01
-#define USB_DESC_CONFIG    0x02
-#define USB_DESC_STRING    0x03
-#define USB_DESC_INTERFACE 0x04
-#define USB_DESC_ENDPOINT  0x05
-
 int init_uhci();
 int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, usb_device_request_t* req, void* data, u16 len);
-int is_usb_devicetype(uhci_controller_t* hc, u8 dev_addr, bool low_speed, u8 cls, u8 proto);
 int usb_hid_kbd_init();
 void usb_hid_kbd_poll();
