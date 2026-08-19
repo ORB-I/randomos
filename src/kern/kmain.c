@@ -40,9 +40,21 @@ void kmain() {
         for (;;) asm("hlt");
     }
 
-    if (!hhdm_request.response || !mmap_req.response || !rsdp_req.response || !kaddr_req.response) {
+    if (!hhdm_request.response || !mmap_req.response ||
+        !rsdp_req.response || !kaddr_req.response) {
         for (;;) asm("hlt");
     }
+
+    // Top of physical RAM, derived from the memmap.
+    for (usize i = 0; i < mmap_req.response->entry_count; i++) {
+        struct limine_memmap_entry* e = mmap_req.response->entries[i];
+        if (e->base + e->length > ram_max) {
+            ram_max = e->base + e->length;
+        }
+    }
+
+    printf("KERN: RandomOS booting (HHDM offset: 0x%lx)\n",
+           hhdm_request.response->offset);
 
     gdt_init();
 }
@@ -53,22 +65,24 @@ void init_allterm() {
     }
 
     if (init_fbdrv(fb_req.response->framebuffers[0]) < 0) {
-        for(;;)asm("hlt");
+        for (;;) asm("hlt");
     }
 
     int termfb = create_fb(FBTYPE_TERM);
     if (termfb < 0) {
-        for(;;)asm("hlt");
+        for (;;) asm("hlt");
     }
 
-    create_fb(FBTYPE_GUI);
+    if (create_fb(FBTYPE_GUI) < 0) {
+        for (;;) asm("hlt");
+    }
 
     if (init_term(termfb) < 0) {
-        for(;;)asm("hlt");
+        for (;;) asm("hlt");
     }
 
     if (switch_fb(termfb) < 0) {
-        for(;;)asm("hlt");
+        for (;;) asm("hlt");
     }
 
     term_clear();
@@ -96,10 +110,12 @@ void kmain_aftergdt() {
     printf("IO: Initializing APIC & IOAPIC\n");
     apic_init();
 
-    // init_acpi() registered the SCI interrupt via init_irq(), which
-    // needs the IOAPIC redirection table that apic_init() just built.
-    // Re-arm it now that routing is ready.
+    // Register the SCI interrupt now that apic_init() has built the
+    // IOAPIC redirection table.
     init_irq(acpi.fadt->sci_int, sci_hdlr);
+
+    pit_init(100);
+    irq_enable(0);
 
     asm("sti");
 
