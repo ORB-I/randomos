@@ -552,7 +552,7 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
         memcpy((void*)dtbovirt, (void*)dtvirt, len);
     }
 
-    u32 ctrlb = UHCI_TD_CTRL_ACT | (3 << 21);
+    u32 ctrlb = UHCI_TD_CTRL_ACT | UHCI_TD_CTRL_CERR;
     if (low_speed) {
         ctrlb |= UHCI_TD_CTRL_LS;
     }
@@ -566,7 +566,7 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
     tdcnt++;
 
     setup_td->ctrl = ctrlb;
-    setup_td->token = ((7) << 21) | (0 << 15) | ((u32)dev_addr << 8) | UHCI_PID_SETUP;
+    setup_td->token = ((7) << 21) | (0 << 20) | (0 << 15) | ((u32)dev_addr << 8) | UHCI_PID_SETUP;
     setup_td->buffer = (u32)((u64)pgphys);
 
     uhci_td_t* last_td = setup_td;
@@ -587,12 +587,9 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
         tdcnt++;
 
         u32 mlene = (u32)(pksz - 1) & 0x7FF;
-        data_td->token = (mlene << 21) | ((u32)tgl << 19) | (0 << 15) | ((u32)dev_addr << 8) | data_pid;
+        data_td->token = (mlene << 21) | ((u32)tgl << 20) | (0 << 15) | ((u32)dev_addr << 8) | data_pid;
         data_td->buffer = (u32)(dtbophys + dtoff);
         data_td->ctrl = ctrlb;
-        if (data_in) {
-            data_td->ctrl |= (1 << 29); 
-        }
 
         last_td->link = (u32)(data_tdp | UHCI_TD_PTR_VF);
         last_td = data_td;
@@ -608,7 +605,7 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
 
     status_td->link = UHCI_TD_PTR_T; 
     status_td->ctrl = ctrlb | UHCI_TD_CTRL_IOC;
-    status_td->token = (0x7FF << 21) | (1 << 19) | (0 << 15) | ((u32)dev_addr << 8) | (data_in ? UHCI_PID_OUT : UHCI_PID_IN);
+    status_td->token = (0 << 21) | (1 << 20) | (0 << 15) | ((u32)dev_addr << 8) | (data_in ? UHCI_PID_OUT : UHCI_PID_IN);
     status_td->buffer = (u32)((u64)pgphys + 0x300);
 
     last_td->link = (u32)(status_td_phys | UHCI_TD_PTR_VF);
