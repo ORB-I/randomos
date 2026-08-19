@@ -32,6 +32,7 @@
 
 u64 ram_max = 0;
 extern void gdt_init();
+extern void sci_hdlr();
 core_acpi_t* acpi_hdl = NULL;
 
 void kmain() {
@@ -99,6 +100,9 @@ void kmain_aftergdt() {
     // needs the IOAPIC redirection table that apic_init() just built.
     // Re-arm it now that routing is ready.
     init_irq(acpi.fadt->sci_int, sci_hdlr);
+
+    pit_init(100);
+    irq_enable(0);
 
     asm("sti");
 
