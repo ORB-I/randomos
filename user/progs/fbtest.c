@@ -4,7 +4,7 @@
 #include <sys/syscall.h>
 #include <mem.h>
 #include <io.h>
-#include <string.h>
+#include <str.h>
 
 static int fail(const char* msg) {
     fprintf(STDERR, "fbtest: %s\n", msg);

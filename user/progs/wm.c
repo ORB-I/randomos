@@ -5,7 +5,8 @@
 #include <io.h>
 #include <sys/sysfn.h>
 #include <sys/syscall.h>
-#include <string.h>
+#include <str.h>
+#include <stdbool.h>
 
 #define WIN_MAX 16
 #define TITLE_H 24

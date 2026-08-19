@@ -26,3 +26,4 @@ u64 getclock(int clock);
 u64 gettime();
 void gettime_ms(struct millitime* timebuf);
 void get_ctime(ctime_t* ct);
+const char* get_timestr(ctime_t* ct);

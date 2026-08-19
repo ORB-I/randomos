@@ -1,7 +1,7 @@
 #include <fbdraw.h>
 #include <fb.h>
 #include <mem.h>
-#include <string.h>
+#include <str.h>
 
 #include <gui_font.h>
 

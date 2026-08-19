@@ -5,7 +5,7 @@
 #include <drivers/pci.h>
 #include <drivers/uhci.h>
 #include <drivers/tsc.h>
-#include <drivers/term.h>
+#include <core/printf.h>
 #include <drivers/kbd.h>
 
 extern u8 kbd_raw_sc;
