@@ -132,6 +132,8 @@ static ioapic_info_t* ioapic_for_gsi(u32 gsi, u32* offset) {
 }
 
 void ioapic_route_gsi(u32 gsi, u8 vector, u32 lapic_id, u16 flags, bool masked) {
+    printf("APIC: Registering GSI %d\n", gsi);
+
     u32 offset = 0;
     ioapic_info_t* ioapic = ioapic_for_gsi(gsi, &offset);
     if (!ioapic) {
@@ -176,6 +178,10 @@ void ioapic_set_irq(u8 irq, u8 vector, u32 lapic_id, bool masked) {
     u16 flags = 0;
     u32 gsi = irq_to_gsi(irq, &flags);
     ioapic_route_gsi(gsi, vector, lapic_id, flags, masked);
+}
+
+u32 get_lapic_id() {
+    return bsp_lapic_id;
 }
 
 void ioapic_mask_irq(u8 irq) {
@@ -272,6 +278,7 @@ static void enable_lapic() {
     lapic_write(LAPIC_LVT_ERROR, 1 << 16);
 
     bsp_lapic_id = (lapic_read(LAPIC_ID_REG) >> 24) & 0xFF;
+    printf("LAPIC ID %d\n", bsp_lapic_id);
 }
 
 void apic_init() {

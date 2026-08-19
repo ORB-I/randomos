@@ -1,10 +1,11 @@
 #include <core/std.h>
 #include <core/asmh.h>
 #include <core/idt.h>
+#include <core/printf.h>
 
 #include <drivers/kbd.h>
 #include <drivers/term.h>
-#include <drivers/pic.h>
+#include <drivers/apic.h>
 #include <drivers/uhci.h>
 
 static const char sc_map[128] = {
@@ -34,6 +35,7 @@ u32 kb_head = 0;
 u32 kb_tail = 0;
 bool kb_full = false;
 bool shift_pressed = false;
+int kb_type = 0;
 
 u8 kbd_raw_sc = 0;
 bool kbd_raw_ready = false;
@@ -46,7 +48,7 @@ u8 kbd_get_raw(void) {
 
 extern void kbd_hdlr();
 
-void init_kbd() {
+void init_kbdps2() {
     while (inb(0x64) & 1) inb(0x60);
 
     outb(0x64, 0x20);
@@ -59,7 +61,25 @@ void init_kbd() {
     while (inb(0x64) & 2);
     outb(0x60, cb);
 
-    init_irq(1, kbd_hdlr);
+    idt_regintr(0x21, kbd_hdlr, 0x8E, 1);
+    ioapic_set_irq(1, 0x21, get_lapic_id(), 0);
+    ioapic_unmask_irq(1);
+}
+
+void init_kbd(int kbd_type) {
+    kb_type = kbd_type;
+    if (kb_type == KBD_PS2) {
+        init_kbdps2();
+        printf("KBD: Using PS/2 Keyboard\n");
+    } else {
+        if (usb_hid_kbd_init() < 0) {
+            init_kbdps2();
+            kb_type = KBD_PS2;
+            printf("KBD: Using PS/2 Keyboard\n");
+        } else {
+            printf("KBD: Using USB HID Keyboard\n");
+        }
+    }
 }
 
 void enqueue_key(char c) {
@@ -96,7 +116,9 @@ void noecho(int on) {
 
 char getchar(void) {
     while (!kb_has_char()) {
-        usb_hid_kbd_poll();
+        if (kb_type == KBD_USBHID) {
+            usb_hid_kbd_poll();
+        }
         asm volatile("pause");
     }
     char c = dequeue_key();
@@ -119,21 +141,6 @@ usize getstr(char* buf, usize ntoread) {
     return nread;
 }
 
-s32 kbd_enabled_flg = 0;
-void enable_kbd() { 
-    irq_enable(1);
-    kbd_enabled_flg = 1;
-}
-
-void disable_kbd() {
-    irq_disable(1);
-    kbd_enabled_flg = 0;
-}
-
-s32 kbd_enabled() {
-    return kbd_enabled_flg;
-}
-
 void c_kbd_hdlr() {
     u8 sc = inb(0x60);
 
@@ -144,7 +151,7 @@ void c_kbd_hdlr() {
         }
         kbd_raw_sc = sc;
         kbd_raw_ready = true;
-        pic_send_eoi(1);
+        lapic_eoi();
         return;
     }
 
@@ -152,7 +159,7 @@ void c_kbd_hdlr() {
         shift_pressed = true;
         kbd_raw_sc = sc;
         kbd_raw_ready = true;
-        pic_send_eoi(1);
+        lapic_eoi();
         return;
     }
 
@@ -166,5 +173,5 @@ void c_kbd_hdlr() {
 
     kbd_raw_sc = sc;
     kbd_raw_ready = true;
-    pic_send_eoi(1);
+    lapic_eoi();
 }

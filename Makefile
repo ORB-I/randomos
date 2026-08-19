@@ -21,7 +21,7 @@ QFLAGS       := -M pc -boot d -m 1G -monitor stdio \
 				-drive id=disk,file=drive.img,format=raw,if=none \
   				-device ide-hd,drive=disk,bus=ide.0,unit=0 \
 				-device piix3-usb-uhci,id=uhci \
-				-device usb-kbd,bus=uhci.0
+				#-device usb-kbd,bus=uhci.0
 
 AS_SRC := $(shell find src -name '*.asm')
 CC_SRC := $(shell find src -name '*.c')

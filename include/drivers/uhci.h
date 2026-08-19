@@ -89,7 +89,7 @@ typedef struct {
     u8 keys[6];
 } __attribute__((packed)) usb_hid_kbd_report_t;
 
-void init_uhci();
+int init_uhci();
 int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, usb_device_request_t* req, void* data, u16 len);
-void usb_hid_kbd_init();
+int usb_hid_kbd_init();
 void usb_hid_kbd_poll();

@@ -4,3 +4,4 @@
 - Create userspace wm [ DONE by @44tl ]
 - Test userspace framebuffer stuff [ DONE by @44tl ]
 - Make a way to query framebuffer pixel layout (IN PROGRESS @Wdboyes13)
+- Add SOFILE support and dynamic ELFs

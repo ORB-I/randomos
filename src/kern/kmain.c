@@ -32,6 +32,7 @@
 
 u64 ram_max = 0;
 extern void gdt_init();
+extern void sci_hdlr();
 core_acpi_t* acpi_hdl = NULL;
 
 void kmain() {
@@ -114,14 +115,15 @@ void kmain_aftergdt() {
         printf("KERN: No drive available\n");
     }
 
-    init_uhci();
-    usb_hid_kbd_init();
+    int kbtype = KBD_USBHID;
+    if (init_uhci() < 0) {
+        kbtype = KBD_PS2;
+    }
 
     init_syscalls();
 
     printf("IO: Initializing and enabling keyboard\n");
-    init_kbd();
-    enable_kbd();
+    init_kbd(kbtype);
 
     sh();
     for (;;);

@@ -409,7 +409,7 @@ static int uhci_init_controller(u8 bus, u8 slot, u8 fn) {
     return 0;
 }
 
-void init_uhci() {
+int init_uhci() {
     for (u32 bus = 0; bus < 256; bus++) {
         for (u32 slot = 0; slot < 32; slot++) {
             pci_chdr_t hdr;
@@ -426,11 +426,12 @@ void init_uhci() {
                 u8 progif = (u8)((r2 >> 8) & 0xFF);
 
                 if (cls == 0x0C && subcls == 0x03 && progif == 0x00) {
-                    uhci_init_controller(bus, slot, fn);
+                    return uhci_init_controller(bus, slot, fn);
                 }
             }
         }
     }
+    return -1;
 }
 
 int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, usb_device_request_t* req, void* data, u16 len) {
@@ -510,7 +511,7 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
     return ret;
 }
 
-void usb_hid_kbd_init() {
+int usb_hid_kbd_init() {
     usb_device_request_t req;
     req.req_type = 0x21;
     req.req = 0x0A;
@@ -519,8 +520,11 @@ void usb_hid_kbd_init() {
     req.len = 0;
 
     for (usize i = 0; i < num_controllers; i++) {
-        uhci_control_transfer(&controllers[i], 0, true, &req, NULL, 0);
+        if (uhci_control_transfer(&controllers[i], 0, true, &req, NULL, 0) == 0) {
+            return 0;
+        }
     }
+    return -1;
 }
 
 void usb_hid_kbd_poll() {
