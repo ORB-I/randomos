@@ -38,6 +38,9 @@ void free_fb(int fb);
 int switch_fb(int fb);
 int get_fbinfo(int fb, framebuf_info_t* info);
 
+usize create_fb_withmem(int type, void* ptr, usize sz, int* fbdes);
+void free_fb_withmem(int fb);
+
 void clear_fb(int fb);
 void flush_scr();
 

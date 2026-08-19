@@ -238,6 +238,15 @@ void syscall_c(struct sysregs* args) {
             args->num = kbd_get_raw();
             goto ret;
         }
+        case SYS_CREATEFBWMEM: {
+            args->num = create_fb_withmem(args->a0, (void*)args->a1, args->a2, (int*)args->a3);
+            goto ret;
+        }
+        case SYS_RMFBWMEM: {
+            free_fb_withmem(args->a0);
+            args->num = 0;
+            goto ret;
+        }
 
         default: args->num = -1;
     }

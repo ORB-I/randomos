@@ -174,7 +174,6 @@ void ioapic_route_gsi(u32 gsi, u8 vector, u32 lapic_id, u16 flags, bool masked) 
 
     u32 reg = IOAPIC_REDTBL(offset);
     ioapic_write64(ioapic, reg, redirection);
-    printf("APIC: Registering GSI %d\n", gsi);
 }
 
 static u32 irq_to_gsi(u8 irq, u16* flags) {

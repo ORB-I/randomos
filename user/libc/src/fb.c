@@ -1,12 +1,25 @@
 #include <fb.h>
+#include <mem.h>
 #include <sys/syscall.h>
 
 int create_fb(int type) {
-    return __syscall1(SYS_CREATEFB, type);
+    int fb;
+    usize sz = __syscall4(SYS_CREATEFBWMEM, type, 0, 0, (u64)&fb);
+    if (sz < 0) return -1;
+    void* mem = malloc(sz);
+    if (!mem) return -1;
+    if (__syscall4(SYS_CREATEFBWMEM, type, (u64)mem, sz, (u64)&fb) < 0) {
+        free(mem);
+        return -1;
+    }
+    return fb;
 }
 
 void rmfb(int fb) {
-    __syscall1(SYS_RMFB, fb);
+    framebuf_info_t info;
+    get_fbinfo(fb, &info);
+    free(info.ptr);
+    __syscall1(SYS_RMFBWMEM, fb);
 }
 
 int switch_fb(int fb) {

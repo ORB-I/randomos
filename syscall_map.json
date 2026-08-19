@@ -430,5 +430,45 @@
                 "name": "npages"
             }
         ]
+    },
+    "SYS_GETRAWSC": {
+        "nr": 38,
+        "nargs": 0,
+        "returns": "u8",
+        "args": null
+    },
+    "SYS_CREATEFBWMEM": {
+        "nr": 39,
+        "nargs": 4,
+        "returns": "usize",
+        "args": [
+            {
+                "type": "int",
+                "name": "type"
+            },
+            {
+                "type": "void*",
+                "name": "ptr"
+            },
+            {
+                "type": "usize",
+                "name": "sz"
+            },
+            {
+                "type": "int*",
+                "name": "fbdes"
+            }
+        ]
+    },
+    "SYS_RMFBWMEM": {
+        "nr": 40,
+        "nargs": 1,
+        "returns": "void",
+        "args": [
+            {
+                "type": "int",
+                "name": "fb"
+            }
+        ]
     }
 }

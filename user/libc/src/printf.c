@@ -945,6 +945,7 @@ int vfctprintf(void (*out)(char character, void* arg), void* arg, const char* fo
 void _fprintf_putchar(char c, void* arg) {
     fputchar((int)arg, c);
 }
+
 int fprintf(int fd, const char* fmt, ...) {
     va_list lst;
     va_start(lst, fmt);

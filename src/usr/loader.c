@@ -3,6 +3,7 @@
 #include <lib/string.h>
 #include <core/mem/vmm.h>
 #include <core/liballoc.h>
+#include <core/printf.h>
 #include <drivers/term.h>
 #include <lib/loader.h>
 #include <lib/syscall.h>
@@ -14,13 +15,18 @@
 extern u64 ram_max;
 
 int load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp) {
+    if (phdr->p_memsz == 0) return 0;
     usize npgs = phdr->p_memsz / 4096;
     if (phdr->p_memsz % 4096 != 0) npgs++;
 
     void* addr = vmm_map_pages(vmm_cpml4v(), USER_START + phdr->p_vaddr, 0, npgs, MAP_ANYPHYS | MAP_CONT | PAGE_WRITE);
-    if (!addr) return -1;
+    if (!addr) {
+        printf("Loader: failed to get memory for program\n");
+        return -1;
+    }
 
     if (lseek(fd, phdr->p_offset, SEEK_SET) < 0) {
+        printf("Loader: failed to seek phdr offset\n");
         return -1;
     }
 
@@ -30,11 +36,18 @@ int load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp) {
 
     ssize nread = read(fd, addr, phdr->p_filesz);
     if (nread < 0 || (usize)nread < phdr->p_filesz) {
+        printf("Loader: failed to read program data\n");
         return -1;
     }
 
+    u64 flgs = PAGE_USER;
+    if (phdr->p_flags & PF_W) {
+        flgs |= PAGE_WRITE;
+    }
+
     u64 paddr = vmm_get_phys(vmm_cpml4v(), (u64)addr);
-    if (!vmm_map_pages(nasp, phdr->p_vaddr, paddr, npgs, MAP_CONT | PAGE_USER)) {
+    if (!vmm_map_pages(nasp, phdr->p_vaddr, paddr, npgs, MAP_CONT | flgs)) {
+        printf("Loader: failed to map userspace pages\n");
         return -1;
     }
 
@@ -44,12 +57,16 @@ int load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp) {
 
 int load_program(const char* path, char** argv) {
     int fd = open(path, O_RDONLY);
-    if (fd < 0) return -1;
+    if (fd < 0) {
+        printf("Loader: failed to open file\n");
+        return -1;
+    }
 
     Elf64_Ehdr ehdr;
     ssize nread = read(fd, &ehdr, sizeof(ehdr));
     if (nread == -1 || (usize)nread < sizeof(ehdr)) {
         close(fd);
+        printf("Loader: failed to read ehdr\n");
         return -1;
     }
 
@@ -60,6 +77,7 @@ int load_program(const char* path, char** argv) {
         ehdr.e_ident[EI_CLASS]   != ELFCLASS64  ||
         ehdr.e_ident[EI_DATA]    != ELFDATA2LSB) {
             close(fd);
+            printf("Loader: invalid or unsupported file\n");
             return -1;
     }
 
@@ -67,11 +85,13 @@ int load_program(const char* path, char** argv) {
         ehdr.e_machine != EM_X86_64 ||
         ehdr.e_version != EV_CURRENT) {
             close(fd);
+            printf("Loader: invalid or unsupported file\n");
             return -1;
     }
 
     if (lseek(fd, ehdr.e_phoff, SEEK_SET) < 0) {
         close(fd);
+        printf("Loader: failed to get phdrs\n");
         return -1;
     }
 
@@ -82,10 +102,12 @@ int load_program(const char* path, char** argv) {
         ssize nread = read(fd, &phdrs[i], sizeof(Elf64_Phdr));
         if (nread == -1 || (usize)nread != ehdr.e_phentsize) {
             close(fd);
+            printf("Loader: failed to read phdrs\n");
             return -1;
         }
         if (phdrs[i].p_vaddr < USER_START || (phdrs[i].p_vaddr + phdrs[i].p_memsz) >= USER_END) {
             close(fd);
+            printf("Loader: program tried to load to invalid address\n");
             return -1;
         }
 
@@ -112,6 +134,7 @@ int load_program(const char* path, char** argv) {
     void* stkptr = vmm_map_pages(vmm_cpml4v(), rsp - USTACK, 0, USTACKPGS, MAP_ANYPHYS | PAGE_WRITE | MAP_CONT);
     if (!stkptr) {
         close(fd);
+        printf("Loader: failed to allocate stack\n");
         return -1;
     }
 
@@ -146,6 +169,7 @@ int load_program(const char* path, char** argv) {
 
     u64 paddr = vmm_get_phys(vmm_cpml4v(), (u64)(rsp - USTACK));
     if (!vmm_map_pages(nasp, rsp - USTACK, paddr, USTACKPGS, MAP_CONT | PAGE_USER | PAGE_WRITE)) {
+        printf("Loader: failed to map stack\n");
         return -1;
     }
     vmm_unmap_pages(vmm_cpml4v(), (u64)(rsp - USTACK), USTACKPGS, UNMAP_KEEPPHYS);

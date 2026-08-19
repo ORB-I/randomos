@@ -41,7 +41,7 @@ u8 kbd_raw_sc = 0;
 bool kbd_raw_ready = false;
 
 u8 kbd_get_raw(void) {
-    if (!kbd_raw_ready) return 0;
+    while (!kbd_raw_ready);
     kbd_raw_ready = false;
     return kbd_raw_sc;
 }
