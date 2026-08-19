@@ -95,6 +95,11 @@ void kmain_aftergdt() {
     printf("IO: Initializing APIC & IOAPIC\n");
     apic_init();
 
+    // init_acpi() registered the SCI interrupt via init_irq(), which
+    // needs the IOAPIC redirection table that apic_init() just built.
+    // Re-arm it now that routing is ready.
+    init_irq(acpi.fadt->sci_int, sci_hdlr);
+
     asm("sti");
 
     init_gettimeofday();
