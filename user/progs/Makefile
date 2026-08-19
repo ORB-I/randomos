@@ -18,7 +18,8 @@ PROGS := echo \
 		 fbtest \
 		 dspinfo \
 		 wintest \
-		 keytest
+		 keytest \
+		 mousetest
 
 DRIVE ?= ../../drive.img
 

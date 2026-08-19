@@ -4,6 +4,9 @@
 #include <drivers/apic.h>
 #include <lib/string.h>
 #include <drivers/ps2/mouse.h>
+#include <core/printf.h>
+#include <drivers/usb/usbhid_mouse.h>
+#include <drivers/ps2/ps2.h>
 #include <drivers/mouse.h>
 
 #define MOUSEBUF_SZ 256
@@ -13,8 +16,19 @@ u32 mb_tail = 0;
 bool mb_full = 0;
 int mb_type = 0;
 
+int mouse_has_info() {
+    return (mb_head != mb_tail) || mb_full;
+}
+
 int get_mouse_info(mouse_info_t* buf) {
     if (mb_type == 0) return -1;
+    while (!mouse_has_info()) {
+        if (mb_type == MOUSE_USBHID) {
+            usb_hid_mouse_poll();
+        }
+        asm volatile("pause");
+    }
+
     mouse_info_t info = dequeue_mouse();
     memcpy(buf, &info, sizeof(info));
     return 0;
@@ -44,10 +58,35 @@ mouse_info_t dequeue_mouse() {
 
 int init_mouse(int type) {
     mb_type = type;
-    if (MOUSETYPE_USBHID) {
-        return -1;
-    } else {
+    if (type == MOUSE_PS2) {
+        if (!isps2dc()) {
+            printf("MOUSE: No mouse available\n");
+            return -1;
+        }
+        if (!has_ps2mouse()) {
+            printf("MOUSE: No mouse available\n");
+            return -1;
+        }
         init_mouseps2();
+        printf("MOUSE: Using PS/2 Mouse\n");
         return 0;
+    } else {
+        if (usb_hid_mouse_init() < 0) {
+            if (!isps2dc()) {
+                printf("MOUSE: No mouse available\n");
+                return -1;
+            }
+            if (!has_ps2mouse()) {
+                printf("MOUSE: No mouse available\n");
+                return -1;
+            }
+            init_mouseps2();
+            mb_type = MOUSE_PS2;
+            printf("MOUSE: Using PS/2 Mouse (USB HID Failed)\n");
+            return 0;
+        } else {
+            printf("MOUSE: Using USB HID Mouse\n");
+            return 0;
+        }
     }
 }

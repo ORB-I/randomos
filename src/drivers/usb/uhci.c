@@ -60,7 +60,8 @@ int usb_set_configuration(uhci_controller_t* hc, u8 addr, u8 config_val) {
     return uhci_control_transfer(hc, addr, true, &req, NULL, 0);
 }
 
-void uhci_reset_port(uhci_controller_t* hc, u16 port_reg) {
+void uhci_reset_port(uhci_controller_t* hc, int port) {
+    u16 port_reg = UHCI_PORTSC1 + (port * 2);
     u16 val = uhci_inw(hc, port_reg);
     if (!(val & UHCI_PORT_CONN)) {
         return;
@@ -79,6 +80,45 @@ void uhci_reset_port(uhci_controller_t* hc, u16 port_reg) {
         uhci_outw(hc, port_reg, val | UHCI_PORT_ENABLE);
         tsc_sleep(10);
     }
+}
+
+int uhci_get_portcnt(uhci_controller_t* hc) {
+    u16 cnt = 0;
+    while (cnt < 16) {
+        u16 pscioaddr = hc->io_base + 0x10 + (cnt * 2);
+        u16 psc = inw(pscioaddr);
+        if ((psc & (1 << 7)) == 0 || psc == 0xFFFF) {
+            break;
+        }
+        cnt++;
+    }
+    return cnt;
+}
+
+int uhci_portcon(uhci_controller_t* hc, uint8_t port) {
+    uint16_t portsc_reg = hc->io_base + 0x10 + (port * 2);
+    uint16_t status = inw(portsc_reg);
+    if (status == 0xFFFF) {
+        return false;
+    }
+    return (status & UHCI_PORTSC_CCS) != 0;
+}
+
+int uhci_regdev(uhci_controller_t* hc, int port, int low_speed, u8 class, u8 proto) {
+    if (!uhci_portcon(hc, port)) {
+        return UHCI_REG_NODEV;
+    }
+
+    if (hc->port_in_use[port]) {
+        return UHCI_REG_INUSE;
+    }
+
+    uhci_reset_port(hc, port);
+    if (!is_usb_devicetype(hc, port, low_speed, class, proto)) {
+        return UHCI_REG_NTYPE;
+    }
+
+    return port;
 }
 
 static int uhci_init_controller(u8 bus, u8 slot, u8 fn) {
@@ -158,6 +198,8 @@ static int uhci_init_controller(u8 bus, u8 slot, u8 fn) {
     uhci_reset_port(hc, UHCI_PORTSC1);
     uhci_reset_port(hc, UHCI_PORTSC2);
 
+    memset(hc->port_in_use, 0, sizeof(hc->port_in_use));
+    hc->nports = uhci_get_portcnt(hc);
     return 0;
 }
 

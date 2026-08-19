@@ -470,5 +470,16 @@
                 "name": "fb"
             }
         ]
+    },
+    "SYS_GETMOUSEINFO": {
+        "nr": 41,
+        "nargs": 1,
+        "returns": "int",
+        "args": [
+            {
+                "type": "mouse_info_t*",
+                "name": "buf"
+            }
+        ]
     }
 }

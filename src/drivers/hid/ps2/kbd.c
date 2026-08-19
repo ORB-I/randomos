@@ -27,8 +27,6 @@ static const char sc_map_shift[128] = {
 extern void kbd_hdlr();
 
 void init_kbdps2() {
-    while (inb(0x64) & 1) inb(0x60);
-
     ps2_wait_write();
     ps2_cmdwrite(0xAE);
     ps2_wait_write();

@@ -16,6 +16,7 @@
 #include <drivers/kbd.h>
 #include <drivers/rtc.h>
 #include <drivers/pic.h>
+#include <drivers/mouse.h>
 #include <drivers/apic.h>
 #include <drivers/acpi.h>
 #include <drivers/term.h>
@@ -25,7 +26,7 @@
 #include <drivers/ff16_init.h>
 #include <drivers/fs.h>
 #include <drivers/fb.h>
-#include <drivers/uhci.h>
+#include <drivers/usb/uhci.h>
 
 #include <lai/helpers/pm.h>
 #include <ff16/ff.h>
@@ -126,14 +127,18 @@ void kmain_aftergdt() {
     }
 
     int kbtype = KBD_USBHID;
+    int mbtype = MOUSE_USBHID;
     if (init_uhci() < 0) {
         kbtype = KBD_PS2;
+        mbtype = MOUSE_PS2;
     }
 
     init_syscalls();
 
     printf("IO: Requesting keyboard type %d\n", kbtype);
     init_kbd(kbtype);
+    printf("IO: Requesting mouse type %d\n", mbtype);
+    init_mouse(mbtype);
 
     sh();
     for (;;);

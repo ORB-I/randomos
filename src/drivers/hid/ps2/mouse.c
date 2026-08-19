@@ -6,6 +6,21 @@
 #include <drivers/mouse.h>
 
 extern void mouse_hdlr();
+int has_ps2mouse() {
+    ps2_cmdwrite(0xD4);
+    ps2_datawrite(0xFF);
+
+    if (ps2_datareadto(1000) != 0xFA) {
+        return false;
+    }
+    u8 stest = ps2_datareadto(1000);
+    u8 devid = ps2_datareadto(1000);
+
+    if (stest == 0xAA && (devid == 0x00 || devid == 0x03 || devid == 0x04)) {
+        return 1;
+    }
+    return 0;
+}
 
 void init_mouseps2() {
     while (inb(0x64) & 1) inb(0x60);
@@ -86,7 +101,7 @@ void c_mouse_hdlr() {
                 if (pkt->middle_button) btns |= MOUSE_BUTTON_MIDDLE;
 
                 enqueue_mouse((mouse_info_t){
-                    relx, rely, btns
+                    (s8)(relx / 2), (s8)(rely / 2), btns
                 });
                 break;
             }

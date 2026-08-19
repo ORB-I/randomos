@@ -23,7 +23,7 @@ u32 kbsc_head = 0;
 u32 kbsc_tail = 0;
 bool kbsc_full = false;
 
-u8 kbd_get_raw(void) {
+u8 kbd_get_raw(void) { 
     while (!kb_has_sc()) {
         if (kb_type == KBD_USBHID) {
             usb_hid_kbd_poll();

@@ -41,6 +41,7 @@
 #define SYS_GETRAWSC      38
 #define SYS_CREATEFBWMEM  39
 #define SYS_RMFBWMEM      40
+#define SYS_GETMOUSEINFO  41
 
 u64 __syscall0(u64 nr);
 u64 __syscall1(u64 nr, u64 arg0);

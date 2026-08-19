@@ -33,6 +33,8 @@
 #define UHCI_PORT_LOWSPD (1 << 8)
 #define UHCI_PORT_RESET  (1 << 9)
 #define UHCI_PORT_SUSP   (1 << 12)
+#define UHCI_PORTSC_CCS  (1 << 0) 
+#define UHCI_PORTSC_CSC  (1 << 1)
 
 #define UHCI_TD_PTR_T (1 << 0)
 #define UHCI_TD_PTR_Q (1 << 1)
@@ -121,6 +123,8 @@ typedef struct {
     uhci_qh_t* queue_head;
     uintptr_t queue_head_phys;
     bool exists;
+    u8 port_in_use[16];
+    u8 nports;
 } uhci_controller_t;
 
 typedef struct {
@@ -140,7 +144,16 @@ int init_uhci();
 int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, usb_device_request_t* req, void* data, u16 len);
 usize uhci_get_controllers(uhci_controller_t** ctrlrs);
 int is_usb_devicetype(uhci_controller_t* hc, u8 dev_addr, bool low_speed, u8 cls, u8 proto);
-void uhci_reset_port(uhci_controller_t* hc, u16 port_reg);
+void uhci_reset_port(uhci_controller_t* hc, int port);
 int usb_set_configuration(uhci_controller_t* hc, u8 addr, u8 config_val);
 int usb_get_device_descriptor(uhci_controller_t* hc, u8 addr, usb_device_descriptor_t* desc);
 int usb_set_address(uhci_controller_t* hc, u8 old_addr, u8 new_addr);
+int uhci_get_portcnt(uhci_controller_t* hc);
+int uhci_portcon(uhci_controller_t* hc, uint8_t port);
+
+#define UHCI_REG_NODEV -1
+#define UHCI_REG_INUSE -2
+#define UHCI_REG_NTYPE -3
+#define UHCI_REG_NSADR -4
+#define UHCI_REG_NSCFG -5
+int uhci_regdev(uhci_controller_t* hc, int port, int low_speed, u8 class, u8 proto);

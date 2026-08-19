@@ -40,5 +40,6 @@
 #define SYS_GETRAWSC      38
 #define SYS_CREATEFBWMEM  39
 #define SYS_RMFBWMEM      40
+#define SYS_GETMOUSEINFO  41
 
 void init_syscalls();

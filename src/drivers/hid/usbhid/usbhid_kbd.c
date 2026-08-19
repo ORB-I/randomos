@@ -4,6 +4,7 @@
 #include <lib/string.h>
 #include <drivers/kbd.h>
 #include <core/mem/pmm.h>
+#include <core/printf.h>
 #include <core/mem/vmm.h>
 
 static const char hid_scancode_map[256] = {
@@ -300,20 +301,23 @@ int usb_hid_kbd_init() {
 
     for (usize i = 0; i < nconts; i++) {
         uhci_controller_t* hc = &conts[i];
+        for (int p = 0; p < hc->nports; p++) {
+            if (uhci_regdev(hc, p, 1, 0x03, 0x01) < 0) {
+                continue;
+            }
 
-        uhci_reset_port(hc, UHCI_PORTSC1);
+            if (usb_set_configuration(hc, p, 1) != 0) {
+                continue;
+            }
 
-        if (!is_usb_devicetype(&conts[i], 0, true, 0x03, 0x01)) {
-            continue;
+            if (uhci_control_transfer(&conts[i], p, true, &req, NULL, 0) != 0) {
+                continue;
+            }
+
+            _uhci_usbhid_kbd.ctrl = hc;
+            _uhci_usbhid_kbd.port = p;
+            return 0;
         }
-        
-        if (uhci_control_transfer(&conts[i], 0, true, &req, NULL, 0) != 0) {
-            return -1;
-        }
-
-        _uhci_usbhid_kbd.ctrl = hc;
-        _uhci_usbhid_kbd.port = 0;
-        return 0;
     }
     return -1;
 }

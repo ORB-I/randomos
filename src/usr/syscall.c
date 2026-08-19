@@ -7,6 +7,7 @@
 #include <drivers/gettimeofday.h>
 #include <drivers/term.h>
 #include <drivers/fs.h>
+#include <drivers/mouse.h>
 #include <drivers/fb.h>
 #include <drivers/tsc.h>
 #include <drivers/kbd.h>
@@ -247,7 +248,10 @@ void syscall_c(struct sysregs* args) {
             args->num = 0;
             goto ret;
         }
-
+        case SYS_GETMOUSEINFO: {
+            args->num = get_mouse_info((mouse_info_t*)args->a0);
+            goto ret;
+        }
         default: args->num = -1;
     }
 ret: {

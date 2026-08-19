@@ -5,7 +5,7 @@ NM := x86_64-elf-nm
 XORRISO := xorriso
 QEMU := qemu-system-x86_64
 
-ASFLAGS      := -felf64
+ASFLAGS      := -Iinclude -felf64
 LDFLAGS      := -Tshare/link.ld -m64 -ffreestanding -O0 -nostdlib
 LIBS         := -Llib -llai -lff -lflanterm -lgcc
 CCFLAGS      := -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
@@ -21,7 +21,8 @@ QFLAGS       := -M pc -boot d -m 1G -monitor stdio \
 				-drive id=disk,file=drive.img,format=raw,if=none \
   				-device ide-hd,drive=disk,bus=ide.0,unit=0 \
 				-device piix3-usb-uhci,id=uhci \
-				-device usb-kbd,bus=uhci.0
+				-device usb-kbd,bus=uhci.0,port=1 \
+				-device usb-mouse,bus=uhci.0,port=2
 
 AS_SRC := $(shell find src -name '*.asm')
 CC_SRC := $(shell find src -name '*.c')
