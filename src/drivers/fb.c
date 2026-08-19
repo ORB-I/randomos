@@ -56,6 +56,53 @@ int create_fb(int type) {
     return fb;
 }
 
+usize create_fb_withmem(int type, void* ptr, usize sz, int* fbdes) {
+    if (!fbctx) return -1;
+    if (fbctx->nfbs == MAX_FBS) return -1;
+
+    int fb = fbctx->nfbs++;
+    fbctx->fbs[fb] = malloc(sizeof(framebuf_t));
+    if (!fbctx->fbs[fb]) {
+        fbctx->nfbs--;
+        return -1;
+    }
+
+    fbctx->fbs[fb]->height = fbctx->backend->height;
+    fbctx->fbs[fb]->width  = fbctx->backend->width;
+    fbctx->fbs[fb]->pitch  = fbctx->backend->pitch;
+    fbctx->fbs[fb]->type   = type;
+
+    if (!ptr || sz == 0) {
+        usize nsz = fbctx->fbs[fb]->pitch * fbctx->fbs[fb]->height;
+        free(fbctx->fbs[fb]);
+        fbctx->nfbs--;
+        return nsz;
+    }
+
+    fbctx->fbs[fb]->ptrsz  = sz;
+    fbctx->fbs[fb]->ptr    = ptr;
+
+    if (!fbctx->fbs[fb]->ptr) {
+        free(fbctx->fbs[fb]);
+        fbctx->nfbs--;
+        return -1;
+    }
+
+    *fbdes = fb;
+    return 0;
+}
+
+void free_fb_withmem(int fb) {
+    if (!fbctx) return;
+    if (fb < 0 || fb >= MAX_FBS) return;
+
+    framebuf_t* fbp = fbctx->fbs[fb];
+    if (!fbp) return;
+
+    free(fbp);
+    fbctx->fbs[fb] = NULL;
+}
+
 void free_fb(int fb) {
     if (!fbctx) return;
     if (fb < 0 || fb >= MAX_FBS) return;

@@ -1,5 +1,9 @@
 ENTRY(_start)
 
+PF_X = 1;
+PF_W = 2;
+PF_R = 4;
+
 PHDRS {
     text    PT_LOAD;
     rodata  PT_LOAD;
@@ -14,7 +18,7 @@ SECTIONS {
         *(.text)
         *(.text.*)
     } :text
-
+    . = ALIGN(0x1000);
     .rodata : ALIGN(4) {
         *(.rodata)
         *(.rodata.*)
@@ -44,6 +48,8 @@ SECTIONS {
         *(.hash)
         *(.gnu.hash)
     } :rodata
+    
+    . = ALIGN(0x1000);
 
     .data : ALIGN(4) {
         *(.data)
@@ -61,7 +67,7 @@ SECTIONS {
     .dynamic : ALIGN(8) {
         *(.dynamic)
     } :data :dynamic
-
+    
     .bss : ALIGN(4) {
         *(COMMON)
         *(.bss)

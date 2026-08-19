@@ -6,13 +6,16 @@
 #include <io.h>
 #include <str.h>
 
+static int termfb = -1;
+
 static int fail(const char* msg) {
+    if (termfb >= 0) switch_fb(termfb);
     fprintf(STDERR, "fbtest: %s\n", msg);
     return 1;
 }
 
 int main(void) {
-    int termfb = get_typefb(FBTYPE_TERM);
+    termfb = get_typefb(FBTYPE_TERM);
     if (termfb < 0) return fail("no term fb");
 
     int gui = create_fb(FBTYPE_GUI);

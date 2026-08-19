@@ -38,5 +38,7 @@
 #define SYS_MMAP          36
 #define SYS_MUNMAP        37
 #define SYS_GETRAWSC      38
+#define SYS_CREATEFBWMEM  39
+#define SYS_RMFBWMEM      40
 
 void init_syscalls();

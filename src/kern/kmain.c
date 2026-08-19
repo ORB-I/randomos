@@ -53,9 +53,6 @@ void kmain() {
         }
     }
 
-    printf("KERN: RandomOS booting (HHDM offset: 0x%lx)\n",
-           hhdm_request.response->offset);
-
     gdt_init();
 }
 
@@ -114,9 +111,6 @@ void kmain_aftergdt() {
     // IOAPIC redirection table.
     init_irq(acpi.fadt->sci_int, sci_hdlr);
 
-    pit_init(100);
-    irq_enable(0);
-
     asm("sti");
 
     init_gettimeofday();
@@ -131,14 +125,15 @@ void kmain_aftergdt() {
         printf("KERN: No drive available\n");
     }
 
-    init_uhci();
-    usb_hid_kbd_init();
+    int kbtype = KBD_USBHID;
+    if (init_uhci() < 0) {
+        kbtype = KBD_PS2;
+    }
 
     init_syscalls();
 
-    printf("IO: Initializing and enabling keyboard\n");
-    init_kbd();
-    enable_kbd();
+    printf("IO: Requesting keyboard type %d\n", kbtype);
+    init_kbd(kbtype);
 
     sh();
     for (;;);

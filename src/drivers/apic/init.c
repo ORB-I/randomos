@@ -48,6 +48,7 @@ typedef struct {
 
 #define ENT_PROCLOCAL_APIC 0x00
 typedef struct {
+    madt_entry_hdr_t hdr;
     u8 smpid;
     u8 apicid;
     u32 flags;
@@ -55,6 +56,7 @@ typedef struct {
 
 #define ENT_IOAPIC 0x01
 typedef struct {
+    madt_entry_hdr_t hdr;
     u8 id;
     u8 __resv;
     u32 addr;
@@ -63,6 +65,7 @@ typedef struct {
 
 #define ENT_IOAPIC_SRC_OVERRIDE 0x02
 typedef struct {
+    madt_entry_hdr_t hdr;
     u8 bussrc;
     u8 irqsrc;
     u32 gsi;
@@ -71,11 +74,13 @@ typedef struct {
 
 #define ENT_LOCALAPIC_ADDR_OVERRIDE 0x05
 typedef struct {
+    madt_entry_hdr_t hdr;
     u16 __resv;
     u64 addr;
 } __attribute__((packed)) madt_laddro_t;
 
 typedef struct {
+    madt_entry_hdr_t hdr;
     u8 id;
     u32 gsi_base;
     u32 max_redirection_entries;
@@ -121,6 +126,21 @@ static inline void ioapic_write(ioapic_info_t* ioapic, u32 reg, u32 val) {
     *iowin = val;
 }
 
+static inline u64 ioapic_read64(ioapic_info_t* ioapic, u32 reg) {
+    u32 low = ioapic_read(ioapic, reg);
+    u32 high = ioapic_read(ioapic, reg + 1);
+    return ((u64)high << 32) | low;
+}
+
+static inline void ioapic_write64(ioapic_info_t* ioapic, u32 reg, u64 val) {
+    u32 low = (u32)(val & 0xFFFFFFFF);
+    u32 high = (u32)(val >> 32);
+
+    ioapic_write(ioapic, reg + 1, high);
+    asm volatile("" ::: "memory");
+    ioapic_write(ioapic, reg, low);
+}
+
 static ioapic_info_t* ioapic_for_gsi(u32 gsi, u32* offset) {
     for (usize i = 0; i < num_ioapics; i++) {
         if (gsi >= ioapics[i].gsi_base && gsi < (ioapics[i].gsi_base + ioapics[i].max_redirection_entries)) {
@@ -141,20 +161,19 @@ void ioapic_route_gsi(u32 gsi, u8 vector, u32 lapic_id, u16 flags, bool masked) 
     u64 redirection = vector;
 
     if (flags & 2) {
-        redirection |= (1ULL << 13);
+        redirection |= (1UL << 13);
     }
     if (flags & 8) {
-        redirection |= (1ULL << 15);
+        redirection |= (1UL << 15);
     }
     if (masked) {
-        redirection |= (1ULL << 16);
+        redirection |= (1LL << 16);
     }
 
     redirection |= ((u64)lapic_id) << 56;
 
     u32 reg = IOAPIC_REDTBL(offset);
-    ioapic_write(ioapic, reg, (u32)(redirection & 0xFFFFFFFF));
-    ioapic_write(ioapic, reg + 1, (u32)(redirection >> 32));
+    ioapic_write64(ioapic, reg, redirection);
 }
 
 static u32 irq_to_gsi(u8 irq, u16* flags) {
@@ -176,6 +195,10 @@ void ioapic_set_irq(u8 irq, u8 vector, u32 lapic_id, bool masked) {
     u16 flags = 0;
     u32 gsi = irq_to_gsi(irq, &flags);
     ioapic_route_gsi(gsi, vector, lapic_id, flags, masked);
+}
+
+u32 get_lapic_id() {
+    return bsp_lapic_id;
 }
 
 void ioapic_mask_irq(u8 irq) {
@@ -272,6 +295,7 @@ static void enable_lapic() {
     lapic_write(LAPIC_LVT_ERROR, 1 << 16);
 
     bsp_lapic_id = (lapic_read(LAPIC_ID_REG) >> 24) & 0xFF;
+    printf("LAPIC ID %d\n", bsp_lapic_id);
 }
 
 void apic_init() {

@@ -138,3 +138,7 @@ void gui_blit(guictx_t* g, u64 x, u64 y, u32* src, u64 w, u64 h, u64 spitch) {
         }
     }
 }
+
+void gui_flush(guictx_t* g) {
+    flush_scr();
+}

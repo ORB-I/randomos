@@ -54,12 +54,12 @@ void vmm_setumapbase(u64 base) {
 }
 
 void vmm_remumap(page_table_t* uasp) {
-    u64 caddr = vmm_umapr.vaddr_base;
-    while (vmm_umapr.pgcnt > 0) {
-        vmm_unmap_page(uasp, caddr, 0);
-        caddr += 4096;
-        vmm_umapr.pgcnt--;
-    }
+    //u64 caddr = vmm_umapr.vaddr_base;
+    //while (vmm_umapr.pgcnt > 0) {
+    //    vmm_unmap_page(uasp, caddr, 0);
+    //    caddr += 4096;
+    //    vmm_umapr.pgcnt--;
+    //}
 
     vmm_umapr.vaddr_base = 0;
     vmm_umapr.vaddr_end = 0;
@@ -231,7 +231,7 @@ void vmm_init() {
 
     u64 tpmem = pmms->mem_high;
     for (u64 i = 0; i < tpmem; i += 0x200000) {
-        vmm_map_huge_page(pml4, HHDM_START + i, i, PAGE_WRITE);
+        vmm_map_huge_page(pml4, HHDM_START + i, i, PAGE_WRITE | PAGE_UNCACHE);
     }
 
     u64 kphys = kaddr_req.response->physical_base;
@@ -330,7 +330,7 @@ void vmm_unmap_page(page_table_t* pml4v, u64 virt, u64 flags) {
 
 void* vmm_map_pages(page_table_t* pml4v, u64 vst, u64 pst, size_t pgcnt, u64 flg) {
     u64 page_size = 4096;
-    u64 x86flgs = flg & ~(MAP_ANYPHYS | MAP_CONT | MAP_ANYVIRT);
+    u64 x86flgs = flg & ~(MAP_ANYPHYS | MAP_CONT | MAP_ANYVIRT | MAP_USRMAP);
 
     if (flg & MAP_ANYVIRT) {
         vst = vmm_ffreer(pgcnt, flg & MAP_USRMAP);
@@ -344,7 +344,9 @@ void* vmm_map_pages(page_table_t* pml4v, u64 vst, u64 pst, size_t pgcnt, u64 flg
     if (flg & MAP_ANYPHYS) {
         if (flg & MAP_CONT) {
             void* bphys = pmm_falloc(pgcnt);
-            if (!bphys) return NULL;
+            if (!bphys) {
+                return NULL;
+            }
             pst = (u64)bphys;
             for (size_t i = 0; i < pgcnt; i++) {
                 vmm_map_page(pml4v, vst + (i * page_size), pst + (i * page_size), x86flgs);

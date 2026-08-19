@@ -6,15 +6,14 @@
 *.o
 *.d
 *.elf
-*.a
+libc.a
 *.img
 *.iso
 iso
 ksyms.c
 
 .cache
+
 *.dSYM
 __pycache__/
 *.pyc
-
-limine-binary/limine.dSYM/
