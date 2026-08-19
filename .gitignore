@@ -6,7 +6,7 @@
 *.o
 *.d
 *.elf
-libc.a
+*.a
 *.img
 *.iso
 iso
@@ -14,3 +14,23 @@ ksyms.c
 
 .cache
 *.dSYM
+__pycache__/
+*.pyc
+
+# prebuilt libraries (built from source in lib/ and vendor/)
+lib/libff.a
+lib/libflanterm.a
+lib/liblai.a
+lib/liblai.a.p/
+vendor/ff16/source/libff.a
+vendor/flanterm/src/libflanterm.a
+
+# limine binaries + dSYM (downloaded/built by the Makefile)
+limine-binary/limine-bios-cd.bin
+limine-binary/limine-bios-pxe.bin
+limine-binary/limine-uefi-cd.bin
+limine-binary/limine.dSYM/
+limine-binary/BOOTX64.EFI
+limine-binary/BOOTIA32.EFI
+limine-binary/limine-bios.sys
+limine-binary/limine-uefi-cd.bin
