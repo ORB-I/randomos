@@ -44,10 +44,10 @@ void vmm_setumapbase(u64 base) {
     vmm_umapr.vaddr_base = base;
     vmm_umapr.vaddr_end  = USER_END - (16 * 4096);
 
-    u64 size = vmm_umapr.vaddr_base - vmm_umapr.vaddr_end;
+    u64 size = vmm_umapr.vaddr_end - vmm_umapr.vaddr_base;
     do {
         vmm_umapr.vaddr_end--;
-        size = vmm_umapr.vaddr_base - vmm_umapr.vaddr_end;
+        size = vmm_umapr.vaddr_end - vmm_umapr.vaddr_base;
     } while (size % 4096 != 0);
 
     vmm_umapr.pgcnt = size / 4096;
