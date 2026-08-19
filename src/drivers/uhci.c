@@ -633,7 +633,8 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
 
         data_td->link = (u32)(status_td_phys | UHCI_TD_PTR_VF);
         data_td->ctrl = ctrl_base;
-        data_td->token = ((u32)len << 21) | (0 << 19) | ((u32)dev_addr << 8) | data_pid;
+        // maxlen is len-1 (uhci spec), and toggle must be DATA1 after setup
+        data_td->token = (((u32)(len - 1)) << 21) | (1 << 19) | ((u32)dev_addr << 8) | data_pid;
         data_td->buffer = (u32)(uintptr_t)data;
     } else {
         status_td = (uhci_td_t*)(page_virt + 128);
@@ -659,6 +660,7 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
 
     int ret = 0;
     if (status_td->ctrl & UHCI_TD_CTRL_ACT) {
+        printf("UHCICT: Controller didnt clear TDActive\n");
         ret = -1;
     }
 
@@ -666,50 +668,91 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
     return ret;
 }
 
-typedef struct {
-    uhci_controller_t* ctrl;
-    int port;
-} usb_dev_info_t;
+int is_usb_devicetype(uhci_controller_t* hc, u8 dev_addr, bool low_speed, u8 cls, u8 proto) {
+    if (!hc || !hc->exists) return 0;
 
-static usb_dev_info_t _uhci_usbhid_kbd = {NULL, -1};
+    void* buf_phys = pmm_falloc(1);
+    if (!buf_phys) return 0;
+
+    uintptr_t buf_virt = (uintptr_t)buf_phys + HHDM_START;
+    memset((void*)buf_virt, 0, 4096);
+
+    // grab the config descriptor header first so we know how big the whole thing is
+    usb_device_request_t req;
+    req.req_type = 0x80;
+    req.req = 0x06;      // GET_DESCRIPTOR
+    req.val = 0x0200;    // config desc, idx 0
+    req.idx = 0;
+    req.len = 9;
+
+    if (uhci_control_transfer(hc, dev_addr, low_speed, &req, (void*)buf_phys, 9) < 0) {
+        pmm_ffree(buf_phys, 1);
+        return 0;
+    }
+
+    // pull wTotalLength out of the header
+    u8* desc = (u8*)buf_virt;
+    if (desc[1] != USB_DESC_CONFIG) {
+        pmm_ffree(buf_phys, 1);
+        return 0;
+    }
+
+    u16 total_len = (u16)desc[2] | ((u16)desc[3] << 8);
+    if (total_len > 4096) total_len = 4096;
+    if (total_len < 9) {
+        pmm_ffree(buf_phys, 1);
+        return 0;
+    }
+
+    // now read the whole thing
+    memset((void*)buf_virt, 0, 4096);
+    req.len = total_len;
+
+    if (uhci_control_transfer(hc, dev_addr, low_speed, &req, (void*)buf_phys, total_len) < 0) {
+        pmm_ffree(buf_phys, 1);
+        return 0;
+    }
+
+    // walk through looking for a matching interface descriptor
+    u16 offset = 0;
+    int found = 0;
+    while (offset + 2 <= total_len) {
+        u8 bLength = desc[offset];
+        u8 bDescType = desc[offset + 1];
+
+        if (bLength < 2) break;
+
+        if (bDescType == USB_DESC_INTERFACE && offset + 9 <= total_len) {
+            u8 iface_class = desc[offset + 5];
+            u8 iface_proto = desc[offset + 7];
+            if (iface_class == cls && iface_proto == proto) {
+                found = 1;
+                break;
+            }
+        }
+
+        offset += bLength;
+    }
+
+    pmm_ffree(buf_phys, 1);
+    return found;
+}
+
+void usb_hid_kbd_init() {
+    usb_device_request_t req;
+    req.req_type = 0x21;
+    req.req = 0x0A;
+    req.val = 0;
+    req.idx = 0;
+    req.len = 0;
 
 int usb_hid_kbd_init() {
     for (usize i = 0; i < num_controllers; i++) {
-        uhci_controller_t* hc = &controllers[i];
-
-        uhci_reset_port(hc, UHCI_PORTSC1);
-
-        if (!is_usb_devtype(hc, 0, 0x00, 3, 1, 1) &&
-            !is_usb_devtype(hc, 0, 0x03, 3, 1, 1)) {
-                printf("Wrong device type\n");
-                continue;
-        }
-
-        if (usb_set_address(hc, 0, 1) != 0) {
-            printf("Failed to set address\n");
+        // skip if its not actually a HID keyboard
+        if (!is_usb_devicetype(&controllers[i], 0, true, 0x03, 0x01)) {
             continue;
         }
-
-        if (usb_set_configuration(hc, 1, 1) != 0) {
-            printf("Failed to set config\n");
-            continue;
-        }
-
-        usb_device_request_t idle_req = {
-            .req_type = 0x21,
-            .req      = 0x0A,
-            .val      = 0,
-            .idx      = 0,
-            .len      = 0
-        };
-
-        if (uhci_control_transfer(hc, 1, true, &idle_req, NULL, 0) != 0) {
-            printf("Idle request failed\n");
-            return 0;
-        }
-
-        _uhci_usbhid_kbd.ctrl = hc;
-        _uhci_usbhid_kbd.port = 1;
+        uhci_control_transfer(&controllers[i], 0, true, &req, NULL, 0);
     }
     return -1;
 }

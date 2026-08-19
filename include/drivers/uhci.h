@@ -89,7 +89,14 @@ typedef struct {
     u8 keys[6];
 } __attribute__((packed)) usb_hid_kbd_report_t;
 
-int init_uhci();
+#define USB_DESC_DEVICE    0x01
+#define USB_DESC_CONFIG    0x02
+#define USB_DESC_STRING    0x03
+#define USB_DESC_INTERFACE 0x04
+#define USB_DESC_ENDPOINT  0x05
+
+void init_uhci();
 int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, usb_device_request_t* req, void* data, u16 len);
-int usb_hid_kbd_init();
+int is_usb_devicetype(uhci_controller_t* hc, u8 dev_addr, bool low_speed, u8 cls, u8 proto);
+void usb_hid_kbd_init();
 void usb_hid_kbd_poll();

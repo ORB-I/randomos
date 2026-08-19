@@ -1,8 +1,5 @@
 ENTRY(_start)
-
-PF_X = 1;
-PF_W = 2;
-PF_R = 4;
+OUTPUT_FORMAT(elf64-x86-64)
 
 PHDRS {
     text    PT_LOAD;
@@ -12,13 +9,14 @@ PHDRS {
 }
 
 SECTIONS {
-    . = 0x00400000;
+    /* Position-independent: base at 0 */
+    . = 0;
 
     .text : ALIGN(4) {
         *(.text)
         *(.text.*)
     } :text
-    . = ALIGN(0x1000);
+
     .rodata : ALIGN(4) {
         *(.rodata)
         *(.rodata.*)
@@ -48,8 +46,6 @@ SECTIONS {
         *(.hash)
         *(.gnu.hash)
     } :rodata
-    
-    . = ALIGN(0x1000);
 
     .data : ALIGN(4) {
         *(.data)
@@ -67,7 +63,7 @@ SECTIONS {
     .dynamic : ALIGN(8) {
         *(.dynamic)
     } :data :dynamic
-    
+
     .bss : ALIGN(4) {
         *(COMMON)
         *(.bss)
@@ -77,5 +73,6 @@ SECTIONS {
     /DISCARD/ : {
         *(.comment)
         *(.eh_frame)
+        *(.note .note.*)
     }
 }
