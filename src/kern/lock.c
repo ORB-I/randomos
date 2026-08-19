@@ -6,17 +6,23 @@ void spl_init(spinlock_t* spl) {
 
 void spl_lock(spinlock_t* spl) {
     asm volatile("cli" ::: "memory");
-    while (__sync_lock_test_and_set(&spl->__lkst, 1)) {
-        asm volatile(
-            "sti\n\t"
-            "pause\n\t"
-            "cli" 
-            ::: "memory"
-        );
-    }
+    asm volatile(
+        "1: xchg %0, %1\n\t"
+        "test %0, %0\n\t"
+        "jz 2f\n\t"
+        "3:\n\t"
+        "sti\n\t"
+        "pause\n\t"
+        "cli\n\t"
+        "jmp 1b\n\t"
+        "2:"
+        : "=r"(spl->__lkst), "=m"(spl->__lkst)
+        : "0"(1), "m"(spl->__lkst)
+        : "memory"
+    );
 }
 
 void spl_unlock(spinlock_t* spl) {
-    __sync_lock_release(&spl->__lkst);
+    asm volatile("xchg %0, %1" : "=r"(spl->__lkst), "=m"(spl->__lkst) : "0"(0), "m"(spl->__lkst) : "memory");
     asm volatile("sti" ::: "memory");
 }

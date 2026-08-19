@@ -2,14 +2,22 @@
 
 volatile int __liballoc_spl = 0;
 int liballoc_lock() {
-    while (__sync_lock_test_and_set(&__liballoc_spl, 1)) {
-        asm volatile("pause" ::: "memory");
-    }
+    asm volatile(
+        "1: xchg %0, %1\n\t"
+        "test %0, %0\n\t"
+        "jz 2f\n\t"
+        "pause\n\t"
+        "jmp 1b\n\t"
+        "2:"
+        : "=r"(__liballoc_spl), "=m"(__liballoc_spl)
+        : "0"(1), "m"(__liballoc_spl)
+        : "memory"
+    );
     return 0;
 }
 
 int liballoc_unlock() {
-    __sync_lock_release(&__liballoc_spl);
+    asm volatile("xchg %0, %1" : "=r"(__liballoc_spl), "=m"(__liballoc_spl) : "0"(0), "m"(__liballoc_spl) : "memory");
     return 0;
 }
 

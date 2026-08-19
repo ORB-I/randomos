@@ -47,7 +47,7 @@ int load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp, u64 load_base) {
     }
 
     u64 paddr = vmm_get_phys(vmm_cpml4v(), (u64)addr);
-    if (!vmm_map_pages(nasp, seg_vaddr, paddr, npgs, MAP_CONT | PAGE_USER)) {
+    if (!vmm_map_pages(nasp, seg_vaddr, paddr, npgs, MAP_CONT | flgs)) {
         return -1;
     }
 
