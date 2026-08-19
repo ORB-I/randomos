@@ -738,7 +738,7 @@ int is_usb_devicetype(uhci_controller_t* hc, u8 dev_addr, bool low_speed, u8 cls
     return found;
 }
 
-void usb_hid_kbd_init() {
+int usb_hid_kbd_init() {
     usb_device_request_t req;
     req.req_type = 0x21;
     req.req = 0x0A;
@@ -746,7 +746,6 @@ void usb_hid_kbd_init() {
     req.idx = 0;
     req.len = 0;
 
-int usb_hid_kbd_init() {
     for (usize i = 0; i < num_controllers; i++) {
         // skip if its not actually a HID keyboard
         if (!is_usb_devicetype(&controllers[i], 0, true, 0x03, 0x01)) {

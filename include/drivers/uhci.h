@@ -95,8 +95,8 @@ typedef struct {
 #define USB_DESC_INTERFACE 0x04
 #define USB_DESC_ENDPOINT  0x05
 
-void init_uhci();
+int init_uhci();
 int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, usb_device_request_t* req, void* data, u16 len);
 int is_usb_devicetype(uhci_controller_t* hc, u8 dev_addr, bool low_speed, u8 cls, u8 proto);
-void usb_hid_kbd_init();
+int usb_hid_kbd_init();
 void usb_hid_kbd_poll();
