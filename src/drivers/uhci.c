@@ -449,29 +449,46 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
     usb_device_request_t* req_buf = (usb_device_request_t*)page_virt;
     *req_buf = *req;
 
-    uhci_td_t* setup_td = (uhci_td_t*)(page_virt + 64);
-    uhci_td_t* status_td = (uhci_td_t*)(page_virt + 128);
-
-    uintptr_t setup_td_phys = (uintptr_t)page_phys + 64;
-    uintptr_t status_td_phys = (uintptr_t)page_phys + 128;
+    // bmRequestType bit 7: 0 = host-to-device (OUT), 1 = device-to-host (IN)
+    bool data_in = (req->req_type & 0x80) != 0;
+    u8 data_pid = data_in ? UHCI_PID_IN : UHCI_PID_OUT;
 
     u32 ctrl_base = UHCI_TD_CTRL_ACT | UHCI_TD_CTRL_CERR;
     if (low_speed) {
         ctrl_base |= UHCI_TD_CTRL_LS;
     }
 
-    setup_td->link = (u32)(status_td_phys | UHCI_TD_PTR_VF);
+    uhci_td_t* setup_td = (uhci_td_t*)(page_virt + 64);
+    uintptr_t setup_td_phys = (uintptr_t)page_phys + 64;
+
+    setup_td->link = (u32)((uintptr_t)page_phys + 128) | UHCI_TD_PTR_VF;
     setup_td->ctrl = ctrl_base;
     setup_td->token = (7 << 21) | (0 << 19) | ((u32)dev_addr << 8) | UHCI_PID_SETUP;
     setup_td->buffer = (u32)(uintptr_t)page_phys;
 
+    uhci_td_t* status_td;
+    uintptr_t status_td_phys;
+
+    if (len && data) {
+        // data stage
+        uhci_td_t* data_td = (uhci_td_t*)(page_virt + 128);
+        status_td = (uhci_td_t*)(page_virt + 192);
+        status_td_phys = (uintptr_t)page_phys + 192;
+
+        data_td->link = (u32)(status_td_phys | UHCI_TD_PTR_VF);
+        data_td->ctrl = ctrl_base;
+        data_td->token = ((u32)len << 21) | (0 << 19) | ((u32)dev_addr << 8) | data_pid;
+        data_td->buffer = (u32)(uintptr_t)data;
+    } else {
+        status_td = (uhci_td_t*)(page_virt + 128);
+        status_td_phys = (uintptr_t)page_phys + 128;
+    }
+
+    // status stage: zero-length packet, direction opposite of data stage
     status_td->link = UHCI_TD_PTR_T;
     status_td->ctrl = ctrl_base | UHCI_TD_CTRL_IOC;
-    status_td->token = (0x7FF << 21) | (1 << 19) | ((u32)dev_addr << 8) | (req->req_type & 0x80 ? UHCI_PID_OUT : UHCI_PID_IN);
+    status_td->token = (0 << 21) | (1 << 19) | ((u32)dev_addr << 8) | (data_in ? UHCI_PID_OUT : UHCI_PID_IN);
     status_td->buffer = 0;
-
-    (void)data;
-    (void)len;
 
     hc->queue_head->element = (u32)setup_td_phys;
 
@@ -585,6 +602,8 @@ void usb_hid_kbd_poll() {
                 if (sc) {
                     kbd_raw_sc = sc | 0x80;
                     kbd_raw_ready = true;
+                } else {
+                    kbd_raw_ready = false;
                 }
             }
         }
