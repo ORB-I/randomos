@@ -439,6 +439,12 @@ int is_usb_devtype(uhci_controller_t* hc, u8 addr, u8 dev_class, u8 iface_class,
 
     usb_config_descriptor_t* cfg = (usb_config_descriptor_t*)buf;
     u16 total_len = cfg->wTotalLength;
+    if (total_len < sizeof(usb_config_descriptor_t)) {
+        return 0;
+    }
+    if (total_len > sizeof(buf)) {
+        total_len = sizeof(buf);
+    }
 
     req.len = total_len;
     if (uhci_control_transfer(hc, addr, true, &req, buf, total_len) != 0) {
@@ -447,11 +453,11 @@ int is_usb_devtype(uhci_controller_t* hc, u8 addr, u8 dev_class, u8 iface_class,
     }
 
     u16 offset = 0;
-    while (offset < total_len) {
+    while ((offset + 1) < total_len) {
         u8 len = buf[offset];
         u8 type = buf[offset + 1];
 
-        if (len == 0) break;
+        if (len == 0 || (offset + len) > total_len) break;
 
         if (type == 0x04) {
             usb_interface_descriptor_t* iface = (usb_interface_descriptor_t*)&buf[offset];
@@ -697,7 +703,7 @@ int usb_hid_kbd_init() {
             .len      = 0
         };
 
-        if (uhci_control_transfer(hc, 1, true, &idle_req, NULL, 0) == 0) {
+        if (uhci_control_transfer(hc, 1, true, &idle_req, NULL, 0) != 0) {
             printf("Idle request failed\n");
             return 0;
         }
