@@ -14,3 +14,9 @@ void enqueue_key(char c);
 char* readline(const char* prompt);
 
 u8 kbd_get_raw(void);
+
+void enqueue_sc(u8 sc);
+char dequeue_sc(void);
+bool kb_has_sc(void);
+void kbd_setshift(int shift);
+int kbd_getshift();

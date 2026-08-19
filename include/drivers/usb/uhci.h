@@ -49,6 +49,55 @@
 #define UHCI_PID_IN    0x69
 #define UHCI_PID_OUT   0xE1
 
+#define USB_REQ_GET_STATUS        0x00
+#define USB_REQ_SET_ADDRESS       0x05
+#define USB_REQ_GET_DESCRIPTOR    0x06
+#define USB_REQ_SET_CONFIGURATION 0x09
+
+#define USB_DESC_DEVICE    0x01
+#define USB_DESC_CONFIG    0x02
+#define USB_DESC_INTERFACE 0x04
+
+typedef struct {
+    u8  bLength;
+    u8  bDescriptorType;
+    u16 bcdUSB;
+    u8  bDeviceClass;
+    u8  bDeviceSubClass;
+    u8  bDeviceProtocol;
+    u8  bMaxPacketSize0;
+    u16 idVendor;
+    u16 idProduct;
+    u16 bcdDevice;
+    u8  iManufacturer;
+    u8  iProduct;
+    u8  iSerialNumber;
+    u8  bNumConfigurations;
+} __attribute__((packed)) usb_device_descriptor_t;
+
+typedef struct {
+    u8  bLength;
+    u8  bDescriptorType;
+    u8  bInterfaceNumber;
+    u8  bAlternateSetting;
+    u8  bNumEndpoints;
+    u8  bInterfaceClass;
+    u8  bInterfaceSubClass;
+    u8  bInterfaceProtocol;
+    u8  iInterface;
+} __attribute__((packed)) usb_interface_descriptor_t;
+
+typedef struct {
+    u8  bLength;
+    u8  bDescriptorType;
+    u16 wTotalLength;
+    u8  bNumInterfaces;
+    u8  bConfigurationValue;
+    u8  iConfiguration;
+    u8  bmAttributes;
+    u8  bMaxPower;
+} __attribute__((packed)) usb_config_descriptor_t;
+
 typedef struct uhci_td {
     u32 link;
     u32 ctrl;
@@ -83,12 +132,15 @@ typedef struct {
 } __attribute__((packed)) usb_device_request_t;
 
 typedef struct {
-    u8 modifiers;
-    u8 reserved;
-    u8 keys[6];
-} __attribute__((packed)) usb_hid_kbd_report_t;
+    uhci_controller_t* ctrl;
+    int port;
+} usb_dev_info_t;
 
 int init_uhci();
 int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, usb_device_request_t* req, void* data, u16 len);
-int usb_hid_kbd_init();
-void usb_hid_kbd_poll();
+usize uhci_get_controllers(uhci_controller_t** ctrlrs);
+int is_usb_devicetype(uhci_controller_t* hc, u8 dev_addr, bool low_speed, u8 cls, u8 proto);
+void uhci_reset_port(uhci_controller_t* hc, u16 port_reg);
+int usb_set_configuration(uhci_controller_t* hc, u8 addr, u8 config_val);
+int usb_get_device_descriptor(uhci_controller_t* hc, u8 addr, usb_device_descriptor_t* desc);
+int usb_set_address(uhci_controller_t* hc, u8 old_addr, u8 new_addr);

@@ -65,19 +65,19 @@ void gui_fill(guictx_t* g, u32 c) {
 void gui_rectfill_buf(u32* fb, u64 x, u64 y, u64 w, u64 h, u32 c) {
     for (u64 j = 0; j < h; j++) {
         for (u64 i = 0; i < w; i++) {
-            fb[(y + j) * gui_pitch + (x + i)] = c;
+            fb[(y + j) * w + (x + i)] = c;
         }
     }
 }
 
 void gui_rect_buf(u32* fb, u64 x, u64 y, u64 w, u64 h, u32 c) {
     for (u64 i = 0; i < w; i++) {
-        fb[y * gui_pitch + (x + i)] = c;
-        fb[(y + h - 1) * gui_pitch + (x + i)] = c;
+        fb[y * w + (x + i)] = c;
+        fb[(y + h - 1) * w + (x + i)] = c;
     }
     for (u64 j = 0; j < h; j++) {
-        fb[(y + j) * gui_pitch + x] = c;
-        fb[(y + j) * gui_pitch + (x + w - 1)] = c;
+        fb[(y + j) * w + x] = c;
+        fb[(y + j) * w + (x + w - 1)] = c;
     }
 }
 
@@ -101,7 +101,7 @@ void gui_str_buf(u32* fb, u64 x, u64 y, const char* s, u32 fg, u32 bg) {
 void gui_fill_buf(u32* fb, u64 x, u64 y, u64 w, u64 h, u32 c) {
     for (u64 j = 0; j < h; j++) {
         for (u64 i = 0; i < w; i++) {
-            fb[(y + j) * gui_pitch + (x + i)] = c;
+            fb[(y + j) * w + (x + i)] = c;
         }
     }
 }

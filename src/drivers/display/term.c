@@ -8,6 +8,7 @@
 struct flanterm_context* _term_ctx;
 int _term_flush = 1;
 int _term_cfb = -1;
+
 int init_term(int fb) {
     framebuf_info_t fbinfo;
     if (get_fbinfo(fb, &fbinfo) < 0) return -1;

@@ -6,3 +6,4 @@
 - Make a way to query framebuffer pixel layout (IN PROGRESS @Wdboyes13)
 - Add SOFILE support and dynamic ELFs [ DONE by @44tl ]
 - Fix USB HID driver is_usb_devicetype failing to get configuration descriptor [ DONE by @44tl ]
+- Add USBHID and PS/2 mouse support

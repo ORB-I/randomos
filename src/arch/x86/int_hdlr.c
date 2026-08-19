@@ -2,6 +2,13 @@
 #include <core/panic.h>
 #include <core/std.h>
 #include <core/printf.h>
+#include <core/mem/vmm.h>
+#include <core/idt.h>
+#include <lib/sh.h>
+#include <drivers/term.h>
+#include <drivers/fb.h>
+
+extern __attribute__((aligned(16))) u8 kern_stack[16384];
 
 struct CpuState {
     u64 r15, r14, r13, r12, r11, r10, r9, r8;
@@ -10,28 +17,59 @@ struct CpuState {
     u64 rip, cs, rflags, rsp, ss;
 } __attribute__((packed));
 
-[[noreturn]] void except_panic(struct CpuState* regs, const char* msg, ...) {
+void except_panic(struct CpuState* regs, const char* msg, ...) {
     asm("cli");
+
+    int tfb = get_termfb();
+    if (tfb >= 0) {
+        switch_fb(tfb);
+    }
     
     va_list lst;
     va_start(lst, msg);
 
-    printf("*** KERNEL EXCEPTION ***\n");
-    vprintf(msg, lst);
-    printf("\n\n");
-    
+    if ((regs->cs & 0x3) == 3) {
+        asm volatile ("swapgs" ::: "memory");
+
+        printf("Userspace Exception: ");
+        vprintf(msg, lst);
+
+        page_table_t* uasp = vmm_cpml4v();
+        vmm_remumap(uasp);
+        vmm_dasp(uasp);
+
+        u64 krsp = (u64)(kern_stack + sizeof(kern_stack));
+        reset_rsp(krsp);
+
+        asm volatile(
+            "cli\n\t"
+            "movq %0, %%rsp\n\t"
+            "movq $0, %%gs:0\n\t"
+            "movq %0, %%gs:8\n\t"
+            "pushq %1\n\t"
+            "sti\n\t"
+            "ret\n\t"
+            :: "r"(krsp), "r"(sh)
+            : "memory"
+        );
+    } else {
+        printf("*** KERNEL EXCEPTION ***\n");
+        vprintf(msg, lst);
+        printf("\n\n");
+
+        printf("RAX: %016lx  RBX: %016lx  RCX: %016lx  RDX: %016lx\n", regs->rax, regs->rbx, regs->rcx, regs->rdx);
+        printf("RSI: %016lx  RDI: %016lx  RBP: %016lx  RSP: %016lx\n", regs->rsi, regs->rdi, regs->rbp, regs->rsp);
+        printf("RIP: %016lx  RFLAGS: %016lx\n", regs->rip, regs->rflags);
+        printf("ERR: %016lx  INTR: %016lx\n", regs->error_code, regs->intr_no);
+        printf("CS:  %016lx  SS: %016lx\n\n", regs->cs, regs->ss);
+
+        printf("*** HALTING NOW ***");
+
+        asm volatile("cli");
+        while (1) asm volatile("hlt");
+    }
+
     va_end(lst);
-
-    printf("RAX: %016lx  RBX: %016lx  RCX: %016lx  RDX: %016lx\n", regs->rax, regs->rbx, regs->rcx, regs->rdx);
-    printf("RSI: %016lx  RDI: %016lx  RBP: %016lx  RSP: %016lx\n", regs->rsi, regs->rdi, regs->rbp, regs->rsp);
-    printf("RIP: %016lx  RFLAGS: %016lx\n", regs->rip, regs->rflags);
-    printf("ERR: %016lx  INTR: %016lx\n", regs->error_code, regs->intr_no);
-    printf("CS:  %016lx  SS: %016lx\n\n", regs->cs, regs->ss);
-
-    printf("*** HALTING NOW ***");
-
-    asm volatile("cli");
-    while (1) asm volatile("hlt");
 }
 
 void c_int_hdlr(struct CpuState* regs) {

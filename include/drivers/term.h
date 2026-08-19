@@ -47,3 +47,4 @@ void term_flush();
 void term_get_pos(term_pos_t* pos);
 void term_set_pos(term_pos_t* pos, int flags);
 int termctl(int code, int arg0);
+int get_termfb();

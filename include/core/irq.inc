@@ -1,5 +1,3 @@
-[bits 64]
-
 %macro pushaq 0
     push rax
     push rbx
@@ -53,27 +51,3 @@
 %%kernint_exit:
     iretq
 %endmacro
-
-section .text
-extern c_kbd_hdlr
-extern c_timer_hdlr
-extern c_sci_hdlr
-
-global kbd_hdlr
-kbd_hdlr:
-    IRQ_ENTER
-    call c_kbd_hdlr
-    IRQ_EXIT
-
-global timer_hdlr
-timer_hdlr:
-    IRQ_ENTER
-    call c_timer_hdlr
-    IRQ_EXIT
-
-section .text
-global sci_hdlr
-sci_hdlr:
-    IRQ_ENTER
-    call c_sci_hdlr
-    IRQ_EXIT

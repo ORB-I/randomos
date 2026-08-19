@@ -16,8 +16,10 @@ PROGS := echo \
 		 rm \
 		 wm \
 		 fbtest \
-		 dspinfo
-		 
+		 dspinfo \
+		 wintest \
+		 keytest
+
 DRIVE ?= ../../drive.img
 
 DEPLIBS := ../libc/libc.a ../libc/crt0.o
