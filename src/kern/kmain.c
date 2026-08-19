@@ -95,9 +95,6 @@ void kmain_aftergdt() {
     printf("IO: Initializing APIC & IOAPIC\n");
     apic_init();
 
-    pit_init(100);
-    irq_enable(0);
-
     asm("sti");
 
     init_gettimeofday();
