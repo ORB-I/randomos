@@ -48,6 +48,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE  
 SOFTWARE.
 
+## LwIP  
+From https://savannah.nongnu.org/projects/lwip/  
+Copyright (c) 2001, 2002 Swedish Institute of Computer Science. All rights reserved.  
+LwIP is licensed under a BSD license at [vendor/lwip/COPYING](/vendor/lwip/COPYING)  
+
 ## This project (full license)
 MIT License  
   
