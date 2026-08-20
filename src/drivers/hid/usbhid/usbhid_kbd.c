@@ -302,20 +302,21 @@ int usb_hid_kbd_init() {
     for (usize i = 0; i < nconts; i++) {
         uhci_controller_t* hc = &conts[i];
         for (int p = 0; p < hc->nports; p++) {
-            if (uhci_regdev(hc, p, 1, 0x03, 0x01) < 0) {
+            int addr = 0;
+            if ((addr = uhci_regdev(hc, p, 1, 0x03, 0x01)) < 0) {
                 continue;
             }
 
-            if (usb_set_configuration(hc, p, 1) != 0) {
+            if (usb_set_configuration(hc, addr, 1) != 0) {
                 continue;
             }
 
-            if (uhci_control_transfer(&conts[i], p, true, &req, NULL, 0) != 0) {
+            if (uhci_control_transfer(hc, addr, true, &req, NULL, 0) != 0) {
                 continue;
             }
 
             _uhci_usbhid_kbd.ctrl = hc;
-            _uhci_usbhid_kbd.port = p;
+            _uhci_usbhid_kbd.addr = addr;
             return 0;
         }
     }
@@ -324,7 +325,7 @@ int usb_hid_kbd_init() {
 
 extern bool shift_pressed;
 void usb_hid_kbd_poll() {
-    if (!_uhci_usbhid_kbd.ctrl || _uhci_usbhid_kbd.port == -1) {
+    if (!_uhci_usbhid_kbd.ctrl || _uhci_usbhid_kbd.addr == -1) {
         return;
     }
 
@@ -343,7 +344,7 @@ void usb_hid_kbd_poll() {
 
     in_td->link = UHCI_TD_PTR_T;
     in_td->ctrl = UHCI_TD_CTRL_ACT | UHCI_TD_CTRL_CERR | UHCI_TD_CTRL_LS | UHCI_TD_CTRL_IOC;
-    in_td->token = (7 << 21) | (0 << 19) | (1 << 15) | (_uhci_usbhid_kbd.port << 8) | UHCI_PID_IN;
+    in_td->token = (7 << 21) | (0 << 19) | (1 << 15) | (_uhci_usbhid_kbd.addr << 8) | UHCI_PID_IN;
     in_td->buffer = (u32)(u64)page_phys;
 
     uhci_controller_t* hc = _uhci_usbhid_kbd.ctrl;

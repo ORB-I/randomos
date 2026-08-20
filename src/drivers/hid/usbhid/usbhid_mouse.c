@@ -23,20 +23,21 @@ int usb_hid_mouse_init() {
         uhci_controller_t* hc = &conts[i];
         int nports = uhci_get_portcnt(hc);
         for (int p = 0; p < nports; p++) {
-            if (uhci_regdev(hc, p, 1, 0x03, 0x02) < 0) {
+            int addr = 0;
+            if ((addr = uhci_regdev(hc, p, 1, 0x03, 0x02)) < 0) {
                 continue;
             }
 
-            if (usb_set_configuration(hc, p, 1) != 0) {
+            if (usb_set_configuration(hc, addr, 1) != 0) {
                 continue;
             }
 
-            if (uhci_control_transfer(&conts[i], p, 1, &req, NULL, 0) != 0) {
+            if (uhci_control_transfer(hc, addr, 1, &req, NULL, 0) != 0) {
                 continue;
             }
 
             _uhci_usbhid_mouse.ctrl = hc;
-            _uhci_usbhid_mouse.port = p;
+            _uhci_usbhid_mouse.addr = addr;
             return 0;
         }
     }
@@ -44,7 +45,7 @@ int usb_hid_mouse_init() {
 }
 
 void usb_hid_mouse_poll() {
-    if (!_uhci_usbhid_mouse.ctrl || _uhci_usbhid_mouse.port == -1) {
+    if (!_uhci_usbhid_mouse.ctrl || _uhci_usbhid_mouse.addr == -1) {
         return;
     }
 
@@ -63,7 +64,7 @@ void usb_hid_mouse_poll() {
 
     in_td->link = UHCI_TD_PTR_T;
     in_td->ctrl = UHCI_TD_CTRL_ACT | UHCI_TD_CTRL_CERR | UHCI_TD_CTRL_LS | UHCI_TD_CTRL_IOC;
-    in_td->token = (7 << 21) | (0 << 19) | (1 << 15) | (_uhci_usbhid_mouse.port << 8) | UHCI_PID_IN;
+    in_td->token = (7 << 21) | (0 << 19) | (1 << 15) | (_uhci_usbhid_mouse.addr << 8) | UHCI_PID_IN;
     in_td->buffer = (u32)(u64)page_phys;
 
     uhci_controller_t* hc = _uhci_usbhid_mouse.ctrl;

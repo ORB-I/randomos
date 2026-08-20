@@ -114,11 +114,18 @@ int uhci_regdev(uhci_controller_t* hc, int port, int low_speed, u8 class, u8 pro
     }
 
     uhci_reset_port(hc, port);
-    if (!is_usb_devicetype(hc, port, low_speed, class, proto)) {
+    if (!is_usb_devicetype(hc, 0, low_speed, class, proto)) {
         return UHCI_REG_NTYPE;
     }
 
-    return port;
+    if (usb_set_address(hc, 0, port + 1) < 0) {
+        return UHCI_REG_NSADR;
+    }
+
+    hc->port_in_use[port] = 1;
+    hc->addrs[port + 1] = 1;
+
+    return port + 1;
 }
 
 static int uhci_init_controller(u8 bus, u8 slot, u8 fn) {
