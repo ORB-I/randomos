@@ -12,7 +12,6 @@
 #include <drivers/time/clock.h>
 #include <drivers/hid/kbd.h>
 
-#include <lib/sh.h>
 #include <lib/loader.h>
 #include <lib/syscall.h>
 

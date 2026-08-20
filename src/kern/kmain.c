@@ -8,9 +8,10 @@
 #include <core/printf.h>
 #include <core/fpu.h>
 
-#include <lib/sh.h>
 #include <lib/loader.h>
 #include <lib/syscall.h>
+#include <scheduler/scheduler.h>
+#include <scheduler/process.h>
 
 #include <drivers/time/gettimeofday.h>
 #include <drivers/hid/kbd.h>
@@ -145,6 +146,10 @@ void kmain_aftergdt() {
     printf("IO: Requesting mouse type %d\n", mbtype);
     init_mouse(mbtype);
 
-    
+    if (init_scheduler() < 0) panic("Failed to initialize scheduler\n");
+
+    char* init_argv[] = {"/init"};
+    new_process("/init", init_argv, 0); // load in pid0 (init)
+    start_scheduler(); // hand off control to the scheduler
     for (;;);
 }

@@ -40,3 +40,4 @@ typedef struct {
 extern process_state_t proctbl[MAX_PROCESSES];
 extern u8 nprocs;
 extern u8 current_pid;
+int new_process(const char* path, char** argv, u8 ppid);
