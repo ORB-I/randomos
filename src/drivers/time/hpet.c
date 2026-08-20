@@ -15,6 +15,7 @@ typedef struct {
 } __attribute__((packed)) hpet_acpitbl_t;
 
 hpet_acpitbl_t* hpet_acpitbl = NULL;
+
 u8 hpet_read8(usize reg) {
     return *((volatile u8*)(HHDM_START + hpet_acpitbl->baseaddr.addr + reg));
 }
@@ -74,14 +75,18 @@ int hpet_init(u64 (**getms)(void)) {
     }
 
     u8 numtims = (capid >> 8) & 0x1F;
+    if (numtims < 2) {
+        return -1; // the whole point
+                   // of this driver outside of a clock source
+                   // is for a preemptive timer so we'll need 2
+    }
     u32 clkperiod = capid >> 32;
-    u64 ts = 1000000000000ULL / (u64)clkperiod;
 
     u64 genconf = hpet_read64(0x10);
     genconf &= ~0x01;
     hpet_write64(0x10, genconf);
 
-    for (u8 i = 1; i < numtims; i++) {
+    for (u8 i = 2; i < numtims; i++) {
         hpet_write64(0x100 + (0x20 * i), 0);
     }
 
@@ -112,8 +117,52 @@ int hpet_init(u64 (**getms)(void)) {
     genconf |= 0x01;
     hpet_write64(0x10, genconf);
 
+    u64 tm1cap = hpet_read64(0x120);
+    u64 tm1cfg = tm1cap;
+
+    tm1cfg &= ~(0x1FULL << 9);
+    tm1cfg &= ~(1ULL << 3);
+    tm1cfg &= ~(1ULL << 6);
+    tm1cfg &=  ~(1ULL << 2); // disable for now
+
+    hpet_write64(0x120, tm1cfg);
+
     *getms = hpet_getms;
     return 0;
+}
+
+typedef struct {
+    u64 time;
+    u8 irq;
+    u8 timerid;
+} preemptive_timer_t;
+
+int hpet_mkpreemptive_timer(preemptive_timer_t* buf, u64 ms, void(*hdlr)(void)) {
+    idt_regintr(0x3F, hdlr, 0x8E, 1);
+    ioapic_set_irq(19, 0x3F, get_lapic_id(), 0);
+    u32 clkprd = hpet_read64(0x00) >> 32;
+
+    buf->irq = 19;
+    buf->timerid = 1;
+    buf->time = (1000000000000ULL / (u64)clkprd) * ms;
+
+    return 0;
+}
+
+int hpet_start_preemptive(preemptive_timer_t* timer) {
+    u64 ctr = hpet_read64(0xF0);
+    hpet_write64(0x128, ctr + timer->time);
+
+    u64 cfg = hpet_read64(0x120);
+    cfg |= (1ULL << 2);
+    ioapic_unmask_irq(timer->irq);
+    hpet_write64(0x120, cfg);
+
+    return 0;
+}
+
+int hpet_active() {
+    return (hpet_acpitbl != NULL);
 }
 
 void c_hpet_hdlr() {

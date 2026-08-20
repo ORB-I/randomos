@@ -145,6 +145,6 @@ void kmain_aftergdt() {
     printf("IO: Requesting mouse type %d\n", mbtype);
     init_mouse(mbtype);
 
-    sh();
+    
     for (;;);
 }

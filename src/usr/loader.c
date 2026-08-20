@@ -583,11 +583,11 @@ int program_processdyn(int fd, u64 load_low, u64 load_high, Elf64_Ehdr* ehdr,
     return 0;
 }
 
-int load_program(const char* path, char** argv) {
+loadprog_res_t load_program(const char* path, char** argv) {
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
         printf("Loader: failed to open file\n");
-        return -1;
+        return LOADPROG_ERR;
     }
 
     Elf64_Ehdr ehdr;
@@ -595,7 +595,7 @@ int load_program(const char* path, char** argv) {
     if (nread == -1 || (usize)nread < sizeof(ehdr)) {
         close(fd);
         printf("Loader: failed to read ehdr\n");
-        return -1;
+        return LOADPROG_ERR;
     }
 
     if (ehdr.e_ident[EI_MAG0]    != ELFMAG0     ||
@@ -606,7 +606,7 @@ int load_program(const char* path, char** argv) {
         ehdr.e_ident[EI_DATA]    != ELFDATA2LSB) {
             close(fd);
             printf("Loader: invalid or unsupported file\n");
-            return -1;
+            return LOADPROG_ERR;
     }
 
     // we take both static (ET_EXEC) and dynamic/PIE (ET_DYN) elfs now
@@ -615,13 +615,13 @@ int load_program(const char* path, char** argv) {
         ehdr.e_version != EV_CURRENT) {
             close(fd);
             printf("Loader: invalid or unsupported file\n");
-            return -1;
+            return LOADPROG_ERR;
     }
 
     if (lseek(fd, ehdr.e_phoff, SEEK_SET) < 0) {
         close(fd);
         printf("Loader: failed to get phdrs\n");
-        return -1;
+        return LOADPROG_ERR;
     }
 
     Elf64_Phdr phdrs[ehdr.e_phnum];
@@ -633,13 +633,13 @@ int load_program(const char* path, char** argv) {
         if (nread == -1 || (usize)nread != ehdr.e_phentsize) {
             close(fd);
             printf("Loader: failed to read phdrs\n");
-            return -1;
+            return LOADPROG_ERR;
         }
         u64 seg_vaddr = DYN_LOAD_BASE + phdrs[i].p_vaddr;
         if ((seg_vaddr + phdrs[i].p_memsz) >= USER_END) {
             close(fd);
             printf("Loader: program tried to load to invalid address\n");
-            return -1;
+            return LOADPROG_ERR;
         }
 
         if (seg_vaddr + phdrs[i].p_memsz > load_high) load_high = seg_vaddr + phdrs[i].p_memsz;
@@ -659,7 +659,7 @@ int load_program(const char* path, char** argv) {
             if (seg.code < 0) {
                 clrksegs(segs, nldsegs);
                 close(fd);
-                return -1;
+                return LOADPROG_ERR;
             }
             segs[nldsegs++] = seg;
         } else if (phdrs[i].p_type == PT_INTERP) {
@@ -667,14 +667,14 @@ int load_program(const char* path, char** argv) {
             if (!interp) {
                 clrksegs(segs, nldsegs);
                 close(fd);
-                return -1;
+                return LOADPROG_ERR;
             }
             nread = read(fd, interp, phdrs[i].p_filesz);
             if (nread == -1 || (usize)nread != phdrs[i].p_filesz) {
                 clrksegs(segs, nldsegs);
                 free(interp);
                 close(fd);
-                return -1;
+                return LOADPROG_ERR;
             }
 
             if (!streq(interp, "kernel")) {
@@ -682,7 +682,7 @@ int load_program(const char* path, char** argv) {
                 clrksegs(segs, nldsegs);
                 free(interp);
                 close(fd);
-                return -1;
+                return LOADPROG_ERR;
             }
 
             free(interp);
@@ -694,14 +694,14 @@ int load_program(const char* path, char** argv) {
     if (lseek(fd, ehdr.e_shoff, SEEK_SET) < 0) {
         clrksegs(segs, nldsegs);
         close(fd);
-        return -1;
+        return LOADPROG_ERR;
     }
 
     Elf64_Shdr* shdrs = malloc(sizeof(Elf64_Shdr) * ehdr.e_shnum);
     if (!shdrs) {
         clrksegs(segs, nldsegs);
         close(fd);
-        return -1;
+        return LOADPROG_ERR;
     }
 
     for (int i = 0; i < ehdr.e_shnum; i++) {
@@ -710,7 +710,7 @@ int load_program(const char* path, char** argv) {
             clrksegs(segs, nldsegs);
             free(shdrs);
             close(fd);
-            return -1;
+            return LOADPROG_ERR;
         }
     }
 
@@ -722,7 +722,7 @@ int load_program(const char* path, char** argv) {
             clrksegs(segs, nldsegs);
             free(shdrs);
             close(fd);
-            return -1;
+            return LOADPROG_ERR;
         }
 
         if (lseek(fd, shstrtab_shdr.sh_offset, SEEK_SET) < 0) {
@@ -730,7 +730,7 @@ int load_program(const char* path, char** argv) {
             close(fd);
             free(shdrs);
             free(shstrtab);
-            return -1;
+            return LOADPROG_ERR;
         }
 
         nread = read(fd, shstrtab, shstrtab_shdr.sh_size);
@@ -739,7 +739,7 @@ int load_program(const char* path, char** argv) {
             close(fd);
             free(shdrs);
             free(shstrtab);
-            return -1;
+            return LOADPROG_ERR;
         }
     }
 
@@ -749,7 +749,7 @@ int load_program(const char* path, char** argv) {
             close(fd);
             free(shdrs);
             free(shstrtab);
-            return -1;
+            return LOADPROG_ERR;
         }
     }
 
@@ -764,7 +764,7 @@ int load_program(const char* path, char** argv) {
     void* stkptr = vmm_map_pages(vmm_cpml4v(), rsp - USTACK, 0, USTACKPGS, MAP_ANYPHYS | PAGE_WRITE | MAP_CONT);
     if (!stkptr) {
         free(shstrtab);
-        return -1;
+        return LOADPROG_ERR;
     }
 
     u64 rsp_cpy = rsp;
@@ -800,10 +800,18 @@ int load_program(const char* path, char** argv) {
     if (!vmm_map_pages(nasp, rsp - USTACK, paddr, USTACKPGS, MAP_CONT | PAGE_USER | PAGE_WRITE)) {
         printf("Loader: failed to map stack\n");
         free(shstrtab);
-        return -1;
+        return LOADPROG_ERR;
     }
     vmm_unmap_pages(vmm_cpml4v(), (u64)(rsp - USTACK), USTACKPGS, UNMAP_KEEPPHYS);
-    init_syscalls();
+
+    return (loadprog_res_t){
+        .status = 0,
+        .pgtbl = nasp,
+        .entry = entry,
+        .rsp = rsp_cpy
+    };
+
+    /*init_syscalls();
 
     vmm_sasp(nasp);
     asm volatile(
@@ -832,7 +840,5 @@ int load_program(const char* path, char** argv) {
         :
         : "D"(entry), "S"(rsp_cpy)
         : "rax", "memory"
-    );
-
-    return -1;
+    );*/
 }
