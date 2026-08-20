@@ -9,6 +9,5 @@
 - Make it so ET_EXECs get DT_NEEDED tags processed [ DONE by @Wdboyes13 ]
 - Fix USBHID Mouse hanging [ DONE by @Wdboyes13 ]
 
-- Add internet support (Use IwIP for this, don't forget to add copyright notice)
 - Implement AHCI driver
 - Implement USBMSD driver
