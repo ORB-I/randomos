@@ -4,6 +4,7 @@
 #include <lib/string.h>
 #include <core/mem/pmm.h>
 #include <drivers/hid/mouse.h>
+#include <drivers/hid/usbhid/usbhid.h>
 #include <drivers/time/clock.h>
 
 usb_dev_info_t _uhci_usbhid_mouse = {NULL, -1};
@@ -45,42 +46,10 @@ int usb_hid_mouse_init() {
 }
 
 void usb_hid_mouse_poll() {
-    if (!_uhci_usbhid_mouse.ctrl || _uhci_usbhid_mouse.addr == -1) {
-        return;
-    }
-
     usb_hid_mouse_report_t rprt = {0};
-
-    void* page_phys = pmm_falloc(1);
-    if (!page_phys) {
-        return;
-    }
-
-    u64 page_virt = (u64)page_phys + HHDM_START;
-    memset((void*)page_virt, 0, 4096);
-
-    uhci_td_t* in_td = (uhci_td_t*)(page_virt + 64);
-    u64 in_td_phys = (u64)page_phys + 64;
-
-    in_td->link = UHCI_TD_PTR_T;
-    in_td->ctrl = UHCI_TD_CTRL_ACT | UHCI_TD_CTRL_CERR | UHCI_TD_CTRL_LS | UHCI_TD_CTRL_IOC;
-    in_td->token = (7 << 21) | (0 << 19) | (1 << 15) | (_uhci_usbhid_mouse.addr << 8) | UHCI_PID_IN;
-    in_td->buffer = (u32)(u64)page_phys;
-
-    uhci_controller_t* hc = _uhci_usbhid_mouse.ctrl;
-    hc->queue_head->element = (u32)in_td_phys;
-
-    for (int i = 0; i < 10; i++) {
-        if (!(in_td->ctrl & UHCI_TD_CTRL_ACT)) {
-            break;
-        }
-        sleepms(1);
-    }
-
-    hc->queue_head->element = UHCI_TD_PTR_T;
-
-    if (!(in_td->ctrl & UHCI_TD_CTRL_ACT)) {
-        memcpy(&rprt, (void*)page_virt, sizeof(usb_hid_mouse_report_t));
+    void* res = usbhid_poll(&_uhci_usbhid_mouse);
+    if (res) {
+        memcpy(&rprt, (void*)res, sizeof(usb_hid_mouse_report_t));
         int btns = 0;
         if (rprt.buttons & 1) btns |= MOUSE_BUTTON_LEFT;
         if (rprt.buttons & 2) btns |= MOUSE_BUTTON_RIGHT;
@@ -90,7 +59,6 @@ void usb_hid_mouse_poll() {
             rprt.x, rprt.y,
             btns
         });
+        usbhid_pollfree(res);
     }
-
-    pmm_ffree(page_phys, 1);
 }
