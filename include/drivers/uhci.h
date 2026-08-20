@@ -77,7 +77,7 @@ typedef struct {
 typedef struct {
   u8 req_type;
   u8 req;
-  < u16 val;
+  u16 val;
   u16 idx;
   u16 len;
 } __attribute__((packed)) usb_device_request_t;
