@@ -24,9 +24,20 @@ int get_mouse_info(mouse_info_t* buf) {
     if (mb_type == 0) return -1;
     while (!mouse_has_info()) {
         if (mb_type == MOUSE_USBHID) {
-            usb_hid_mouse_poll();
+            if (_uhci_usbhid_mouse.ctrl && _uhci_usbhid_mouse.port != -1) {
+                usb_hid_mouse_poll();
+                // If no mouse data available after polling, reduce frequency to avoid busy polling
+                if (!mouse_has_info()) {
+                    asm volatile("pause");
+                    asm volatile("pause");
+                }
+            } else {
+                // USB HID mouse not connected
+                asm volatile("pause");
+            }
+        } else {
+            asm volatile("pause");
         }
-        asm volatile("pause");
     }
 
     mouse_info_t info = dequeue_mouse();
