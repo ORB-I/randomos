@@ -4,11 +4,10 @@
 #include <lib/sh.h>
 #include <lib/loader.h>
 
-#include <drivers/kbd.h>
+#include <drivers/hid/kbd.h>
 #include <core/printf.h>
 #include <lib/string.h>
-#include <drivers/rtc.h>
-#include <drivers/fs.h>
+#include <drivers/storage/fs.h>
 
 #include <lai/helpers/pm.h>
 

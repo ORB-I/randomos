@@ -7,7 +7,7 @@
 #include <lib/string.h>
 
 #include <drivers/acpi.h>
-#include <drivers/tsc.h>
+#include <drivers/time/clock.h>
 #include <drivers/pci.h>
 
 #include <lai/host.h>
@@ -62,7 +62,7 @@ void laihost_pci_writed(u16 seg, u8 bus, u8 slot, u8 fn, u16 off, uint32_t val) 
     pci_cfg_outl(bus, slot, fn, off, val);
 }
 
-void laihost_sleep(u64 ms) { tsc_sleep(ms); }
+void laihost_sleep(u64 ms) { sleepms(ms); }
 
 void* laihost_map(uintptr_t phys_addr, size_t _) {  (void)_; return (void*)(phys_addr + HHDM_START); }
 void laihost_unmap(void* _, size_t __) { (void)__; (void)__; }

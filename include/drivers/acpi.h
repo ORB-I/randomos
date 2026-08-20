@@ -38,7 +38,7 @@ typedef struct {
 
 #define ADDRSPACE_SYS     0
 #define ADDRSPACE_IO      1
-#define ADDRSPACE_PCICFG  2 
+#define ADDRSPACE_PCICFG  2
 #define ADDRSPACE_CTL     3
 #define ADDRSPACE_SMB     4
 #define ADDRSPACE_CMOS    5
@@ -113,7 +113,7 @@ typedef struct {
 
     u8  rst_val;
     u8  __rsvd3[3];
-  
+
     // 64bit pointers - Available on ACPI 2.0+
     uint64_t                xfmw_ctrl;
     uint64_t                xdsdt;

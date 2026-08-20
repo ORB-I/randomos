@@ -1,8 +1,8 @@
 #include <drivers/usb/uhci.h>
-#include <drivers/usb/usbhid_kbd.h>
-#include <drivers/tsc.h>
+#include <drivers/hid/usbhid/usbhid_kbd.h>
+#include <drivers/time/clock.h>
 #include <lib/string.h>
-#include <drivers/kbd.h>
+#include <drivers/hid/kbd.h>
 #include <core/mem/pmm.h>
 #include <core/printf.h>
 #include <core/mem/vmm.h>
@@ -354,7 +354,7 @@ void usb_hid_kbd_poll() {
         if (!(in_td->ctrl & UHCI_TD_CTRL_ACT)) {
             break;
         }
-        tsc_sleep(1);
+        sleepms(1);
     }
 
     hc->queue_head->element = UHCI_TD_PTR_T;
@@ -398,7 +398,7 @@ void usb_hid_kbd_poll() {
                     break;
                 }
             }
-            
+
             if (!still_down) {
                 u8 sc = hid_to_ps2[oldk];
                 if (sc) {

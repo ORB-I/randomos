@@ -12,21 +12,20 @@
 #include <lib/loader.h>
 #include <lib/syscall.h>
 
-#include <drivers/gettimeofday.h>
-#include <drivers/kbd.h>
-#include <drivers/rtc.h>
+#include <drivers/time/gettimeofday.h>
+#include <drivers/hid/kbd.h>
+#include <drivers/time/rtc.h>
 #include <drivers/pic.h>
-#include <drivers/mouse.h>
+#include <drivers/hid/mouse.h>
 #include <drivers/apic.h>
 #include <drivers/acpi.h>
 #include <drivers/term.h>
-#include <drivers/timer.h>
-#include <drivers/tsc.h>
-#include <drivers/ata.h>
-#include <drivers/ff16_init.h>
-#include <drivers/fs.h>
+#include <drivers/storage/ata.h>
+#include <drivers/storage/ff16_init.h>
+#include <drivers/storage/fs.h>
 #include <drivers/fb.h>
 #include <drivers/usb/uhci.h>
+#include <drivers/time/clock.h>
 
 #include <lai/helpers/pm.h>
 #include <ff16/ff.h>
@@ -88,8 +87,11 @@ void init_allterm() {
 
 void kmain_aftergdt() {
     init_fpu();
-    init_tsc();
-    
+    if (init_clock(CLOCK_TSC) < 0) {
+        for (;;) asm("hlt"); // init_clock will try hpet first but fallback to tsc if necessary
+                             // but we do need a clock to function
+    }
+
     pmm_init();
     vmm_init();
 
@@ -112,6 +114,9 @@ void kmain_aftergdt() {
     // IOAPIC redirection table.
     init_irq(acpi.fadt->sci_int, sci_hdlr);
 
+    if (init_clock(CLOCK_HPET) < 0) {
+        printf("Switch to HPET failed\n");
+    }
     asm("sti");
 
     init_gettimeofday();

@@ -54,4 +54,4 @@ syscall_s:
     push rcx
 
     swapgs
-    iretq    
+    iretq

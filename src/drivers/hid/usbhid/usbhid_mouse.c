@@ -1,10 +1,10 @@
 #include <drivers/usb/uhci.h>
-#include <drivers/usb/usbhid_mouse.h>
+#include <drivers/hid/usbhid/usbhid_mouse.h>
 #include <core/mem/vmm.h>
 #include <lib/string.h>
 #include <core/mem/pmm.h>
-#include <drivers/mouse.h>
-#include <drivers/tsc.h>
+#include <drivers/hid/mouse.h>
+#include <drivers/time/clock.h>
 
 usb_dev_info_t _uhci_usbhid_mouse = {NULL, -1};
 
@@ -74,7 +74,7 @@ void usb_hid_mouse_poll() {
         if (!(in_td->ctrl & UHCI_TD_CTRL_ACT)) {
             break;
         }
-        tsc_sleep(1);
+        sleepms(1);
     }
 
     hc->queue_head->element = UHCI_TD_PTR_T;

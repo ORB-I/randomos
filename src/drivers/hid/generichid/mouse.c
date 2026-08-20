@@ -3,11 +3,11 @@
 #include <core/idt.h>
 #include <drivers/apic.h>
 #include <lib/string.h>
-#include <drivers/ps2/mouse.h>
+#include <drivers/hid/ps2/mouse.h>
 #include <core/printf.h>
-#include <drivers/usb/usbhid_mouse.h>
-#include <drivers/ps2/ps2.h>
-#include <drivers/mouse.h>
+#include <drivers/hid/usbhid/usbhid_mouse.h>
+#include <drivers/hid/ps2/ps2.h>
+#include <drivers/hid/mouse.h>
 
 #define MOUSEBUF_SZ 256
 mouse_info_t mousebuf[MOUSEBUF_SZ];

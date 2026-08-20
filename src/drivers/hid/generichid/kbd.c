@@ -3,11 +3,11 @@
 #include <core/idt.h>
 #include <core/printf.h>
 
-#include <drivers/kbd.h>
+#include <drivers/hid/kbd.h>
 #include <drivers/term.h>
 #include <drivers/apic.h>
-#include <drivers/usb/usbhid_kbd.h>
-#include <drivers/ps2/kbd.h>
+#include <drivers/hid/usbhid/usbhid_kbd.h>
+#include <drivers/hid/ps2/kbd.h>
 
 #define KEYBUF_SZ 256
 
@@ -23,7 +23,7 @@ u32 kbsc_head = 0;
 u32 kbsc_tail = 0;
 bool kbsc_full = false;
 
-u8 kbd_get_raw(void) { 
+u8 kbd_get_raw(void) {
     while (!kb_has_sc()) {
         if (kb_type == KBD_USBHID) {
             usb_hid_kbd_poll();
@@ -124,7 +124,7 @@ char getchar(void) {
         }
         asm volatile("pause");
     }
-    
+
     char c = dequeue_key();
     if (!_kbd_noecho) {
         term_putchar(c);

@@ -58,11 +58,11 @@ u64 rtc_gettime() {
             century_val = rtc_bcd2bin(century_val);
         }
     }
-    
+
     if (century_val != 0) {
         year = (century_val * 100) + hyear;
     } else {
-        year = 2000 + hyear; 
+        year = 2000 + hyear;
     }
 
     u64 tdays = 0;
@@ -83,8 +83,8 @@ u64 rtc_gettime() {
     }
 
     tdays += (day - 1);
-    return (tdays * 86400) + 
-           (hrs * 3600) + 
-           (mins * 60) + 
+    return (tdays * 86400) +
+           (hrs * 3600) +
+           (mins * 60) +
            secs;
 }

@@ -1,5 +1,5 @@
 #include <core/elf.h>
-#include <drivers/fs.h>
+#include <drivers/storage/fs.h>
 #include <lib/string.h>
 #include <core/mem/vmm.h>
 #include <core/liballoc.h>
@@ -365,7 +365,7 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
         }
 
         free(relas);
-    } 
+    }
 
     if (rela_plt_shdr) {
         Elf64_Rela* relas = malloc(rela_plt_shdr->sh_size);
@@ -408,7 +408,7 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
     return (loadlib_res_t){0, info};
 }
 
-int program_processdyn(int fd, u64 load_low, u64 load_high, Elf64_Ehdr* ehdr, 
+int program_processdyn(int fd, u64 load_low, u64 load_high, Elf64_Ehdr* ehdr,
                        Elf64_Shdr* shdrs, char* shstrtab, page_table_t* nasp) {
     usize ndyns = 0;
     Elf64_Shdr* dynshdr = NULL;
@@ -466,7 +466,7 @@ int program_processdyn(int fd, u64 load_low, u64 load_high, Elf64_Ehdr* ehdr,
     }
 
     u64 lib_base = (load_high + 0xFFF) & ~0xFFFULL;;
-    
+
 
     if (dynshdr && ndyns > 0) {
         if (lseek(fd, dynshdr->sh_offset, SEEK_SET) < 0) {
@@ -676,7 +676,7 @@ int load_program(const char* path, char** argv) {
                 close(fd);
                 return -1;
             }
-        
+
             if (!streq(interp, "kernel")) {
                 printf("Aborting due to requested interpreter not kernel\n");
                 clrksegs(segs, nldsegs);
@@ -808,23 +808,23 @@ int load_program(const char* path, char** argv) {
     vmm_sasp(nasp);
     asm volatile(
         "cli\n\t"
-        
+
         "mov $0x23, %%ax\n\t"
         "mov %%ax, %%ds\n\t"
         "mov %%ax, %%es\n\t"
-        
+
         "xor %%ax, %%ax\n\t"
         "mov %%ax, %%fs\n\t"
         "mov %%ax, %%gs\n\t"
 
         "pushq $0x23\n\t"
         "pushq %%rsi\n\t"
-        
+
         "pushfq\n\t"
         "popq %%rax\n\t"
         "orq $0x200, %%rax\n\t"
         "pushq %%rax\n\t"
-        
+
         "pushq $0x1b\n\t"
         "pushq %%rdi\n\t"
 
@@ -834,5 +834,5 @@ int load_program(const char* path, char** argv) {
         : "rax", "memory"
     );
 
-    return -1;    
+    return -1;
 }
