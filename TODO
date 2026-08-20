@@ -6,4 +6,9 @@
 - Add SOFILE support and dynamic ELFs [ DONE by @44tl ]
 - Fix USB HID driver is_usb_devicetype failing to get configuration descriptor [ DONE by @44tl ]
 - Add USBHID and PS/2 mouse support [ DONE by @Wdboyes13 ]
-- Make it so ET_EXECs get DT_NEEDED tags processed
+- Make it so ET_EXECs get DT_NEEDED tags processed [ DONE by @Wdboyes13 ]
+- Fix USBHID Mouse hanging [ DONE by @Wdboyes13 ]
+
+- Add internet support (Use IwIP for this, don't forget to add copyright notice)
+- Implement AHCI driver
+- Implement USBMSD driver
