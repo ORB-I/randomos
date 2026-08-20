@@ -33,7 +33,7 @@
 #define UHCI_PORT_LOWSPD (1 << 8)
 #define UHCI_PORT_RESET  (1 << 9)
 #define UHCI_PORT_SUSP   (1 << 12)
-#define UHCI_PORTSC_CCS  (1 << 0) 
+#define UHCI_PORTSC_CCS  (1 << 0)
 #define UHCI_PORTSC_CSC  (1 << 1)
 
 #define UHCI_TD_PTR_T (1 << 0)
@@ -77,7 +77,7 @@ typedef struct {
     u8  bNumConfigurations;
 } __attribute__((packed)) usb_device_descriptor_t;
 
-typedef struct {
+typedef struct usb_interface_descriptor_t {
     u8  bLength;
     u8  bDescriptorType;
     u8  bInterfaceNumber;
