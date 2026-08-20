@@ -62,6 +62,8 @@ typedef struct {
 #define EV_NONE 0
 #define EV_CURRENT 1
 
+#define SHN_UNDEF 0
+
 typedef struct {
 	Elf64_Word	p_type;
 	Elf64_Word	p_flags;
@@ -157,3 +159,4 @@ typedef struct {
 #define SHT_STRTAB  3
 #define SHT_RELA    4
 #define SHT_DYNSYM 11
+#define SHT_DYNAMIC 6

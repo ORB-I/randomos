@@ -8,10 +8,7 @@ CCFLAGS := -m64 -nostdlib -fno-builtin \
     -nostartfiles -nodefaultlibs \
     -ffreestanding -Wall -Wextra -g \
 	-MMD -MP -mno-mmx -mno-sse -mno-sse2 -mno-red-zone
-CCFLAGS_SO := $(CCFLAGS) -fPIC
-LDFLAGS_SO := -shared -Wl,-soname,libc.so -Wl,-shared -m64 -nostdlib -ffreestanding
 
-LIBC_SO := libc.so
 LIBC := libc.a
 CRT := crt0.o
 
@@ -26,21 +23,14 @@ ASMOBJ := $(LIBA_SRC:.asm=.o)
 DEPS := $(LIBSRC:.c=.d)
 
 ALL_LIB_OBJS := $(LIBOBJ) $(ASMOBJ)
-ALL_SOFILE_OBJS := $(ALL_LIB_OBJS:.o=.so.o)
 
 CRTSRC := src/crt.asm
 
-all: $(LIBC) $(CRT) $(LIBC_SO)
+all: $(LIBC) $(CRT)
 
 $(LIBC): $(ALL_LIB_OBJS)
 	$(AR) rcs $@ $^
-$(LIBC_SO): $(ALL_SOFILE_OBJS)
-	$(CC) $(LDFLAGS_SO) $^ -o $@
 $(CRT): $(CRTSRC)
-	$(AS) $(ASFLAGS) $< -o $@
-%.so.o: %.c
-	$(CC) $(CCFLAGS_SO) -c $< -o $@
-%.so.o: %.asm
 	$(AS) $(ASFLAGS) $< -o $@
 %.o: %.c
 	$(CC) $(CCFLAGS) -c $< -o $@
