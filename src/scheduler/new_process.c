@@ -1,8 +1,6 @@
 #include <lib/loader.h>
 #include <scheduler/process.h>
 
-extern __attribute__((aligned(16))) u8 kern_stack[16384];
-
 process_state_t proctbl[MAX_PROCESSES];
 u8 nprocs = 0;
 
@@ -39,7 +37,6 @@ int new_process(const char* path, char** argv, u8 ppid) {
     proc->gs = 0;
     proc->fsb = 0;
     proc->gsb = 0;
-    proc->kgsb = (u64)(kern_stack + sizeof(kern_stack));
     proc->cr3 = (u64)res.pgtbl;
     proc->pid = nprocs-1;
     proc->is_dead = 0;

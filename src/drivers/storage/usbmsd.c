@@ -4,6 +4,7 @@
 #include <core/printf.h>
 #include <core/mem/pmm.h>
 #include <lib/string.h>
+#include <core/mem/vmm.h>
 
 #include <drivers/usb/uhci.h>
 #include <drivers/storage/usbmsd.h>

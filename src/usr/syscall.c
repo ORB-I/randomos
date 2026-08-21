@@ -14,6 +14,8 @@
 #include <lib/loader.h>
 #include <lib/syscall.h>
 #include <scheduler/process.h>
+#include <scheduler/scheduler.h>
+#include <lib/loader.h>
 
 #include <lai/helpers/pm.h>
 
@@ -21,19 +23,13 @@
 #define MSR_STAR          0xC0000081
 #define MSR_LSTAR         0xC0000082
 #define MSR_SFMASK        0xC0000084
-#define MSR_KERNEL_GS_BASE 0xC0000102
 #define MSR_USER_GS_BASE 0xC0000101
 #define MSR_IA32_FMASK 0xC0000084
 
 extern void syscall_s();
-extern __attribute__((aligned(16))) u8 kern_stack[16384];
-static u64 gsblk[2];
 
 void init_syscalls() {
-    gsblk[0] = 0x00007FFFFFFFF000;
-    gsblk[1] = (u64)kern_stack + 16384;
-
-    wrmsr(MSR_KERNEL_GS_BASE, (u64)&gsblk);
+    reset_kgsb();
     wrmsr(MSR_LSTAR, (u64)syscall_s);
     wrmsr(MSR_STAR, ((u64)0x1B << 48) | ((u64)0x08 << 32));
     wrmsr(MSR_SFMASK, 0x204);
@@ -56,9 +52,9 @@ bool syscall_c(struct sysregs* args) {
             vmm_skasp();
             u8 ppid = proctbl[current_pid].ppid;
             proctbl[current_pid].is_dead = 1;
-            procctx_t* pctx = (procctx_t*)&proctbl[ppid];
+            process_state_t* pctx = (process_state_t*)&proctbl[ppid];
             vmm_sasp((page_table_t*)pctx->cr3);
-            wrmsr(MSR_KERNEL_GS_BASE, pctx->kgsb);
+            reset_kgsb();
 
             asm volatile(
                 "movq 0x00(%[p]), %%rax\n\t"
@@ -78,8 +74,8 @@ bool syscall_c(struct sysregs* args) {
                 "movq 0x70(%[p]), %%r15\n\t"
                 "movw 0x94(%[p]), %%fs\n\t"
                 "movw 0x96(%[p]), %%gs\n\t"
-                "movq 0x08(%[p]), %%rsp\n\t"
                 "pushq 0x92(%[p])\n\t"
+                "movq 0x08(%[p]), %%rsp\n\t"
                 "pushq 0x90(%[p])\n\t"
                 "pushq 0x10(%[p])\n\t"
                 "pushq 0x00(%[p])\n\t"

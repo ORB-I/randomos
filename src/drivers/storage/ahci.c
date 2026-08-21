@@ -4,6 +4,7 @@
 #include <core/printf.h>
 #include <core/mem/pmm.h>
 #include <lib/string.h>
+#include <core/mem/vmm.h>
 
 #include <drivers/pci.h>
 #include <drivers/storage/ahci.h>
@@ -182,62 +183,62 @@ static int ahci_wait_idle(int port, u32 timeout) {
 
 static int ahci_port_init(int port) {
     volatile ahci_port_regs_t* p = AHCI_PORT(port);
-    
+
     // Stop port
     p->cmd = 0;
-    
+
     // Wait for CMD.CR and CMD.FR to clear
     for (u32 i = 0; i < 100000; i++) {
         if (!(p->cmd & (HBA_PORT_CMD_CR | HBA_PORT_CMD_FR))) break;
     }
-    
+
     // Wait for port idle
     if (ahci_wait_idle(port, 100000) < 0) {
         return -1;
     }
-    
+
     // Clear interrupts
     p->is = 0xFFFFFFFF;
-    
+
     // Set command list base address
     p->clb = (u32)(cmd_list_phys & 0xFFFFFFFF);
     p->clbu = (u32)((cmd_list_phys >> 32) & 0xFFFFFFFF);
-    
+
     // Set FIS base address
     p->fb = (u32)(fis_phys & 0xFFFFFFFF);
     p->fbu = (u32)((fis_phys >> 32) & 0xFFFFFFFF);
-    
+
     // Enable FIS receive
     p->cmd = HBA_PORT_CMD_FRE;
-    
+
     // Wait for FRE to be set
     for (u32 i = 0; i < 100000; i++) {
         if (p->cmd & HBA_PORT_CMD_FRE) break;
     }
-    
+
     // Wait for device detect
     for (u32 i = 0; i < 100000; i++) {
         if ((p->ssts & HBA_PORT_SSTS_DET_MASK) == 0x3) break;
     }
-    
+
     if ((p->ssts & HBA_PORT_SSTS_DET_MASK) != 0x3) {
         return -1;
     }
-    
+
     // Start port
     p->cmd = HBA_PORT_CMD_FRE | HBA_PORT_CMD_ST;
-    
+
     // Wait for ST to be set
     for (u32 i = 0; i < 100000; i++) {
         if (p->cmd & HBA_PORT_CMD_ST) break;
     }
-    
+
     return 0;
 }
 
 static int ahci_issue_cmd(int port, u32 lba, u32 count, u8* buf, int write) {
     volatile ahci_port_regs_t* p = AHCI_PORT(port);
-    
+
     // Build command FIS
     fis_reg_h2d_t* fis = (fis_reg_h2d_t*)fis_virt;
     memset(fis, 0, sizeof(*fis));
@@ -253,49 +254,49 @@ static int ahci_issue_cmd(int port, u32 lba, u32 count, u8* buf, int write) {
     fis->lba5 = (lba >> 40) & 0xFF;
     fis->countl = count & 0xFF;
     fis->counth = (count >> 8) & 0xFF;
-    
+
     // Build command header
     hba_cmd_header_t* cmd = (hba_cmd_header_t*)cmd_list_virt;
     memset(cmd, 0, sizeof(*cmd));
     cmd->info = write ? (CMD_HEADER_P | CMD_HEADER_W | 3) : (CMD_HEADER_P | 3);
     cmd->prdtl = 1;
     cmd->ctba = cmd_table_phys;
-    
+
     // Build command table
     hba_cmd_table_t* tbl = (hba_cmd_table_t*)cmd_table_virt;
     memset(tbl, 0, sizeof(*tbl));
     memcpy(tbl->cfis, fis, sizeof(*fis));
-    
+
     // Build PRDT entry
     hba_prdt_entry_t* prdt = (hba_prdt_entry_t*)((u8*)tbl + sizeof(hba_cmd_table_t));
     prdt->dba = dma_buf_phys;
     prdt->dbc = (count * 512 - 1) | (1U << 31);
-    
+
     // Copy data for write
     if (write) {
         memcpy(dma_buf, buf, count * 512);
     }
-    
+
     // Issue command
     p->ci = 1;
-    
+
     // Wait for completion
     for (u32 i = 0; i < 1000000; i++) {
         if (!(p->ci & 1)) break;
     }
-    
+
     // Check errors
     u32 tfd = p->tfd;
     if (tfd & HBA_PORT_TFD_ERR) {
         p->serr = 0xFFFFFFFF;
         return -1;
     }
-    
+
     // Copy data for read
     if (!write) {
         memcpy(buf, dma_buf, count * 512);
     }
-    
+
     return 0;
 }
 
@@ -304,31 +305,31 @@ int ahci_init(void) {
         printf("AHCI: No controller found\n");
         return -1;
     }
-    
+
     u64 hba_phys = ahci_read_bar5();
     if (!hba_phys) {
         printf("AHCI: Invalid BAR5\n");
         return -1;
     }
-    
+
     hba = (volatile hba_global_t*)(HHDM_START + hba_phys);
-    
+
     // Allocate DMA buffers
     cmd_list_phys = (u64)pmm_falloc(1);
     cmd_table_phys = (u64)pmm_falloc(1);
     fis_phys = (u64)pmm_falloc(1);
     dma_buf_phys = (u64)pmm_falloc(1);
-    
+
     if (!cmd_list_phys || !cmd_table_phys || !fis_phys || !dma_buf_phys) {
         printf("AHCI: DMA allocation failed\n");
         return -1;
     }
-    
+
     cmd_list_virt = (void*)(HHDM_START + cmd_list_phys);
     cmd_table_virt = (void*)(HHDM_START + cmd_table_phys);
     fis_virt = (void*)(HHDM_START + fis_phys);
     dma_buf = (u8*)(HHDM_START + dma_buf_phys);
-    
+
     // Find and initialize a port
     u32 pi = hba->pi;
     for (int i = 0; i < 32; i++) {
@@ -340,7 +341,7 @@ int ahci_init(void) {
             }
         }
     }
-    
+
     printf("AHCI: No device found on any port\n");
     return -1;
 }

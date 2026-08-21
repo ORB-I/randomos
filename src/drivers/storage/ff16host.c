@@ -14,16 +14,6 @@ static diskio_write_t diskio_wr = 0;
 
 void ff16_set_drive(u8 drv) { ff16_drive = drv; }
 
-void ff16_set_ahci(void) {
-    diskio_rd = ahci_secread_wrap;
-    diskio_wr = ahci_secwrite_wrap;
-}
-
-void ff16_set_usbmsd(void) {
-    diskio_rd = usbmsd_secread_wrap;
-    diskio_wr = usbmsd_secwrite_wrap;
-}
-
 DSTATUS disk_initialize(BYTE pdrv) {
     if (ff16_drive <= 2) {
         return 0;
@@ -80,6 +70,16 @@ static DRESULT usbmsd_secwrite_wrap(BYTE pdrv, const BYTE* buf, LBA_t sector, UI
     return RES_OK;
 }
 
+void ff16_set_ahci(void) {
+    diskio_rd = ahci_secread_wrap;
+    diskio_wr = ahci_secwrite_wrap;
+}
+
+void ff16_set_usbmsd(void) {
+    diskio_rd = usbmsd_secread_wrap;
+    diskio_wr = usbmsd_secwrite_wrap;
+}
+
 DRESULT disk_read(BYTE pdrv, BYTE* buf, LBA_t sector, UINT count) {
     if (ff16_drive > 2) return RES_NOTRDY;
     diskio_read_t fn = diskio_rd ? diskio_rd : ata_secread_wrap;
@@ -108,4 +108,3 @@ DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void* buf) {
     }
     return RES_PARERR;
 }
-

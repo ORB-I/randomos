@@ -16,7 +16,6 @@ typedef struct {
     u64 fsb, gsb;
 
     u64 cr3;
-    u64 kgsb;
 
     u8 pid;
     u8 is_dead;
@@ -37,7 +36,6 @@ typedef struct {
   u64 fsb, gsb;
 
   u64 cr3;
-  u64 kgsb;
 } __attribute__((packed)) procctx_t;
 
 extern process_state_t proctbl[MAX_PROCESSES];
