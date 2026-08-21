@@ -1,9 +1,9 @@
 #include <core/std.h>
-#include <drivers/ps2/ps2.h>
+#include <drivers/hid/ps2/ps2.h>
 #include <core/asmh.h>
 #include <core/idt.h>
 #include <drivers/apic.h>
-#include <drivers/mouse.h>
+#include <drivers/hid/mouse.h>
 
 extern void mouse_hdlr();
 int has_ps2mouse() {

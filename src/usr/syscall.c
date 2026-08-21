@@ -4,15 +4,14 @@
 #include <core/mem/vmm.h>
 #include <core/asmh.h>
 
-#include <drivers/gettimeofday.h>
+#include <drivers/time/gettimeofday.h>
 #include <drivers/term.h>
-#include <drivers/fs.h>
-#include <drivers/mouse.h>
+#include <drivers/storage/fs.h>
+#include <drivers/hid/mouse.h>
 #include <drivers/fb.h>
-#include <drivers/tsc.h>
-#include <drivers/kbd.h>
+#include <drivers/time/clock.h>
+#include <drivers/hid/kbd.h>
 
-#include <lib/sh.h>
 #include <lib/loader.h>
 #include <lib/syscall.h>
 
@@ -39,7 +38,7 @@ void init_syscalls() {
     wrmsr(MSR_STAR, ((u64)0x1B << 48) | ((u64)0x08 << 32));
     wrmsr(MSR_SFMASK, 0x204);
     wrmsr(MSR_EFER, rdmsr(MSR_EFER) | 1);
-    wrmsr(MSR_IA32_FMASK, 0x200); 
+    wrmsr(MSR_IA32_FMASK, 0x200);
 }
 
 struct sysregs {
@@ -56,7 +55,7 @@ struct sysregs {
 
     asm volatile(
         "cli\n\t"
-        
+
         "movq $0, %%gs:0\n\t"
         "movq %0, %%gs:8\n\t"
 
@@ -74,9 +73,9 @@ void syscall_c(struct sysregs* args) {
     page_table_t* uasp = vmm_cpml4v();
     struct sysregs svargs;
     memcpy(&svargs, args, sizeof(*args));
-    
+
     switch (args->num) {
-        case SYS_EXIT: 
+        case SYS_EXIT:
             vmm_skasp();
             sys_exit(uasp);
         case SYS_READ: {
@@ -144,7 +143,7 @@ void syscall_c(struct sysregs* args) {
             goto ret;
         }
         case SYS_SLEEP: {
-            tsc_sleep(args->a0);
+            sleepms(args->a0);
             args->num = 0;
             goto ret;
         }
@@ -220,7 +219,7 @@ void syscall_c(struct sysregs* args) {
             goto ret;
         }
         case SYS_GETTIMEMONOMS: {
-            args->num = get_tscms();
+            args->num = getms();
             goto ret;
         }
         case SYS_GETTIMEMONO: {

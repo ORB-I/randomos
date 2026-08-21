@@ -3,7 +3,16 @@
 - Implement USB HID keyboard driver [ DONE by @44tl ]
 - Create userspace wm [ DONE by @44tl ]
 - Test userspace framebuffer stuff [ DONE by @44tl ]
-- Make a way to query framebuffer pixel layout (IN PROGRESS @Wdboyes13)
 - Add SOFILE support and dynamic ELFs [ DONE by @44tl ]
 - Fix USB HID driver is_usb_devicetype failing to get configuration descriptor [ DONE by @44tl ]
-- Add USBHID and PS/2 mouse support
+- Add USBHID and PS/2 mouse support [ DONE by @Wdboyes13 ]
+- Make it so ET_EXECs get DT_NEEDED tags processed [ DONE by @Wdboyes13 ]
+- Fix USBHID Mouse hanging [ DONE by @Wdboyes13 ]
+
+- Rewrite syscall stuff so that it doesn't get interrupted by the scheduler
+  mid-syscall
+- Rewrite sys_exit to return to the process in the ppid instead of to a now
+  non-existent kernel function
+- Probably fix a ton of bugs in the scheduler
+- Implement AHCI driver
+- Implement USBMSD driver

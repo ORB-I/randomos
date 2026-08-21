@@ -79,12 +79,12 @@ bool ata_identify_drive(u8 drv_id, u8 drivet) {
     if (status == 0) return false;
 
     for (int i = 0; i < 4; i++) ata_inb(drv_id, RTCTRL, 0);
-    
+
     while (ata_inb(drv_id, RTIO, 7) & 0x80) {
     }
 
     status = ata_inb(drv_id, RTIO, 7);
-    if (status & 0x01) return false; 
+    if (status & 0x01) return false;
     if (!(status & 0x08)) return false;
 
     for (int i = 0; i < 256; i++) ata_inw(drv_id, RTIO, 0);
@@ -134,7 +134,7 @@ void ata_poll(u8 drv) {
 
 void ata_secread(u8 drv, u32 lba, u8* buf) {
     ata_outb(drv, RTCTRL, 0, 0);
-    ata_outb(drv, RTIO, 6, 0xE0 | ((lba >> 24) & 0x0F)); 
+    ata_outb(drv, RTIO, 6, 0xE0 | ((lba >> 24) & 0x0F));
     for (int i = 0; i < 4; i++) ata_inb(drv, RTCTRL, 0);
 
     ata_outb(drv, RTIO, 2, 1);

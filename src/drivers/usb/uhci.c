@@ -4,9 +4,9 @@
 #include <core/mem/vmm.h>
 #include <drivers/pci.h>
 #include <drivers/usb/uhci.h>
-#include <drivers/tsc.h>
+#include <drivers/time/clock.h>
 #include <core/printf.h>
-#include <drivers/kbd.h>
+#include <drivers/hid/kbd.h>
 #include <lib/string.h>
 
 #define MAX_UHCI_CONTROLLERS 4
@@ -34,7 +34,7 @@ int usb_set_address(uhci_controller_t* hc, u8 old_addr, u8 new_addr) {
         .len      = 0
     };
     int ret = uhci_control_transfer(hc, old_addr, true, &req, NULL, 0);
-    tsc_sleep(10);
+    sleepms(10);
     return ret;
 }
 
@@ -68,9 +68,9 @@ void uhci_reset_port(uhci_controller_t* hc, int port) {
     }
 
     uhci_outw(hc, port_reg, UHCI_PORT_RESET);
-    tsc_sleep(50);
+    sleepms(50);
     uhci_outw(hc, port_reg, 0);
-    tsc_sleep(10);
+    sleepms(10);
 
     for (int i = 0; i < 10; i++) {
         val = uhci_inw(hc, port_reg);
@@ -78,7 +78,7 @@ void uhci_reset_port(uhci_controller_t* hc, int port) {
             break;
         }
         uhci_outw(hc, port_reg, val | UHCI_PORT_ENABLE);
-        tsc_sleep(10);
+        sleepms(10);
     }
 }
 
@@ -114,11 +114,18 @@ int uhci_regdev(uhci_controller_t* hc, int port, int low_speed, u8 class, u8 pro
     }
 
     uhci_reset_port(hc, port);
-    if (!is_usb_devicetype(hc, port, low_speed, class, proto)) {
+    if (!is_usb_devicetype(hc, 0, low_speed, class, proto)) {
         return UHCI_REG_NTYPE;
     }
 
-    return port;
+    if (usb_set_address(hc, 0, port + 1) < 0) {
+        return UHCI_REG_NSADR;
+    }
+
+    hc->port_in_use[port] = 1;
+    hc->addrs[port + 1] = 1;
+
+    return port + 1;
 }
 
 static int uhci_init_controller(u8 bus, u8 slot, u8 fn) {
@@ -147,16 +154,16 @@ static int uhci_init_controller(u8 bus, u8 slot, u8 fn) {
     hc->io_base = io_base;
 
     uhci_outw(hc, UHCI_USBCMD, UHCI_CMD_GRESET);
-    tsc_sleep(50);
+    sleepms(50);
     uhci_outw(hc, UHCI_USBCMD, 0);
-    tsc_sleep(10);
+    sleepms(10);
 
     uhci_outw(hc, UHCI_USBCMD, UHCI_CMD_HCRESET);
     for (int i = 0; i < 100; i++) {
         if (!(uhci_inw(hc, UHCI_USBCMD) & UHCI_CMD_HCRESET)) {
             break;
         }
-        tsc_sleep(1);
+        sleepms(1);
     }
 
     uhci_outw(hc, UHCI_USBINTR, 0);
@@ -290,7 +297,7 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
     u16 dtoff = 0;
     u8 tgl = 1;
 
-    while (brem > 0) {        
+    while (brem > 0) {
         u16 pksz = brem;
         if (pksz > 8) {
             pksz = 8;
@@ -317,7 +324,7 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
     u64 status_td_phys = tdsp + (tdcnt * sizeof(uhci_td_t));
     tdcnt++;
 
-    status_td->link = UHCI_TD_PTR_T; 
+    status_td->link = UHCI_TD_PTR_T;
     status_td->ctrl = ctrlb | UHCI_TD_CTRL_IOC;
     status_td->token = (0 << 21) | (1 << 20) | (0 << 15) | ((u32)dev_addr << 8) | (data_in ? UHCI_PID_OUT : UHCI_PID_IN);
     status_td->buffer = (u32)((u64)pgphys + 0x300);
@@ -344,7 +351,7 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
             nerr = nnerr;
         }
 
-        tsc_sleep(1);
+        sleepms(1);
     }
 
     hc->queue_head->element = UHCI_TD_PTR_T;

@@ -1,5 +1,5 @@
 #include <core/asmh.h>
-#include <drivers/tsc.h>
+#include <drivers/time/clock.h>
 
 void ps2_wait_write() {
     while (inb(0x64) & 2);
@@ -16,11 +16,11 @@ u8 ps2_dataread() {
 u8 ps2_datareadto(u16 to) {
     while (to > 0) {
         u8 status = ps2_dataread();
-        if (status & 0x01) { 
+        if (status & 0x01) {
             return status;
         }
 
-        tsc_sleep(1);
+        sleepms(1);
         to--;
     }
 
@@ -38,11 +38,11 @@ u8 ps2_statread() {
 u8 ps2_statreadto(u16 to) {
     while (to > 0) {
         u8 status = ps2_statread();
-        if (status & 0x01) { 
+        if (status & 0x01) {
             return status;
         }
 
-        tsc_sleep(1);
+        sleepms(1);
         to--;
     }
 
@@ -70,7 +70,7 @@ int isps2dc() {
 
     ps2_wait_write();
     ps2_cmdwrite(0x20);
-    
+
     ps2_wait_read();
     uint8_t cfg = ps2_dataread();
 
@@ -78,7 +78,7 @@ int isps2dc() {
     ps2_cmdwrite(0xA8);
     ps2_wait_write();
     ps2_cmdwrite(0x20);
-    
+
     ps2_wait_read();
     uint8_t pecfg = ps2_dataread();
     if ((cfg & (1 << 5)) && !(pecfg & (1 << 5))) {
@@ -91,7 +91,7 @@ int isps2dc() {
             ps2_cmdwrite(0xA7);
             ps2_wait_write();
             ps2_cmdwrite(0xAE);
-            
+
             return 1;
         }
     }

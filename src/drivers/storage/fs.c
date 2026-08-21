@@ -2,9 +2,9 @@
 #include <core/std.h>
 #include <core/printf.h>
 #include <lib/string.h>
-#include <drivers/fs.h>
+#include <drivers/storage/fs.h>
 #include <drivers/term.h>
-#include <drivers/kbd.h>
+#include <drivers/hid/kbd.h>
 
 FIL fp[128];
 DIR dp[128];
@@ -126,7 +126,7 @@ int closedir(DIR* cdp) {
     if (f_closedir(cdp) == FR_OK) {
         memset(cdp, 0, sizeof(DIR));
         return 0;
-    } 
+    }
     return -1;
 }
 
@@ -136,7 +136,7 @@ void convstat(FILINFO* finfo, struct stat* st) {
     st->st_size = finfo->fsize;
 }
 
-int readdir(DIR* cdp, struct stat* st) { 
+int readdir(DIR* cdp, struct stat* st) {
     FILINFO inf;
     if (f_readdir(cdp, &inf) != FR_OK) return -1;
     if (inf.fname[0] == 0) return -1;

@@ -1,5 +1,6 @@
 #include <core/asmh.h>
 #include <drivers/pic.h>
+#include <drivers/time/tsc.h>
 
 int tsc_cangetfrqviacpuid() {
     u32 eax, ebx, ecx, edx;
@@ -38,7 +39,7 @@ u64 tsc_getfrqviapit() {
     u64 tscst = rdtsc();
     while ((inb(0x61) & 0x20) == 0);
     u64 tsced = rdtsc();
-    
+
     outb(0x61, p61 & 0xFC);
 
     u64 dtsc = tsced - tscst;
@@ -46,17 +47,6 @@ u64 tsc_getfrqviapit() {
 }
 
 u64 _tsc_frq = 0;
-u64 init_tsc() {
-    if (tsc_cangetfrqviacpuid()) {
-        _tsc_frq = tsc_getfrqviacpuid();
-        if (_tsc_frq != 0) {
-            return _tsc_frq;
-        }
-    }
-    _tsc_frq = tsc_getfrqviapit();
-    return _tsc_frq;
-}
-
 u64 get_tscms() {
     if (_tsc_frq == 0) return 0;
     u64 tsc = rdtsc();
@@ -64,6 +54,23 @@ u64 get_tscms() {
         return (tsc / _tsc_frq) * 1000;
     }
     return (tsc * 1000) / _tsc_frq;
+}
+
+// tsc cannot fail because if it does
+// and no HPET is available the kernel
+// will be halted
+int init_tsc(u64 (**getms)(void)) {
+    if (tsc_cangetfrqviacpuid()) {
+        _tsc_frq = tsc_getfrqviacpuid();
+        if (_tsc_frq == 0) {
+            _tsc_frq = tsc_getfrqviapit();
+        }
+        return 0;
+    }
+    _tsc_frq = tsc_getfrqviapit();
+
+    *getms = get_tscms;
+    return 0;
 }
 
 void tsc_sleep(u64 ms) {

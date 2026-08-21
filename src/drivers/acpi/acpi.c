@@ -9,7 +9,6 @@
 
 #include <drivers/acpi.h>
 #include <drivers/pic.h>
-#include <drivers/rtc.h>
 
 #include <lai/core.h>
 #include <lai/helpers/sci.h>
@@ -26,7 +25,7 @@ s32 rsdp_chksum(u8* rsdp_addr) {
 
 s32 vchksum(sdt_header_t* hdr) {
     u8 sum = 0;
-    for (usize i = 0; i < hdr->len; i++) 
+    for (usize i = 0; i < hdr->len; i++)
         sum += ((u8 *) hdr)[i];
     return sum == 0;
 }
@@ -80,15 +79,15 @@ void init_acpi(core_acpi_t* acpi) {
         }
         acpi->rsdt = NULL;
     }
-    
+
     if (!acpi->fadt) {
         if (!acpi->rsdp->rsdt_addr) panic("BOTH RSDT AND XSDT ARE NULL");
-        
+
         acpi->rsdt = (rsdt_t*)((u64)acpi->rsdp->rsdt_addr + HHDM_START);
         if (!strneq(acpi->rsdt->hdr.sig, "RSDT", 4)) {
             panic("RSDT SIGNATURE INVALID: Got %04s", acpi->rsdt->hdr.sig);
         }
-        
+
         acpi->fadt = find_acpitbl_32(acpi->rsdt, "FACP");
         acpi->xsdt = NULL;
     }

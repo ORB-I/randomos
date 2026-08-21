@@ -1,7 +1,5 @@
 #include <core/std.h>
-
-#include <drivers/ata.h>
-
+#include <drivers/storage/ata.h>
 #include <ff16/ff.h>
 #include <ff16/diskio.h>
 
@@ -50,7 +48,7 @@ DRESULT disk_ioctl(BYTE _, BYTE cmd, void* buf) {
             *(DWORD*)buf = 1;
             return RES_OK;
         case GET_SECTOR_COUNT:
-            *(LBA_t*)buf = 268435456; 
+            *(LBA_t*)buf = 268435456;
             return RES_OK;
     }
     return RES_PARERR;

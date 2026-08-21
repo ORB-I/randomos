@@ -1,7 +1,7 @@
 #include <core/liballoc.h>
 #include <drivers/term.h>
 #include <core/printf.h>
-#include <drivers/kbd.h>
+#include <drivers/hid/kbd.h>
 
 #define INITBUFSZ 256
 
@@ -35,7 +35,7 @@ char* readline(const char* prompt) {
         } else {
             term_putchar(c);
         }
-        
+
         if (i >= bufsz - 1) {
             char* newptr = (char*)realloc(buf, bufsz + 256);
             if (newptr == NULL) {

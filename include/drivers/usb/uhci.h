@@ -125,6 +125,8 @@ typedef struct {
     bool exists;
     u8 port_in_use[16];
     u8 nports;
+    u8 addrs[17]; // like port_in_use but for addresses, addrs[0] MUST be 0 always since
+                  // that must be available for USB enumeration
 } uhci_controller_t;
 
 typedef struct {
@@ -137,7 +139,7 @@ typedef struct {
 
 typedef struct {
     uhci_controller_t* ctrl;
-    int port;
+    int addr;
 } usb_dev_info_t;
 
 int init_uhci();

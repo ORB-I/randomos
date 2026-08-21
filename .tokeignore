@@ -5,3 +5,4 @@ include/flanterm
 include/lai
 include/ff16
 ksyms.c
+user/
