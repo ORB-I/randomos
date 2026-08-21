@@ -25,4 +25,5 @@ void pci_cfg_outw(u8 bus, u8 slot, u8 fn, u8 off, u16 val);
 void pci_cfg_outl(u8 bus, u8 slot, u8 fn, u8 off, u32 val);
 
 void pci_get_chdr(u32 bus, u32 slot, pci_chdr_t* hdr);
+void pci_get_chdr_fn(u32 bus, u32 slot, u32 fn, pci_chdr_t* hdr);
 u32 pci_read_bar(u8 bus, u8 slot, u8 fn, u8 bar_idx);

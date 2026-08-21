@@ -10,9 +10,9 @@
 - Fix USBHID Mouse hanging [ DONE by @Wdboyes13 ]
 
 - Rewrite syscall stuff so that it doesn't get interrupted by the scheduler
-  mid-syscall
+  mid-syscall [ DONE by @44tl ]
 - Rewrite sys_exit to return to the process in the ppid instead of to a now
-  non-existent kernel function
-- Probably fix a ton of bugs in the scheduler
-- Implement AHCI driver
-- Implement USBMSD driver
+  non-existent kernel function [ DONE by @44tl ]
+- Probably fix a ton of bugs in the scheduler [ DONE by @44tl ]
+- Implement AHCI driver [ DONE by @44tl ]
+- Implement USBMSD driver [ DONE by @44tl ]

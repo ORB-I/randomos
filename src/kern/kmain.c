@@ -24,6 +24,8 @@
 #include <drivers/storage/ata.h>
 #include <drivers/storage/ff16_init.h>
 #include <drivers/storage/fs.h>
+#include <drivers/storage/ahci.h>
+#include <drivers/storage/usbmsd.h>
 #include <drivers/fb.h>
 #include <drivers/usb/uhci.h>
 #include <drivers/time/clock.h>
@@ -122,9 +124,26 @@ void kmain_aftergdt() {
 
     init_gettimeofday();
 
-    int drive = ata_init();
-    if (drive > 0) {
+    int drive = -1;
+
+    drive = ata_init();
+    if (drive <= 0) {
+        drive = ahci_init();
+        if (drive >= 0) {
+            ff16_set_drive(drive);
+            ff16_set_ahci();
+        } else {
+            drive = usbmsd_init();
+            if (drive >= 0) {
+                ff16_set_drive(drive);
+                ff16_set_usbmsd();
+            }
+        }
+    } else {
         ff16_set_drive(drive);
+    }
+
+    if (drive >= 0) {
         if (mount("", MNT_FORMAT) < 0) {
             printf("failed to mount\n");
         }

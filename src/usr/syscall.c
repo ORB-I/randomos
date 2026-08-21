@@ -1,6 +1,5 @@
 #include <core/std.h>
 #include <core/idt.h>
-#include <core/panic.h>
 #include <core/mem/vmm.h>
 #include <core/asmh.h>
 
@@ -14,6 +13,7 @@
 
 #include <lib/loader.h>
 #include <lib/syscall.h>
+#include <scheduler/process.h>
 
 #include <lai/helpers/pm.h>
 
@@ -46,38 +46,50 @@ struct sysregs {
     u64 __es, __ds, __rflags, __rip;
 };
 
-[[noreturn]] void sys_exit(page_table_t* uasp) {
-    vmm_remumap(uasp);
-    vmm_dasp(uasp);
-
-    u64 krsp = (u64)(kern_stack + sizeof(kern_stack));
-    reset_rsp(krsp);
-
-    asm volatile(
-        "cli\n\t"
-
-        "movq $0, %%gs:0\n\t"
-        "movq %0, %%gs:8\n\t"
-
-        "mov %0, %%rsp\n\t"
-        "push %1\n\t"
-        "sti\n\t"
-        "ret"
-        :: "r"(krsp), "r"(sh)
-        : "memory"
-    );
-    panic("System call exit failed");
-}
-
-void syscall_c(struct sysregs* args) {
+bool syscall_c(struct sysregs* args) {
     page_table_t* uasp = vmm_cpml4v();
     struct sysregs svargs;
     memcpy(&svargs, args, sizeof(*args));
 
     switch (args->num) {
-        case SYS_EXIT:
+        case SYS_EXIT: {
             vmm_skasp();
-            sys_exit(uasp);
+            u8 ppid = proctbl[current_pid].ppid;
+            proctbl[current_pid].is_dead = 1;
+            procctx_t* pctx = (procctx_t*)&proctbl[ppid];
+            vmm_sasp((page_table_t*)pctx->cr3);
+            wrmsr(MSR_KERNEL_GS_BASE, pctx->kgsb);
+
+            asm volatile(
+                "movq 0x00(%[p]), %%rax\n\t"
+                "movq 0x08(%[p]), %%rbx\n\t"
+                "movq 0x10(%[p]), %%rcx\n\t"
+                "movq 0x18(%[p]), %%rdx\n\t"
+                "movq 0x20(%[p]), %%rsi\n\t"
+                "movq 0x28(%[p]), %%rdi\n\t"
+                "movq 0x30(%[p]), %%rbp\n\t"
+                "movq 0x38(%[p]), %%r8\n\t"
+                "movq 0x40(%[p]), %%r9\n\t"
+                "movq 0x48(%[p]), %%r10\n\t"
+                "movq 0x50(%[p]), %%r11\n\t"
+                "movq 0x58(%[p]), %%r12\n\t"
+                "movq 0x60(%[p]), %%r13\n\t"
+                "movq 0x68(%[p]), %%r14\n\t"
+                "movq 0x70(%[p]), %%r15\n\t"
+                "movw 0x94(%[p]), %%fs\n\t"
+                "movw 0x96(%[p]), %%gs\n\t"
+                "pushq 0x92(%[p])\n\t"
+                "movq 0x08(%[p]), %%rsp\n\t"
+                "pushq 0x90(%[p])\n\t"
+                "pushq 0x10(%[p])\n\t"
+                "pushq 0x00(%[p])\n\t"
+                "iretq\n\t"
+                :
+                : [p] "r"(pctx)
+                : "memory"
+            );
+            return true;
+        }
         case SYS_READ: {
             args->num = read(args->a0, (u8*)args->a1, args->a2);
             goto ret;
@@ -259,4 +271,5 @@ ret: {
     memcpy(args, &svargs, sizeof(*args));
     args->num = ret;
 }
+return false;
 }
