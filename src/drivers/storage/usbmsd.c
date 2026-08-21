@@ -198,7 +198,6 @@ int usbmsd_init(void) {
 
             u8* cfg_buf;
             if (usbmsd_read_cfg_desc(hc, new_addr, &cfg_buf) < 0) {
-                pmm_ffree((void*)((u64)cfg_buf - HHDM_START), 1);
                 continue;
             }
 
@@ -248,7 +247,7 @@ void usbmsd_secread(u8 drv, u32 lba, u8* buf) {
     cbw.cdb[3] = (lba >> 16) & 0xFF;
     cbw.cdb[4] = (lba >> 8) & 0xFF;
     cbw.cdb[5] = lba & 0xFF;
-    cbw.cdb[7] = 0x02;
+    cbw.cdb[7] = 0x00;
     cbw.cdb[8] = 1;
 
     if (usbmsd_do_bot(&cbw, buf, 512) < 0) {
@@ -272,7 +271,7 @@ void usbmsd_secwrite(u8 drv, u32 lba, u8* buf) {
     cbw.cdb[3] = (lba >> 16) & 0xFF;
     cbw.cdb[4] = (lba >> 8) & 0xFF;
     cbw.cdb[5] = lba & 0xFF;
-    cbw.cdb[7] = 0x02;
+    cbw.cdb[7] = 0x00;
     cbw.cdb[8] = 1;
 
     if (usbmsd_do_bot(&cbw, buf, 512) < 0) {

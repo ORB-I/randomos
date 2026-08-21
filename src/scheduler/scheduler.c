@@ -1,6 +1,9 @@
 #include <scheduler/process.h>
 #include <lib/syscall.h>
 #include <core/mem/vmm.h>
+#include <core/asmh.h>
+
+#define MSR_KERNEL_GS_BASE 0xC0000102
 
 // these arent defined
 // in a header because theyre only
@@ -60,30 +63,33 @@ void ctx2proc(process_state_t* dst, procctx_t* src) {
     proc2ctx(&ctx, proc);
 
     vmm_sasp((page_table_t*)proc->cr3);
+    wrmsr(MSR_KERNEL_GS_BASE, ctx.kgsb);
     asm volatile(
         "cli\n\t"
         "movq %[ctx], %%15\n\t"
-        "movq 0x00(%%r15), %%rax\n\t"
-        "movq 0x08(%%r15), %%rbx\n\t"
-        "movq 0x10(%%r15), %%rcx\n\t"
-        "movq 0x18(%%r15), %%rdx\n\t"
-        "movq 0x20(%%r15), %%rsi\n\t"
-        "movq 0x28(%%r15), %%rdi\n\t"
-        "movq 0x30(%%r15), %%rbp\n\t"
-        "movq 0x38(%%r15), %%r8\n\t"
-        "movq 0x40(%%r15), %%r9\n\t"
-        "movq 0x48(%%r15), %%r10\n\t"
-        "movq 0x50(%%r15), %%r11\n\t"
-        "movq 0x58(%%r15), %%r12\n\t"
-        "movq 0x60(%%r15), %%r13\n\t"
-        "movq 0x68(%%r15), %%r14\n\t"
-        "pushq 0x92(%%r15)\n\t"
+        "movq 0x18(%%r15), %%rax\n\t"
+        "movq 0x20(%%r15), %%rbx\n\t"
+        "movq 0x28(%%r15), %%rcx\n\t"
+        "movq 0x30(%%r15), %%rdx\n\t"
+        "movq 0x38(%%r15), %%rsi\n\t"
+        "movq 0x40(%%r15), %%rdi\n\t"
+        "movq 0x48(%%r15), %%rbp\n\t"
+        "movq 0x50(%%r15), %%r8\n\t"
+        "movq 0x58(%%r15), %%r9\n\t"
+        "movq 0x60(%%r15), %%r10\n\t"
+        "movq 0x68(%%r15), %%r11\n\t"
+        "movq 0x70(%%r15), %%r12\n\t"
+        "movq 0x78(%%r15), %%r13\n\t"
+        "movq 0x80(%%r15), %%r14\n\t"
+        "movq 0x88(%%r15), %%r15\n\t"
+        "movzwq 0x92(%%r15), %%rax\n\t"
+        "pushq %%rax\n\t"
         "pushq 0x08(%%r15)\n\t"
         "pushq 0x10(%%r15)\n\t"
-        "pushq 0x90(%%r15)\n\t"
+        "movzwq 0x90(%%r15), %%rax\n\t"
+        "pushq %%rax\n\t"
         "pushq 0x00(%%r15)\n\t"
 
-        "movq 0x70(%%r15), %%r15\n\t"
         "iretq\n\t"
         :
         : [ctx] "r"(ctx)
@@ -120,34 +126,36 @@ void scheduler_switch(procctx_t* proc) {
     init_syscalls();
     procctx_t ctx;
     proc2ctx(&ctx, tgtproc);
-    vmm_sasp((page_table_t*)proc->cr3);
+    vmm_sasp((page_table_t*)tgtproc->cr3);
 
     wrmsr(MSR_KERNEL_GS_BASE, ctx.kgsb);
 
     asm volatile(
         "cli\n\t"
         "movq %[ctx], %%15\n\t"
-        "movq 0x00(%%r15), %%rax\n\t"
-        "movq 0x08(%%r15), %%rbx\n\t"
-        "movq 0x10(%%r15), %%rcx\n\t"
-        "movq 0x18(%%r15), %%rdx\n\t"
-        "movq 0x20(%%r15), %%rsi\n\t"
-        "movq 0x28(%%r15), %%rdi\n\t"
-        "movq 0x30(%%r15), %%rbp\n\t"
-        "movq 0x38(%%r15), %%r8\n\t"
-        "movq 0x40(%%r15), %%r9\n\t"
-        "movq 0x48(%%r15), %%r10\n\t"
-        "movq 0x50(%%r15), %%r11\n\t"
-        "movq 0x58(%%r15), %%r12\n\t"
-        "movq 0x60(%%r15), %%r13\n\t"
-        "movq 0x68(%%r15), %%r14\n\t"
-        "pushq 0x92(%%r15)\n\t"
+        "movq 0x18(%%r15), %%rax\n\t"
+        "movq 0x20(%%r15), %%rbx\n\t"
+        "movq 0x28(%%r15), %%rcx\n\t"
+        "movq 0x30(%%r15), %%rdx\n\t"
+        "movq 0x38(%%r15), %%rsi\n\t"
+        "movq 0x40(%%r15), %%rdi\n\t"
+        "movq 0x48(%%r15), %%rbp\n\t"
+        "movq 0x50(%%r15), %%r8\n\t"
+        "movq 0x58(%%r15), %%r9\n\t"
+        "movq 0x60(%%r15), %%r10\n\t"
+        "movq 0x68(%%r15), %%r11\n\t"
+        "movq 0x70(%%r15), %%r12\n\t"
+        "movq 0x78(%%r15), %%r13\n\t"
+        "movq 0x80(%%r15), %%r14\n\t"
+        "movq 0x88(%%r15), %%r15\n\t"
+        "movzwq 0x92(%%r15), %%rax\n\t"
+        "pushq %%rax\n\t"
         "pushq 0x08(%%r15)\n\t"
         "pushq 0x10(%%r15)\n\t"
-        "pushq 0x90(%%r15)\n\t"
+        "movzwq 0x90(%%r15), %%rax\n\t"
+        "pushq %%rax\n\t"
         "pushq 0x00(%%r15)\n\t"
 
-        "movq 0x70(%%r15), %%r15\n\t"
         "iretq\n\t"
         :
         : [ctx] "r"(ctx)

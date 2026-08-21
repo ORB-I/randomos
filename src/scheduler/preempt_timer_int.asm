@@ -34,9 +34,9 @@ extern preempt_ctx
 %define CTX_FSB       0xA0
 %define CTX_GSB       0xA8
 %define CTX_CR3       0xB0
-%define CTX_KGSB      0xC0
+%define CTX_KGSB      0xB8
 
-%define CTX_SIZE      0xC8
+%define CTX_SIZE      0xC0
 
 global preempt_hdlr
 preempt_hdlr:
