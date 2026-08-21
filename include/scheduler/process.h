@@ -16,6 +16,7 @@ typedef struct {
     u64 fsb, gsb;
 
     u64 cr3;
+
     u8 pid;
     u8 is_dead;
     u8 ppid;

@@ -33,7 +33,7 @@
 #define UHCI_PORT_LOWSPD (1 << 8)
 #define UHCI_PORT_RESET  (1 << 9)
 #define UHCI_PORT_SUSP   (1 << 12)
-#define UHCI_PORTSC_CCS  (1 << 0) 
+#define UHCI_PORTSC_CCS  (1 << 0)
 #define UHCI_PORTSC_CSC  (1 << 1)
 
 #define UHCI_TD_PTR_T (1 << 0)
@@ -59,6 +59,13 @@
 #define USB_DESC_DEVICE    0x01
 #define USB_DESC_CONFIG    0x02
 #define USB_DESC_INTERFACE 0x04
+#define USB_DESC_ENDPOINT 0x05
+
+#define USB_CLASS_MASS_STORAGE 0x08
+#define USB_SUBCLASS_SCSI 0x06
+#define USB_PROTOIF_BULK_ONLY 0x50
+
+#define USB_EP_TYPE_BULK 2
 
 typedef struct {
     u8  bLength;
@@ -77,7 +84,7 @@ typedef struct {
     u8  bNumConfigurations;
 } __attribute__((packed)) usb_device_descriptor_t;
 
-typedef struct {
+typedef struct usb_interface_descriptor_t {
     u8  bLength;
     u8  bDescriptorType;
     u8  bInterfaceNumber;
@@ -144,6 +151,7 @@ typedef struct {
 
 int init_uhci();
 int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, usb_device_request_t* req, void* data, u16 len);
+int uhci_bulk_transfer(uhci_controller_t* hc, u8 dev_addr, u8 ep, void* data, u32 len, int in);
 usize uhci_get_controllers(uhci_controller_t** ctrlrs);
 int is_usb_devicetype(uhci_controller_t* hc, u8 dev_addr, bool low_speed, u8 cls, u8 proto);
 void uhci_reset_port(uhci_controller_t* hc, int port);

@@ -4,7 +4,6 @@
 #include <core/printf.h>
 #include <core/mem/vmm.h>
 #include <core/idt.h>
-#include <lib/sh.h>
 #include <drivers/term.h>
 #include <drivers/fb.h>
 
@@ -24,11 +23,11 @@ void except_panic(struct CpuState* regs, const char* msg, ...) {
     if (tfb >= 0) {
         switch_fb(tfb);
     }
-    
+
     va_list lst;
     va_start(lst, msg);
 
-    if ((regs->cs & 0x3) == 3) {
+    /*if ((regs->cs & 0x3) == 3) {
         asm volatile ("swapgs" ::: "memory");
 
         printf("Userspace Exception: ");
@@ -52,7 +51,7 @@ void except_panic(struct CpuState* regs, const char* msg, ...) {
             :: "r"(krsp), "r"(sh)
             : "memory"
         );
-    } else {
+        } else {*/
         printf("*** KERNEL EXCEPTION ***\n");
         vprintf(msg, lst);
         printf("\n\n");
@@ -67,7 +66,7 @@ void except_panic(struct CpuState* regs, const char* msg, ...) {
 
         asm volatile("cli");
         while (1) asm volatile("hlt");
-    }
+        //}
 
     va_end(lst);
 }
@@ -85,7 +84,7 @@ void c_int_hdlr(struct CpuState* regs) {
             u64 badaddr;
             u32 ec = regs->error_code;
             asm volatile("mov %%cr2, %0" : "=r"(badaddr));
-            except_panic(regs, "Page fault on address 0x%016x (%s %s %s %s %s)\n", 
+            except_panic(regs, "Page fault on address 0x%016x (%s %s %s %s %s)\n",
                 badaddr,
                 (ec & (1 << 0)) ? "Present" : "Not-Present",
                 (ec & (1 << 1)) ? "Write" : "Read",

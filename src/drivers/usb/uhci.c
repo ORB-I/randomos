@@ -425,3 +425,77 @@ usize uhci_get_controllers(uhci_controller_t** ctrlrs) {
     *ctrlrs = controllers;
     return num_controllers;
 }
+
+int uhci_bulk_transfer(uhci_controller_t* hc, u8 dev_addr, u8 ep, void* data, u32 len, int in) {
+    if (!hc || !hc->exists) return -1;
+
+    void* pgphys = pmm_falloc(1);
+    if (!pgphys) return -1;
+
+    u64 pvirt = (u64)pgphys + HHDM_START;
+    memset((void*)pvirt, 0, 4096);
+
+    u64 dtbovirt = pvirt + 0x400;
+    u64 dtbophys = (u64)pgphys + 0x400;
+
+    if (data && !in) {
+        memcpy((void*)dtbovirt, data, len);
+    }
+
+    u32 ctrlb = UHCI_TD_CTRL_ACT | UHCI_TD_CTRL_CERR;
+    u32 epid = in ? UHCI_PID_IN : UHCI_PID_OUT;
+    u32 ep_bit = (u32)(ep & 0x0F) << 15;
+
+    uhci_td_t* tds = (uhci_td_t*)(pvirt + 0x040);
+    u64 tdsp = (u64)pgphys + 0x040;
+    int tdcnt = 0;
+
+    u32 brem = len;
+    u32 dtoff = 0;
+    u8 tgl = 1;
+
+    while (brem > 0) {
+        u16 pksz = brem > 64 ? 64 : (u16)brem;
+        uhci_td_t* td = &tds[tdcnt];
+        u64 td_phys = tdsp + (tdcnt * sizeof(uhci_td_t));
+        tdcnt++;
+
+        td->link = (tdcnt < 255) ? (u32)(td_phys + sizeof(uhci_td_t) | UHCI_TD_PTR_VF) : UHCI_TD_PTR_T;
+        td->ctrl = ctrlb;
+        td->token = ((pksz - 1) << 21) | ((u32)tgl << 20) | (0 << 19) | ep_bit | ((u32)dev_addr << 8) | epid;
+        td->buffer = (u32)(dtbophys + dtoff);
+
+        tgl ^= 1;
+        dtoff += pksz;
+        brem -= pksz;
+    }
+
+    uhci_td_t* last_td = &tds[tdcnt - 1];
+    last_td->link = UHCI_TD_PTR_T;
+
+    hc->queue_head->element = (u32)((u64)pgphys + 0x040);
+
+    int ret = 0;
+    u32 nerr = 0;
+    while (1) {
+        if (!(last_td->ctrl & UHCI_TD_CTRL_ACT)) break;
+        u32 nnerr = uhci_ctrl_err(last_td->ctrl);
+        if (nnerr < nerr) {
+            if (nnerr == 0) ret = -1;
+            nerr = nnerr;
+        }
+        sleepms(1);
+    }
+
+    hc->queue_head->element = UHCI_TD_PTR_T;
+
+    if (last_td->ctrl & UHCI_TD_CTRL_ACT) ret = -1;
+    else if (last_td->ctrl & 0x1F0000) ret = -1;
+
+    if (ret == 0 && in && data) {
+        memcpy(data, (void*)dtbovirt, len);
+    }
+
+    pmm_ffree(pgphys, 1);
+    return ret;
+}

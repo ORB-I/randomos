@@ -8,6 +8,7 @@
 #include <lib/loader.h>
 #include <lib/syscall.h>
 #include <core/printf.h>
+#include <core/asmh.h>
 
 #define USTACK    (16 * 4096)
 #define USTACKPGS 16
@@ -80,6 +81,15 @@ typedef struct {
 } dyninfo_t;
 dyninfo_t loaded_libs[MAX_LIBRARIES];
 usize nloaded = 0;
+
+#define MSR_KERNEL_GS_BASE 0xC0000102
+extern __attribute__((aligned(16))) u8 kern_stack[16384];
+static u64 gsblk[2];
+void reset_kgsb() {
+    gsblk[0] = 0x00007FFFFFFFF000;
+    gsblk[1] = (u64)kern_stack + 16384;
+    wrmsr(MSR_KERNEL_GS_BASE, (u64)&gsblk);
+}
 
 u64 locate_extern(const char* name) {
     for (usize l = 0; l < nloaded; l++) {

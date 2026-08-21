@@ -3,6 +3,8 @@
 
 section .text
 extern scheduler_switch
+extern preempt_pending
+extern preempt_ctx
 
 %define CTX_RIP       0x00
 %define CTX_RSP       0x08
@@ -32,8 +34,9 @@ extern scheduler_switch
 %define CTX_FSB       0xA0
 %define CTX_GSB       0xA8
 %define CTX_CR3       0xB0
+%define CTX_KGSB      0xB8
 
-%define CTX_SIZE      0xB8
+%define CTX_SIZE      0xC0
 
 global preempt_hdlr
 preempt_hdlr:
@@ -136,4 +139,42 @@ preempt_hdlr:
     mov rax, cr3
     mov [rdi + CTX_CR3], rax
 
+    mov ecx, 0xC0000102
+    rdmsr
+    shl rdx, 32
+    or rax, rdx
+    mov [rdi + CTX_KGSB], rax
+
+    cmp word [rdi + CTX_CS], 0x08
+    je .defer_preempt
+
     call scheduler_switch
+
+.defer_preempt:
+    mov byte [rel preempt_pending], 1
+    lea rdi, [rel preempt_ctx]
+    mov rsi, rsp
+    mov rcx, CTX_SIZE / 8
+.rep_save:
+    mov rax, [rsi]
+    mov [rdi], rax
+    add rsi, 8
+    add rdi, 8
+    loop .rep_save
+    add rsp, CTX_SIZE
+    pop rax
+    pop rbx
+    pop rcx
+    pop rdx
+    pop rsi
+    pop rdi
+    pop rbp
+    pop r8
+    pop r9
+    pop r10
+    pop r11
+    pop r12
+    pop r13
+    pop r14
+    pop r15
+    iretq

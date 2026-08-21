@@ -1,6 +1,9 @@
 [bits 64]
 global syscall_s
 extern syscall_c
+extern scheduler_switch
+extern preempt_pending
+extern preempt_ctx
 
 section .text
 syscall_s:
@@ -31,6 +34,13 @@ syscall_s:
     mov rdi, rsp
     call syscall_c
 
+    cmp byte [rel preempt_pending], 0
+    je .no_preempt
+    mov byte [rel preempt_pending], 0
+    lea rdi, [rel preempt_ctx]
+    call scheduler_switch
+
+.no_preempt:
     pop rax
     pop rdi
     pop rsi

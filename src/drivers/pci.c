@@ -46,10 +46,14 @@ void pci_cfg_outl(u8 bus, u8 slot, u8 fn, u8 off, u32 val) {
 }
 
 void pci_get_chdr(u32 bus, u32 slot, pci_chdr_t* hdr) {
-    u32 r0 = pci_cfg_inl(bus, slot, 0, 0x00);
-    u32 r1 = pci_cfg_inl(bus, slot, 0, 0x04);
-    u32 r2 = pci_cfg_inl(bus, slot, 0, 0x08);
-    u32 r3 = pci_cfg_inl(bus, slot, 0, 0x0C);
+    pci_get_chdr_fn(bus, slot, 0, hdr);
+}
+
+void pci_get_chdr_fn(u32 bus, u32 slot, u32 fn, pci_chdr_t* hdr) {
+    u32 r0 = pci_cfg_inl(bus, slot, fn, 0x00);
+    u32 r1 = pci_cfg_inl(bus, slot, fn, 0x04);
+    u32 r2 = pci_cfg_inl(bus, slot, fn, 0x08);
+    u32 r3 = pci_cfg_inl(bus, slot, fn, 0x0C);
 
     hdr->devid    = (u16)((r0 >> 16) & 0xFFFF);
     hdr->vndid    = (u16)(r0 & 0xFFFF);
