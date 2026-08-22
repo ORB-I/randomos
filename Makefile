@@ -1,27 +1,12 @@
-# PLEASE DONT "simplify" THIS BLOCK BACK TO PLAIN TOOL NAMES
-# two things are going on here:
-#   1. llvm tools (clang --target / lld) so the kernel builds the same
-#      on every machine, no distro-gcc surprises
-#   2. find_tool falls back to ~/opt/toolchain/bin when a tool isnt on
-#      PATH, because bare `make` broke for exactly that reason before
-# reverting either one has already happened once and it broke someones
-# build. if your setup needs different paths, extend TOOLCHAIN instead.
-TOOLCHAIN := $(HOME)/opt/toolchain/bin
-find_tool = $(if $(shell command -v $(1) 2>/dev/null),$(1),$(TOOLCHAIN)/$(1))
-
-CC := $(call find_tool,clang) --target=x86_64-elf
-LD := $(call find_tool,ld.lld)
-AS := $(call find_tool,nasm)
-AR := $(call find_tool,llvm-ar) --format=default
-NM := $(call find_tool,llvm-nm)
-XORRISO := $(call find_tool,xorriso)
-QEMU := qemu-system-x86_64
+# toolchain discovery lives in mk/tools.mk so the kernel, libc and
+# progs builds can never drift apart. dont inline it back here.
+include mk/tools.mk
 
 ASFLAGS      := -Iinclude -felf64
-LDFLAGS      := -Tshare/link.ld -m64 -ffreestanding -O0 -nostdlib -no-pie
-LIBS         := -Llib -llai -lff -lflanterm -lgcc
-# -fno-pie keeps distro gccs (which default to PIE) happy alongside
-# a real x86_64-elf cross compiler
+LDFLAGS      := -Tshare/link.ld -m64 -ffreestanding -O0 -nostdlib -no-pie -fuse-ld=lld
+# no -lgcc on purpose: the kernel doesnt need its builtins and pure
+# llvm machines (mac) dont ship it anyway
+LIBS         := -Llib -llai -lff -lflanterm
 CCFLAGS      := -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 				-m64 -nostdlib -fno-builtin -fno-stack-protector -fno-pie -Iinclude \
 		        -nostartfiles -nodefaultlibs -ffreestanding -Wall -Wextra -g \
@@ -29,7 +14,7 @@ CCFLAGS      := -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
         		-no-emul-boot -boot-load-size 4 -boot-info-table -hfsplus \
         		-apm-block-size 2048 --efi-boot boot/limine/limine-uefi-cd.bin \
-        		-efi-boot-part --efi-boot-image --protective-msdos-label
+        		--efi-boot-part --efi-boot-image --protective-msdos-label
 QFLAGS       := -M pc -boot d -m 1G -monitor stdio \
 				-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
 				-drive id=disk,file=drive.img,format=raw,if=none \
@@ -41,16 +26,16 @@ QFLAGS       := -M pc -boot d -m 1G -monitor stdio \
 AS_SRC := $(shell find src -name '*.asm')
 CC_SRC := $(shell find src -name '*.c')
 
-OBJ := $(AS_SRC:.asm=.o) $(CC_SRC:.c=.o)
-EXE := kern.elf
-ISO := os.iso
+OBJ  := $(AS_SRC:.asm=.o) $(CC_SRC:.c=.o)
+EXE  := kern.elf
+ISO  := os.iso
 DEPS := $(CC_SRC:.c=.d)
 
 SUBDIRS := user/libc user/progs
 
 all: $(ISO)
 	@for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir CC=$(CC) LD=$(LD) AS=$(AS) AR=$(AR) NM=$(NM); \
+		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)'; \
 	done
 
 $(ISO): $(EXE)
@@ -69,16 +54,21 @@ $(ISO): $(EXE)
 	@$(MAKE) -C limine-binary clean
 	@rm -rf iso
 
+# link twice: first pass gets nm a final image to read symbol
+# addresses from, second pass links those back in as .ksyms so panics
+# can name functions. awk does the wrapping, no python involved.
 $(EXE): $(OBJ)
 	@echo "[LD] $@"
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
-	python3 mkksyms.py $(NM) $@
+	$(NM) $@ | awk 'BEGIN { \
+		print "#include <core/debug.h>"; \
+		print "__attribute__((section(\".ksyms\"))) struct kern_symbol ksymtbl[] = {"; \
+	} \
+	NF == 3 && $$1 ~ /^[0-9A-Fa-f]+$$/ { n++; printf "(struct kern_symbol){ 0x%s, \"%s\" },\n", $$1, $$3 } \
+	END { print "};"; print "usize nksyms = " n+0 ";" }' > ksyms.c
 	$(CC) $(CCFLAGS) -c ksyms.c -o ksyms.o
-	$(CC) $(LDFLAGS) ksyms.o $^ -o $@  $(LIBS)
-	rm -f ksyms.o 
-
-ksyms.c: $(OBJ)
-	python3 mkksyms.py $(NM) $^
+	$(CC) $(LDFLAGS) ksyms.o $^ -o $@ $(LIBS)
+	rm -f ksyms.o ksyms.d
 
 %.o: %.c
 	@echo "[CC] $<"
@@ -91,6 +81,13 @@ run: all
 	@echo "[QEMU]"
 	$(QEMU) $(QFLAGS) $(QEMUFLAGS) -cdrom $(ISO)
 
+clean:
+	@echo "[CLEAN]"
+	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS) ksyms.c ksyms.o ksyms.d
+	@for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)' $@; \
+	done
+
 compile_commands.json: clean
 	@echo "Generating $@"
 	@if command -v bear >/dev/null 2>&1; then \
@@ -101,13 +98,6 @@ compile_commands.json: clean
 		echo "ERROR: Please install 'bear' or 'compiledb' to generate compile_commands.json"; \
 		exit 1; \
 	fi
-
-clean:
-	@echo "[CLEAN]"
-	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS)
-	@for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir CC=$(CC) LD=$(LD) AS=$(AS) AR=$(AR) NM=$(NM) $@; \
-	done
 
 .PHONY: run clean all
 -include $(DEPS)

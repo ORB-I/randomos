@@ -1,10 +1,12 @@
-CC := x86_64-elf-gcc
+include ../../mk/tools.mk
+
 # link libc.a directly: the loader has no way to satisfy DT_NEEDED
 # entries yet, and libc.so isn't shipped on the user disk anyway
 CCFLAGS := ../libc/libc.a ../libc/crt0.o \
     -nostdlib -fno-builtin -fno-stack-protector \
     -I../libc/include -nostartfiles -nodefaultlibs \
     -ffreestanding -m64 -T../../share/user.ld \
+	-fno-pie -no-pie -fuse-ld=lld \
 	-g -MMD -MP -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 	-Wall -Wextra
 
@@ -33,8 +35,8 @@ PROGFILES := $(PROGS:=.elf)
 
 all: $(DRIVE) $(PROGFILES)
 $(DRIVE):
-	dd if=/dev/zero of=$@ bs=1M count=16
-	mkfs.msdos -F 16 $@
+	dd if=/dev/zero of=$@ bs=1048576 count=16
+	mformat -i $@ -F ::
 
 $(PROGFILES): %.elf: %.c $(DEPLIBS)
 	$(CC) $< -o $@ $(CCFLAGS)

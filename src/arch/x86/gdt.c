@@ -135,7 +135,9 @@ void gdt_init() {
         "mov %1, %%rsp\n\t"
 
         "sti\n\t"
-        "call %2"
+        // clangs integrated assembler needs the star for indirect
+        // calls, gas alone accepts this without it
+        "call *%2"
         ::"m"(_gdtr), "r"(kern_stack + sizeof(kern_stack)), "r"(kmain_aftergdt)
         : "rax", "memory"
     );

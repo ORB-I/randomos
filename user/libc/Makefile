@@ -1,6 +1,4 @@
-CC := x86_64-elf-gcc
-AR := x86_64-elf-ar
-AS := nasm
+include ../../mk/tools.mk
 
 ASFLAGS := -felf64
 CCFLAGS := -m64 -nostdlib -fno-builtin \
@@ -32,7 +30,13 @@ CRTSRC := src/crt.asm
 
 DRIVE ?= ../../drive.img
 
-all: $(LIBC) $(CRT) $(LIBC_SO)
+all: $(DRIVE) $(LIBC) $(CRT) $(LIBC_SO)
+
+# fresh clones have no disk image, make one with mtools so this works
+# on any linux or mac (mtools is already required for mcopy anyway)
+$(DRIVE):
+	dd if=/dev/zero of=$@ bs=1048576 count=16
+	mformat -i $@ -F ::
 
 $(LIBC): $(ALL_LIB_OBJS)
 	$(AR) rcs $@ $^

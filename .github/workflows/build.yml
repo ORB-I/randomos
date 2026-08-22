@@ -1,0 +1,29 @@
+name: build
+
+# proof that the tree builds on a random linux box and a mac with
+# nothing preinstalled beyond stock packages. if this goes red, the
+# makefiles regressed, dont merge it.
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install deps (linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang lld llvm nasm mtools xorriso
+
+      - name: install deps (mac)
+        if: runner.os == 'macOS'
+        run: |
+          brew install llvm nasm mtools xorriso
+          echo /opt/homebrew/opt/llvm/bin >> "$GITHUB_PATH"
+
+      - name: build everything
+        run: make all
