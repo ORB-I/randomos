@@ -23,7 +23,8 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install llvm nasm mtools xorriso
-          echo /opt/homebrew/opt/llvm/bin >> "$GITHUB_PATH"
+          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+          ls "$(brew --prefix llvm)/bin" | grep -i ld
 
       - name: build everything
         run: make all
