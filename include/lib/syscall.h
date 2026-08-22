@@ -42,5 +42,7 @@
 #define SYS_RMFBWMEM      40
 #define SYS_GETMOUSEINFO  41
 #define SYS_NEWPROC       42
+#define SYS_WAIT          43
+#define SYS_KILL          44
 
 void init_syscalls();

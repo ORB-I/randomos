@@ -2,6 +2,8 @@
 #include <core/std.h>
 
 #define MAX_PROCESSES 255
+// passed as a wait target when any dead child will do
+#define WAIT_ANY 0xFF
 typedef struct {
     u64 rip;
     u64 rsp;
@@ -20,6 +22,12 @@ typedef struct {
     u8 pid;
     u8 is_dead;
     u8 ppid;
+
+    // set while parked in SYS_WAIT, the scheduler skips us and exit
+    // clears this again when the child we asked for dies
+    u8 is_blocked;
+    // child pid we are blocked on, WAIT_ANY when anyone dying is fine
+    u8 wait_pid;
 } process_state_t;
 
 typedef struct {

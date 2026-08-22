@@ -496,5 +496,27 @@
                 "name": "args"
             }
         ]
+    },
+    "SYS_WAIT": {
+        "nr": 43,
+        "nargs": 1,
+        "returns": "int",
+        "args": [
+            {
+                "type": "int",
+                "name": "pid"
+            }
+        ]
+    },
+    "SYS_KILL": {
+        "nr": 44,
+        "nargs": 1,
+        "returns": "int",
+        "args": [
+            {
+                "type": "int",
+                "name": "pid"
+            }
+        ]
     }
 }

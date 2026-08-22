@@ -1,15 +1,15 @@
-CC := x86_64-elf-gcc
-LD := x86_64-elf-ld
-AS := nasm
-NM := x86_64-elf-nm
-XORRISO := xorriso
-QEMU := qemu-system-x86_64
+# toolchain discovery lives in mk/tools.mk so the kernel, libc and
+# progs builds can never drift apart. dont inline it back here.
+include mk/tools.mk
 
 ASFLAGS      := -Iinclude -felf64
-LDFLAGS      := -Tshare/link.ld -m64 -ffreestanding -O0 -nostdlib -no-pie
-LIBS         := -Llib -llai -lff -lflanterm -lgcc
-# -fno-pie keeps distro gccs (which default to PIE) happy alongside
-# a real x86_64-elf cross compiler
+# linking runs ld.lld directly: clang hands *-elf targets to whatever
+# host gcc it can find, and every gcc interprets linker flags its own
+# way. going straight to lld removes that whole lottery.
+LDFLAGS      := -m elf_x86_64 -T share/link.ld --no-pie -O0 -nostdlib -no-pie
+# no -lgcc on purpose: the kernel doesnt need its builtins and pure
+# llvm machines (mac) dont ship it anyway
+LIBS         := -Llib -llai -lff -lflanterm
 CCFLAGS      := -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 				-m64 -nostdlib -fno-builtin -fno-stack-protector -fno-pie -Iinclude \
 		        -nostartfiles -nodefaultlibs -ffreestanding -Wall -Wextra -g \
@@ -29,16 +29,16 @@ QFLAGS       := -M pc -boot d -m 1G -monitor stdio \
 AS_SRC := $(shell find src -name '*.asm')
 CC_SRC := $(shell find src -name '*.c')
 
-OBJ := $(AS_SRC:.asm=.o) $(CC_SRC:.c=.o)
-EXE := kern.elf
-ISO := os.iso
+OBJ  := $(AS_SRC:.asm=.o) $(CC_SRC:.c=.o)
+EXE  := kern.elf
+ISO  := os.iso
 DEPS := $(CC_SRC:.c=.d)
 
 SUBDIRS := user/libc user/progs
 
 all: $(ISO)
 	@for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir; \
+		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)'; \
 	done
 
 $(ISO): $(EXE)
@@ -57,16 +57,16 @@ $(ISO): $(EXE)
 	@$(MAKE) -C limine-binary clean
 	@rm -rf iso
 
+# link twice: first pass gets nm a final image to read symbol
+# addresses from, second pass links those back in as .ksyms so panics
+# can name functions. awk does the wrapping, no python involved.
 $(EXE): $(OBJ)
 	@echo "[LD] $@"
-	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 	python3 mkksyms.py $(NM) $@
-	$(CC) $(CCFLAGS) -c ksyms.c -o ksyms.o
-	$(CC) $(LDFLAGS) ksyms.o $^ -o $@  $(LIBS)
-	rm -f ksyms.o 
-
 ksyms.c: $(OBJ)
 	python3 mkksyms.py $(NM) $^
+
 
 %.o: %.c
 	@echo "[CC] $<"
@@ -79,6 +79,13 @@ run: all
 	@echo "[QEMU]"
 	$(QEMU) $(QFLAGS) $(QEMUFLAGS) -cdrom $(ISO)
 
+clean:
+	@echo "[CLEAN]"
+	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS) ksyms.c ksyms.o ksyms.d
+	@for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)' $@; \
+	done
+
 compile_commands.json: clean
 	@echo "Generating $@"
 	@if command -v bear >/dev/null 2>&1; then \
@@ -89,13 +96,6 @@ compile_commands.json: clean
 		echo "ERROR: Please install 'bear' or 'compiledb' to generate compile_commands.json"; \
 		exit 1; \
 	fi
-
-clean:
-	@echo "[CLEAN]"
-	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS)
-	@for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir $@; \
-	done
 
 .PHONY: run clean all
 -include $(DEPS)

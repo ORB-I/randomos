@@ -15,6 +15,9 @@ static diskio_write_t diskio_wr = 0;
 void ff16_set_drive(u8 drv) { ff16_drive = drv; }
 
 DSTATUS disk_initialize(BYTE pdrv) {
+    // fatfs insists on handing us a drive number, but every backend
+    // routes through the global ff16_drive instead
+    (void)pdrv;
     if (ff16_drive <= 2) {
         return 0;
     }
@@ -22,6 +25,7 @@ DSTATUS disk_initialize(BYTE pdrv) {
 }
 
 DSTATUS disk_status(BYTE pdrv) {
+    (void)pdrv;
     if (ff16_drive <= 2) {
         return 0;
     }
@@ -29,6 +33,7 @@ DSTATUS disk_status(BYTE pdrv) {
 }
 
 static DRESULT ata_secread_wrap(BYTE pdrv, BYTE* buf, LBA_t sector, UINT count) {
+    (void)pdrv;
     for (UINT i = 0; i < count; i++) {
         ata_secread((u8)ff16_drive, (u32)(sector + i), buf + (i * 512));
     }
@@ -36,6 +41,7 @@ static DRESULT ata_secread_wrap(BYTE pdrv, BYTE* buf, LBA_t sector, UINT count) 
 }
 
 static DRESULT ata_secwrite_wrap(BYTE pdrv, const BYTE* buf, LBA_t sector, UINT count) {
+    (void)pdrv;
     for (UINT i = 0; i < count; i++) {
         ata_secwrite((u8)ff16_drive, (u32)(sector + i), (u8*)(buf + (i * 512)));
     }
@@ -43,6 +49,7 @@ static DRESULT ata_secwrite_wrap(BYTE pdrv, const BYTE* buf, LBA_t sector, UINT 
 }
 
 static DRESULT ahci_secread_wrap(BYTE pdrv, BYTE* buf, LBA_t sector, UINT count) {
+    (void)pdrv;
     for (UINT i = 0; i < count; i++) {
         ahci_secread((u8)ff16_drive, (u64)(sector + i), buf + (i * 512));
     }
@@ -50,6 +57,7 @@ static DRESULT ahci_secread_wrap(BYTE pdrv, BYTE* buf, LBA_t sector, UINT count)
 }
 
 static DRESULT ahci_secwrite_wrap(BYTE pdrv, const BYTE* buf, LBA_t sector, UINT count) {
+    (void)pdrv;
     for (UINT i = 0; i < count; i++) {
         ahci_secwrite((u8)ff16_drive, (u64)(sector + i), (u8*)(buf + (i * 512)));
     }
@@ -57,6 +65,7 @@ static DRESULT ahci_secwrite_wrap(BYTE pdrv, const BYTE* buf, LBA_t sector, UINT
 }
 
 static DRESULT usbmsd_secread_wrap(BYTE pdrv, BYTE* buf, LBA_t sector, UINT count) {
+    (void)pdrv;
     for (UINT i = 0; i < count; i++) {
         usbmsd_secread((u8)ff16_drive, (u32)(sector + i), buf + (i * 512));
     }
@@ -64,6 +73,7 @@ static DRESULT usbmsd_secread_wrap(BYTE pdrv, BYTE* buf, LBA_t sector, UINT coun
 }
 
 static DRESULT usbmsd_secwrite_wrap(BYTE pdrv, const BYTE* buf, LBA_t sector, UINT count) {
+    (void)pdrv;
     for (UINT i = 0; i < count; i++) {
         usbmsd_secwrite((u8)ff16_drive, (u32)(sector + i), (u8*)(buf + (i * 512)));
     }
@@ -93,6 +103,7 @@ DRESULT disk_write(BYTE pdrv, const BYTE* buf, LBA_t sector, UINT count) {
 }
 
 DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void* buf) {
+    (void)pdrv;
     switch (cmd) {
         case CTRL_SYNC:
             return RES_OK;
