@@ -27,7 +27,7 @@ procctx_t preempt_ctx;
 int init_scheduler() {
     if (!hpet_active()) return -1;
     hpet_mkpreemptive_timer(&_schdlr_timer, 20, preempt_hdlr);
-    return hpet_start_preemptive(&_schdlr_timer);
+    return 0; // dont start the preempt timer yet because we dont have processes yet, start_scheduler should do that
 }
 
 void proc2ctx(procctx_t* dst, process_state_t* src) {
@@ -94,6 +94,7 @@ void scheduler_switch(procctx_t* proc) {
     ctx2proc(currproc, proc);
     current_pid = (u8)tgtpid;
 
+    hpet_start_preemptive(&_schdlr_timer);
     reset_kgsb();
     procctx_t ctx;
     proc2ctx(&ctx, tgtproc);
@@ -104,6 +105,6 @@ void scheduler_switch(procctx_t* proc) {
     if (currproc->is_dead) {
         vmm_dasp((page_table_t*)curcr3);
     }
-
+    
     switch_ctx(&ctx);
 }
