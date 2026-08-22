@@ -17,7 +17,7 @@ CCFLAGS      := -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
         		-no-emul-boot -boot-load-size 4 -boot-info-table -hfsplus \
         		-apm-block-size 2048 --efi-boot boot/limine/limine-uefi-cd.bin \
-        		--efi-boot-part --efi-boot-image --protective-msdos-label
+        		-efi-boot-part --efi-boot-image --protective-msdos-label
 QFLAGS       := -M pc -boot d -m 1G -monitor stdio \
 				-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
 				-drive id=disk,file=drive.img,format=raw,if=none \
@@ -63,15 +63,10 @@ $(ISO): $(EXE)
 $(EXE): $(OBJ)
 	@echo "[LD] $@"
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
-	$(NM) $@ | awk 'BEGIN { \
-		print "#include <core/debug.h>"; \
-		print "__attribute__((section(\".ksyms\"))) struct kern_symbol ksymtbl[] = {"; \
-	} \
-	NF == 3 && $$1 ~ /^[0-9A-Fa-f]+$$/ { n++; printf "(struct kern_symbol){ 0x%s, \"%s\" },\n", $$1, $$3 } \
-	END { print "};"; print "usize nksyms = " n+0 ";" }' > ksyms.c
-	$(CC) $(CCFLAGS) -c ksyms.c -o ksyms.o
-	$(LD) $(LDFLAGS) ksyms.o $^ -o $@ $(LIBS)
-	rm -f ksyms.o ksyms.d
+	python3 mkksyms.py $(NM) $@
+ksyms.c: $(OBJ)
+	python3 mkksyms.py $(NM) $^
+
 
 %.o: %.c
 	@echo "[CC] $<"
