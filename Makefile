@@ -3,10 +3,10 @@
 include mk/tools.mk
 
 ASFLAGS      := -Iinclude -felf64
-# --no-pie goes through -Wl because some clang versions drop the bare
-# -no-pie instead of handing it to lld, which then rejects the 32S
-# relocations our -mcmodel=kernel code produces
-LDFLAGS      := -Tshare/link.ld -m64 -ffreestanding -O0 -nostdlib -fuse-ld=$(LD) -Wl,--no-pie
+# linking runs ld.lld directly: clang hands *-elf targets to whatever
+# host gcc it can find, and every gcc interprets linker flags its own
+# way. going straight to lld removes that whole lottery.
+LDFLAGS      := -m elf_x86_64 -T share/link.ld --no-pie
 # no -lgcc on purpose: the kernel doesnt need its builtins and pure
 # llvm machines (mac) dont ship it anyway
 LIBS         := -Llib -llai -lff -lflanterm
@@ -62,7 +62,7 @@ $(ISO): $(EXE)
 # can name functions. awk does the wrapping, no python involved.
 $(EXE): $(OBJ)
 	@echo "[LD] $@"
-	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 	$(NM) $@ | awk 'BEGIN { \
 		print "#include <core/debug.h>"; \
 		print "__attribute__((section(\".ksyms\"))) struct kern_symbol ksymtbl[] = {"; \
@@ -70,7 +70,7 @@ $(EXE): $(OBJ)
 	NF == 3 && $$1 ~ /^[0-9A-Fa-f]+$$/ { n++; printf "(struct kern_symbol){ 0x%s, \"%s\" },\n", $$1, $$3 } \
 	END { print "};"; print "usize nksyms = " n+0 ";" }' > ksyms.c
 	$(CC) $(CCFLAGS) -c ksyms.c -o ksyms.o
-	$(CC) $(LDFLAGS) ksyms.o $^ -o $@ $(LIBS)
+	$(LD) $(LDFLAGS) ksyms.o $^ -o $@ $(LIBS)
 	rm -f ksyms.o ksyms.d
 
 %.o: %.c
