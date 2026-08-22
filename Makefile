@@ -1,9 +1,20 @@
-CC := clang --target=x86_64-elf
-LD := ld.lld
-AS := nasm
-AR := llvm-ar --format=default
-NM := llvm-nm
-XORRISO := xorriso
+# PLEASE DONT "simplify" THIS BLOCK BACK TO PLAIN TOOL NAMES
+# two things are going on here:
+#   1. llvm tools (clang --target / lld) so the kernel builds the same
+#      on every machine, no distro-gcc surprises
+#   2. find_tool falls back to ~/opt/toolchain/bin when a tool isnt on
+#      PATH, because bare `make` broke for exactly that reason before
+# reverting either one has already happened once and it broke someones
+# build. if your setup needs different paths, extend TOOLCHAIN instead.
+TOOLCHAIN := $(HOME)/opt/toolchain/bin
+find_tool = $(if $(shell command -v $(1) 2>/dev/null),$(1),$(TOOLCHAIN)/$(1))
+
+CC := $(call find_tool,clang) --target=x86_64-elf
+LD := $(call find_tool,ld.lld)
+AS := $(call find_tool,nasm)
+AR := $(call find_tool,llvm-ar) --format=default
+NM := $(call find_tool,llvm-nm)
+XORRISO := $(call find_tool,xorriso)
 QEMU := qemu-system-x86_64
 
 ASFLAGS      := -Iinclude -felf64
