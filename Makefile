@@ -6,7 +6,7 @@ ASFLAGS      := -Iinclude -felf64
 # linking runs ld.lld directly: clang hands *-elf targets to whatever
 # host gcc it can find, and every gcc interprets linker flags its own
 # way. going straight to lld removes that whole lottery.
-LDFLAGS      := -m elf_x86_64 -T share/link.ld --no-pie
+LDFLAGS      := -m elf_x86_64 -T share/link.ld --no-pie -m64 -ffreestanding -O0 -nostdlib -no-pie
 # no -lgcc on purpose: the kernel doesnt need its builtins and pure
 # llvm machines (mac) dont ship it anyway
 LIBS         := -Llib -llai -lff -lflanterm
