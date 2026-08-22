@@ -1,8 +1,14 @@
-CC := x86_64-elf-gcc
-LD := x86_64-elf-ld
-AS := nasm
-NM := x86_64-elf-nm
-XORRISO := xorriso
+# the cross toolchain isnt always on PATH (eg its sitting untouched in
+# ~/opt/toolchain), so every tool falls back to that dir before failing
+TOOLCHAIN := $(HOME)/opt/toolchain/bin
+find_tool = $(if $(shell command -v $(1) 2>/dev/null),$(1),$(TOOLCHAIN)/$(1))
+
+CC := $(call find_tool,x86_64-elf-gcc)
+LD := $(call find_tool,x86_64-elf-ld)
+AS := $(call find_tool,nasm)
+AR := $(call find_tool,x86_64-elf-ar)
+NM := $(call find_tool,x86_64-elf-nm)
+XORRISO := $(call find_tool,xorriso)
 QEMU := qemu-system-x86_64
 
 ASFLAGS      := -Iinclude -felf64
@@ -38,7 +44,7 @@ SUBDIRS := user/libc user/progs
 
 all: $(ISO)
 	@for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir; \
+		$(MAKE) -C $$dir CC=$(CC) AS=$(AS) AR=$(AR) NM=$(NM); \
 	done
 
 $(ISO): $(EXE)
@@ -94,7 +100,7 @@ clean:
 	@echo "[CLEAN]"
 	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS)
 	@for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir $@; \
+		$(MAKE) -C $$dir CC=$(CC) AS=$(AS) AR=$(AR) NM=$(NM) $@; \
 	done
 
 .PHONY: run clean all
