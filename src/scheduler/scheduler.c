@@ -65,7 +65,8 @@ void ctx2proc(process_state_t* dst, procctx_t* src) {
     switch_ctx(&ctx);
 }
 
-// next alive process after current_pid, or -1 when everything is dead
+// next runnable process after current_pid (dead and blocked ones dont
+// count), or -1 when there is nobody left to run
 int nextproc() {
     if (nprocs == 0) return -1;
 
@@ -73,7 +74,7 @@ int nextproc() {
     u8 pid = current_pid;
     do {
         pid = (pid + 1) % nprocs;
-        if (!proctbl[pid].is_dead) {
+        if (!proctbl[pid].is_dead && !proctbl[pid].is_blocked) {
             return pid;
         }
     } while (pid != start);

@@ -42,6 +42,9 @@
 #define SYS_CREATEFBWMEM  39
 #define SYS_RMFBWMEM      40
 #define SYS_GETMOUSEINFO  41
+#define SYS_NEWPROC       42
+#define SYS_WAIT          43
+#define SYS_KILL          44
 
 u64 __syscall0(u64 nr);
 u64 __syscall1(u64 nr, u64 arg0);

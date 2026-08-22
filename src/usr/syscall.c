@@ -46,6 +46,85 @@ struct sysregs {
     u64 __es, __ds, __rflags, __rip;
 };
 
+// whoever was parked in SYS_WAIT on pid (or was waiting for any child)
+// gets to run again, rax doubles as their wait return value so it gets
+// handed the dying childs pid
+static void wake_waiter(u8 pid) {
+    process_state_t* parent = &proctbl[proctbl[pid].ppid];
+    if (parent->is_blocked && (parent->wait_pid == pid ||
+                               parent->wait_pid == WAIT_ANY)) {
+        parent->is_blocked = 0;
+        parent->rax = pid;
+    }
+}
+
+// returns the pid of whichever child died, or -1 when pid isnt
+// actually our child. a negative arg waits for any child instead of
+// a specific one.
+static s64 wait_child(s64 pid) {
+    if (pid >= 0) {
+        if (pid >= nprocs || pid == current_pid ||
+            proctbl[pid].ppid != current_pid) {
+            return -1;
+        }
+        if (!proctbl[pid].is_dead) {
+            // parking works by flagging preempt_pending: on the way
+            // out syscall_s snapshots our user state and switches
+            // away, and is_blocked stops nextproc() from handing
+            // the cpu back to us until exit clears it. rax gets the
+            // child pid now so its already right once we resume.
+            proctbl[current_pid].wait_pid = (u8)pid;
+            proctbl[current_pid].is_blocked = 1;
+            preempt_pending = 1;
+        }
+        return pid;
+    }
+
+    // any child: one that already died satisfies the call on the
+    // spot, otherwise block and let the first exit fill in rax
+    for (u8 i = 0; i < nprocs; i++) {
+        if (i != current_pid && proctbl[i].ppid == current_pid &&
+            proctbl[i].is_dead) {
+            return (s64)i;
+        }
+    }
+    for (u8 i = 0; i < nprocs; i++) {
+        if (i != current_pid && proctbl[i].ppid == current_pid) {
+            proctbl[current_pid].wait_pid = WAIT_ANY;
+            proctbl[current_pid].is_blocked = 1;
+            preempt_pending = 1;
+            return (s64)i; // placeholder, exit overwrites with the real pid
+        }
+    }
+    return -1;
+}
+
+// shoots another process dead from the outside, returns 0 when the pid
+// is gone and -1 when its ourselves, doesnt exist or is already dead
+static s64 kill_process(s64 pid) {
+    if (pid < 0 || pid >= nprocs || pid == current_pid ||
+        proctbl[pid].is_dead) {
+        return -1;
+    }
+
+    // if it was parked in WAIT its never resuming, dont leave the
+    // flag set behind
+    proctbl[pid].is_blocked = 0;
+    proctbl[pid].is_dead = 1;
+
+    // same courtesy a normal exit gets, a parent blocked on this pid
+    // (or on anyone) shouldnt sit there until the end of time
+    wake_waiter((u8)pid);
+
+    // normal exits get their address space torn down by
+    // scheduler_switch after the context switch, but nothing ever
+    // switches away from this one so it has to happen here. that is
+    // safe because were running on our own cr3, nobody can be inside
+    // the targets page tables right now.
+    vmm_dasp((page_table_t*)proctbl[pid].cr3);
+    return 0;
+}
+
 bool syscall_c(struct sysregs* args) {
     page_table_t* uasp = vmm_cpml4v();
     struct sysregs svargs;
@@ -55,6 +134,7 @@ bool syscall_c(struct sysregs* args) {
         case SYS_EXIT: {
             vmm_skasp();
             proctbl[current_pid].is_dead = 1;
+            wake_waiter(current_pid);
 
             // the running context is being abandoned, so what we hand
             // to the scheduler as "saved state" doesn't matter — it only
@@ -243,6 +323,14 @@ bool syscall_c(struct sysregs* args) {
         }
         case SYS_NEWPROC: {
             args->num = new_process((const char*)args->a0, (char**)args->a1, current_pid);
+            goto ret;
+        }
+        case SYS_WAIT: {
+            args->num = wait_child((s64)args->a0);
+            goto ret;
+        }
+        case SYS_KILL: {
+            args->num = kill_process((s64)args->a0);
             goto ret;
         }
         default: args->num = -1;
