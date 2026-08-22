@@ -8,10 +8,7 @@ CCFLAGS := -nostdlib -fno-builtin -fno-stack-protector \
 	-fno-pie \
 	-g -MMD -MP -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 	-Wall -Wextra
-LDFLAGS := -m elf_x86_64 -T ../../share/user.ld --no-pie
-
-# libc.a is linked directly because the loader has no way to satisfy
-# DT_NEEDED entries yet, and libc.so isnt shipped on the user disk
+LDFLAGS := -m elf_x86_64 --no-pie
 
 PROGS := init \
 		 echo \
@@ -31,15 +28,15 @@ PROGS := init \
 
 DRIVE ?= ../../drive.img
 
-DEPLIBS := ../libc/libc.a ../libc/crt0.o
+DEPLIBS := ../libc/libc.so ../libc/crt0.o
 DEPS := $(PROGS:=.d)
 
 PROGFILES := $(PROGS:=.elf)
 
 all: $(DRIVE) $(PROGFILES)
 $(DRIVE):
-	dd if=/dev/zero of=$@ bs=1048576 count=16
-	mformat -i $@ -F ::
+	dd if=/dev/zero of=$@ bs=1M count=16
+	mkfs.msdos -F 16 $@
 
 $(PROGFILES): %.elf: %.c $(DEPLIBS)
 	$(CC) $(CCFLAGS) -c $< -o $(basename $@).o

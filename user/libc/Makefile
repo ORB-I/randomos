@@ -32,11 +32,9 @@ DRIVE ?= ../../drive.img
 
 all: $(DRIVE) $(LIBC) $(CRT) $(LIBC_SO)
 
-# fresh clones have no disk image, make one with mtools so this works
-# on any linux or mac (mtools is already required for mcopy anyway)
 $(DRIVE):
-	dd if=/dev/zero of=$@ bs=1048576 count=16
-	mformat -i $@ -F ::
+	dd if=/dev/zero of=$@ bs=1M count=16
+	mkfs.msdos -F 16 $@
 
 $(LIBC): $(ALL_LIB_OBJS)
 	$(AR) rcs $@ $^

@@ -14,8 +14,11 @@ syms: list[Symbol] = []
 
 proc = subprocess.run([nm, file], capture_output=True, text=True)
 for line in proc.stdout.splitlines():
-    addr, _, name = line.split()
-    syms.append(Symbol(addr, name))
+    try:
+        addr, _, name = line.split()
+        syms.append(Symbol(addr, name))
+    except Exception as e:
+        continue
     
 syms.sort(key=lambda sym: int(sym.addr, 16))
     
