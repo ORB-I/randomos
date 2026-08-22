@@ -39,7 +39,7 @@ SUBDIRS := user/libc user/progs
 
 all: $(ISO)
 	@for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir \
+		$(MAKE) -C $$dir; \
 	done
 
 $(ISO): $(EXE)
