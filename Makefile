@@ -1,8 +1,3 @@
-# the cross toolchain isnt always on PATH (eg its sitting untouched in
-# ~/opt/toolchain), so every tool falls back to that dir before failing
-TOOLCHAIN := $(HOME)/opt/toolchain/bin
-find_tool = $(if $(shell command -v $(1) 2>/dev/null),$(1),$(TOOLCHAIN)/$(1))
-
 CC := x86_64-elf-gcc
 LD := x86_64-elf-ld
 AS := nasm
