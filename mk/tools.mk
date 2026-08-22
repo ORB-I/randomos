@@ -2,14 +2,11 @@
 # kernel, libc and progs builds can never drift apart
 #
 # plain tool names were fine until they werent: on some machines the
-# llvm/nasm binaries sit outside PATH and builds die with "No such
-# file". so every tool falls back to a shallow sweep of common install
-# spots instead. nothing machine specific lives in this file; if your
-# setup still isnt found, run `TOOLCHAIN=/your/toolchains/bin make`
-# or override single tools like `make CC=/somewhere/clang`
+# llvm/nasm binaries sit outside PATH. so: normal PATH lookup first,
+# then a shallow sweep of common install spots as a safety net.
+# override anything per-invocation with e.g. `make CC=/somewhere/clang`
 
-TOOLCHAIN ?=
-locate = $(shell command -v $(1) 2>/dev/null || { test -n "$(TOOLCHAIN)" && echo "$(TOOLCHAIN)/$(1)"; } || find ~/opt ~/.local /usr/local /opt/homebrew -maxdepth 4 -type f -name '$(1)' 2>/dev/null | head -n1)
+locate = $(shell command -v $(1) 2>/dev/null || find ~/opt ~/.local /usr/local /opt/homebrew -maxdepth 4 -type f -name '$(1)' 2>/dev/null | head -n 1)
 
 CC := $(call locate,clang) --target=x86_64-elf
 LD := $(call locate,ld.lld)
@@ -18,3 +15,11 @@ AR := $(call locate,llvm-ar) --format=default
 NM := $(call locate,llvm-nm)
 XORRISO := $(call locate,xorriso)
 QEMU := qemu-system-x86_64
+
+# fail loudly here instead of three steps later with a confusing
+# "No such file", an empty CC/LD once produced recipes like `m
+# elf_x86_64 ...` because make ate the leading dash as a flag
+TOOLS_MISSING := $(strip $(foreach t,CC LD AS AR NM XORRISO,$(if $($t),,$t)))
+ifneq ($(strip $(TOOLS_MISSING)),)
+$(error could not locate: $(TOOLS_MISSING) - install llvm/nasm/xorriso or point TOOLCHAIN/make vars at them)
+endif
