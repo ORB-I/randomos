@@ -15,13 +15,14 @@ NM := $(call locate,llvm-nm)
 XORRISO := $(call locate,xorriso)
 QEMU := qemu-system-x86_64
 
-# apple-built llvm bottles dont ship the ld.lld symlink, only the
-# universal lld driver, which speaks gnu when told -flavor gnu
+# homebrew splits lld out of its llvm formula, and apple builds dont
+# ship the ld.lld symlink at all, so accept the universal lld driver
+# too (it speaks gnu when told -flavor gnu)
 LD := $(call locate,ld.lld)
 ifeq ($(strip $(LD)),)
 LLD_UNIVERSAL := $(call locate,lld)
 ifeq ($(strip $(LLD_UNIVERSAL)),)
-$(error no linker found: need ld.lld or lld from llvm)
+$(error no linker found: need ld.lld or lld from llvm/lld)
 endif
 LD := $(LLD_UNIVERSAL) -flavor gnu
 endif

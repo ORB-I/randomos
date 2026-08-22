@@ -22,9 +22,10 @@ jobs:
       - name: install deps (mac)
         if: runner.os == 'macOS'
         run: |
-          brew install llvm nasm mtools xorriso
+          # homebrew keeps lld out of the llvm formula these days
+          brew install llvm lld nasm mtools xorriso
           echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
-          ls "$(brew --prefix llvm)/bin" | grep -i ld
+          echo "$(brew --prefix lld)/bin" >> "$GITHUB_PATH"
 
       - name: build everything
         run: make all
