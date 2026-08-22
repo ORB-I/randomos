@@ -6,7 +6,7 @@ ASFLAGS      := -Iinclude -felf64
 # --no-pie goes through -Wl because some clang versions drop the bare
 # -no-pie instead of handing it to lld, which then rejects the 32S
 # relocations our -mcmodel=kernel code produces
-LDFLAGS      := -Tshare/link.ld -m64 -ffreestanding -O0 -nostdlib -fuse-ld=lld -Wl,--no-pie
+LDFLAGS      := -Tshare/link.ld -m64 -ffreestanding -O0 -nostdlib -fuse-ld=$(LD) -Wl,--no-pie
 # no -lgcc on purpose: the kernel doesnt need its builtins and pure
 # llvm machines (mac) dont ship it anyway
 LIBS         := -Llib -llai -lff -lflanterm
