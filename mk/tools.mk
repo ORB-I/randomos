@@ -1,36 +1,26 @@
-# shared toolchain resolution, included by every makefile here so the
-# kernel, libc and progs builds can never drift apart
+# shared toolchain, included by every makefile here
 #
-# plain tool names were fine until they werent: on some machines the
-# llvm/nasm binaries sit outside PATH. so: normal PATH lookup first,
-# then a shallow sweep of common install spots as a safety net.
-# override anything per-invocation with e.g. `make CC=/somewhere/clang`
+# tools are looked up through PATH like every other unix program
+# (IEEE Std 1003.1, PATH). if one isnt there you will get told exactly
+# which, and the fix belongs to the environment, not this file:
+#
+#   linux:   sudo apt install clang lld llvm nasm mtools xorriso
+#   mac:     brew install llvm lld nasm mtools xorriso
+#            then put the bin dirs on PATH (see .github/workflows/build.yml)
+#   custom:  make CC=/somewhere/clang LD=/somewhere/ld.lld ...
 
-locate = $(shell command -v $(1) 2>/dev/null || find ~/opt ~/.local /usr/local /opt/homebrew -maxdepth 4 -type f -name '$(1)' 2>/dev/null | head -n 1)
-
-CC := $(call locate,clang) --target=x86_64-elf
-AS := $(call locate,nasm)
-AR := $(call locate,llvm-ar) --format=default
-NM := $(call locate,llvm-nm)
-XORRISO := $(call locate,xorriso)
+CC := clang --target=x86_64-elf
+LD := ld.lld
+AS := nasm
+AR := llvm-ar --format=default
+NM := llvm-nm
+XORRISO := xorriso
 QEMU := qemu-system-x86_64
 
-# homebrew splits lld out of its llvm formula, and apple builds dont
-# ship the ld.lld symlink at all, so accept the universal lld driver
-# too (it speaks gnu when told -flavor gnu)
-LD := $(call locate,ld.lld)
-ifeq ($(strip $(LD)),)
-LLD_UNIVERSAL := $(call locate,lld)
-ifeq ($(strip $(LLD_UNIVERSAL)),)
-$(error no linker found: need ld.lld or lld from llvm/lld)
-endif
-LD := $(LLD_UNIVERSAL) -flavor gnu
-endif
-
-# fail loudly here instead of three steps later with a confusing
-# "No such file", an empty CC/LD once produced recipes like `m
-# elf_x86_64 ...` because make ate the leading dash as a flag
-TOOLS_MISSING := $(strip $(foreach t,CC LD AS AR NM XORRISO,$(if $($t),,$t)))
-ifneq ($(strip $(TOOLS_MISSING)),)
-$(error could not locate: $(TOOLS_MISSING) - install llvm/nasm/xorriso or point TOOLCHAIN/make vars at them)
+# same PATH search command -v always did, just up front and loud,
+# instead of "No such file" halfway through a build
+NEEDED := clang ld.lld nasm llvm-ar llvm-nm xorriso
+MISSING := $(foreach t,$(NEEDED),$(if $(shell command -v $(t) 2>/dev/null),,$(t)))
+ifneq ($(strip $(MISSING)),)
+$(error not on PATH: $(MISSING) - see the header above for install hints)
 endif
