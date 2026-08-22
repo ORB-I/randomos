@@ -14,8 +14,6 @@
 #define USTACKPGS 16
 #define ARGMAX    16
 
-#define DYN_LOAD_BASE 0x00400000
-
 extern u64 ram_max;
 
 typedef struct {
@@ -586,8 +584,8 @@ int program_processdyn(int fd, u64 load_low, u64 load_high, Elf64_Ehdr* ehdr,
     free(dynsym);
     free(dynstr);
     for (usize i = 0; i < nloaded; i++) {
-        free(loaded_libs[nloaded].dynstr);
-        free(loaded_libs[nloaded].dynsym);
+        free(loaded_libs[i].dynstr);
+        free(loaded_libs[i].dynsym);
     }
 
     return 0;
@@ -619,8 +617,8 @@ loadprog_res_t load_program(const char* path, char** argv) {
             return LOADPROG_ERR;
     }
 
-    // we take both static (ET_EXEC) and dynamic/PIE (ET_DYN) elfs now
-    if ((ehdr.e_type != ET_EXEC) ||
+    // accept both static (ET_EXEC) and position-independent (ET_DYN) elfs
+    if ((ehdr.e_type != ET_EXEC && ehdr.e_type != ET_DYN) ||
         ehdr.e_machine != EM_X86_64 ||
         ehdr.e_version != EV_CURRENT) {
             close(fd);
@@ -645,7 +643,7 @@ loadprog_res_t load_program(const char* path, char** argv) {
             printf("Loader: failed to read phdrs\n");
             return LOADPROG_ERR;
         }
-        u64 seg_vaddr = DYN_LOAD_BASE + phdrs[i].p_vaddr;
+        u64 seg_vaddr = phdrs[i].p_vaddr;
         if ((seg_vaddr + phdrs[i].p_memsz) >= USER_END) {
             close(fd);
             printf("Loader: program tried to load to invalid address\n");
@@ -773,7 +771,7 @@ loadprog_res_t load_program(const char* path, char** argv) {
 
     void* stkptr = vmm_map_pages(vmm_cpml4v(), rsp - USTACK, 0, USTACKPGS, MAP_ANYPHYS | PAGE_WRITE | MAP_CONT);
     if (!stkptr) {
-        free(shstrtab);
+        printf("Loader: failed to allocate the user stack\n");
         return LOADPROG_ERR;
     }
 
@@ -809,7 +807,6 @@ loadprog_res_t load_program(const char* path, char** argv) {
     u64 paddr = vmm_get_phys(vmm_cpml4v(), (u64)(rsp - USTACK));
     if (!vmm_map_pages(nasp, rsp - USTACK, paddr, USTACKPGS, MAP_CONT | PAGE_USER | PAGE_WRITE)) {
         printf("Loader: failed to map stack\n");
-        free(shstrtab);
         return LOADPROG_ERR;
     }
     vmm_unmap_pages(vmm_cpml4v(), (u64)(rsp - USTACK), USTACKPGS, UNMAP_KEEPPHYS);

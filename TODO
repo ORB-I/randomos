@@ -16,3 +16,6 @@
 - Probably fix a ton of bugs in the scheduler [ DONE by @44tl ]
 - Implement AHCI driver [ DONE by @44tl ]
 - Implement USBMSD driver [ DONE by @44tl ]
+
+
+[ In near future or some time, add documentation for randomOS. ]

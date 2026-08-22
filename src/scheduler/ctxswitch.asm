@@ -1,33 +1,74 @@
+; switch_ctx(procctx_t* ctx)
+;
+; Paints an iretq frame and jumps. We never come back; the stack we
+; were called on is just abandoned.
+;
+; cli only works at CPL 0. If this #GPs, we got here with a user CS —
+; usually because a saved context mixed user CS with a kernel RIP
+; (or the other way around) and iretq landed in this stub at ring 3.
+; Don't "fix" that by dropping cli; the snapshot is what is wrong.
+
+[bits 64]
+%include "scheduler/ctx.inc"
+
 global switch_ctx
 section .text
 switch_ctx:
     cli
 
     mov r15, rdi
-    mov rax, [r15 + 0x18]
-    mov rbx, [r15 + 0x20]
-    mov rcx, [r15 + 0x28]
-    mov rdx, [r15 + 0x30]
-    mov rsi, [r15 + 0x38]
-    mov rdi, [r15 + 0x40]
-    mov rbp, [r15 + 0x48]
-    mov r8,  [r15 + 0x58]
-    mov r10, [r15 + 0x60]
-    mov r11, [r15 + 0x68]
-    mov r12, [r15 + 0x70]
-    mov r13, [r15 + 0x78]
-    mov r14, [r15 + 0x80]
 
-    movzx rax, word [r15 + 0x92]
+    ; selectors first: loading them resets the hidden base
+    mov ax, [r15 + CTX_FS]
+    mov fs, ax
+    mov ax, [r15 + CTX_GS]
+    mov gs, ax
+
+    mov rax, [r15 + CTX_FSB]
+    mov rdx, rax
+    shr rdx, 32
+    mov ecx, 0xC0000100
+    wrmsr
+
+    mov rax, [r15 + CTX_GSB]
+    mov rdx, rax
+    shr rdx, 32
+    mov ecx, 0xC0000101
+    wrmsr
+
+    mov rax, [r15 + CTX_RFLAGS]
+    and rax, ~RFLAGS_DROP
+    or rax, 2
+    mov [r15 + CTX_RFLAGS], rax
+
+    mov rax, [r15 + CTX_RAX]
+    mov rbx, [r15 + CTX_RBX]
+    mov rcx, [r15 + CTX_RCX]
+    mov rdx, [r15 + CTX_RDX]
+    mov rsi, [r15 + CTX_RSI]
+    mov rdi, [r15 + CTX_RDI]
+    mov rbp, [r15 + CTX_RBP]
+    mov r8,  [r15 + CTX_R8]
+    mov r9,  [r15 + CTX_R9]
+    mov r10, [r15 + CTX_R10]
+    mov r11, [r15 + CTX_R11]
+    mov r12, [r15 + CTX_R12]
+    mov r13, [r15 + CTX_R13]
+    mov r14, [r15 + CTX_R14]
+
+    ; 64-bit accesses ignore DS/ES, but iretq still loads SS from the
+    ; frame, and user code expects the same RPL on the data segs
+    movzx eax, word [r15 + CTX_SS]
+    mov ds, ax
+    mov es, ax
+
     push rax
+    push qword [r15 + CTX_RSP]
+    push qword [r15 + CTX_RFLAGS]
 
-    push qword [r15 + 0x08]
-    push qword [r15 + 0x10]
-
-    movzx rax, word [r15 + 0x90]
+    movzx eax, word [r15 + CTX_CS]
     push rax
+    push qword [r15 + CTX_RIP]
 
-    push qword [r15 + 0x00]
-    mov r15, [r15 + 0x88]
-
+    mov r15, [r15 + CTX_R15]
     iretq

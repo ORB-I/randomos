@@ -150,13 +150,19 @@ int hpet_mkpreemptive_timer(preemptive_timer_t* buf, u64 ms, void(*hdlr)(void)) 
 }
 
 int hpet_start_preemptive(preemptive_timer_t* timer) {
-    u64 ctr = hpet_read64(0xF0);
-    hpet_write64(0x128, ctr + timer->time);
-
+    // HPET periodic mode requires:
+    //  1. set TN_TYPE_CNF (periodic, bit 3) + TN_INT_ENB (bit 2) +
+    //     TN_VAL_SET_CNF (bit 6) in the timer config
+    //  2. write the *period* (not an absolute target) to the comparator
+    // VAL_SET tells the hardware the next comparator write is the reload
+    // value; without it the timer fires once and stops.
     u64 cfg = hpet_read64(0x120);
-    cfg |= (1ULL << 2);
-    ioapic_unmask_irq(timer->irq);
+    cfg &= ~(0x1FULL << 9);
+    cfg |= ((u64)timer->irq << 9);
+    cfg |= (1ULL << 3) | (1ULL << 2) | (1ULL << 6);
     hpet_write64(0x120, cfg);
+    hpet_write64(0x128, timer->time);
+    ioapic_unmask_irq(timer->irq);
 
     return 0;
 }

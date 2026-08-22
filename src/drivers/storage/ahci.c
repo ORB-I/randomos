@@ -236,7 +236,7 @@ static int ahci_port_init(int port) {
     return 0;
 }
 
-static int ahci_issue_cmd(int port, u32 lba, u32 count, u8* buf, int write) {
+static int ahci_issue_cmd(int port, u64 lba, u32 count, u8* buf, int write) {
     volatile ahci_port_regs_t* p = AHCI_PORT(port);
 
     // Build command FIS
@@ -346,14 +346,14 @@ int ahci_init(void) {
     return -1;
 }
 
-void ahci_secread(u8 drv, u32 lba, u8* buf) {
+void ahci_secread(u8 drv, u64 lba, u8* buf) {
     if (ahci_port < 0) return;
     if (ahci_issue_cmd(ahci_port, lba, 1, buf, 0) < 0) {
         printf("AHCI: Read error at LBA %d\n", lba);
     }
 }
 
-void ahci_secwrite(u8 drv, u32 lba, u8* buf) {
+void ahci_secwrite(u8 drv, u64 lba, u8* buf) {
     if (ahci_port < 0) return;
     if (ahci_issue_cmd(ahci_port, lba, 1, buf, 1) < 0) {
         printf("AHCI: Write error at LBA %d\n", lba);

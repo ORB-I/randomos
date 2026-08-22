@@ -44,14 +44,14 @@ static DRESULT ata_secwrite_wrap(BYTE pdrv, const BYTE* buf, LBA_t sector, UINT 
 
 static DRESULT ahci_secread_wrap(BYTE pdrv, BYTE* buf, LBA_t sector, UINT count) {
     for (UINT i = 0; i < count; i++) {
-        ahci_secread((u8)ff16_drive, (u32)(sector + i), buf + (i * 512));
+        ahci_secread((u8)ff16_drive, (u64)(sector + i), buf + (i * 512));
     }
     return RES_OK;
 }
 
 static DRESULT ahci_secwrite_wrap(BYTE pdrv, const BYTE* buf, LBA_t sector, UINT count) {
     for (UINT i = 0; i < count; i++) {
-        ahci_secwrite((u8)ff16_drive, (u32)(sector + i), (u8*)(buf + (i * 512)));
+        ahci_secwrite((u8)ff16_drive, (u64)(sector + i), (u8*)(buf + (i * 512)));
     }
     return RES_OK;
 }
