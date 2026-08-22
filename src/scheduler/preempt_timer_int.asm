@@ -1,42 +1,11 @@
 [bits 64]
 %include "core/irq.inc"
+%include "scheduler/ctx.inc"
 
 section .text
 extern scheduler_switch
 extern preempt_pending
-extern preempt_ctx
-
-%define CTX_RIP       0x00
-%define CTX_RSP       0x08
-%define CTX_RFLAGS    0x10
-
-%define CTX_RAX       0x18
-%define CTX_RBX       0x20
-%define CTX_RCX       0x28
-%define CTX_RDX       0x30
-%define CTX_RSI       0x38
-%define CTX_RDI       0x40
-%define CTX_RBP       0x48
-%define CTX_R8        0x50
-%define CTX_R9        0x58
-%define CTX_R10       0x60
-%define CTX_R11       0x68
-%define CTX_R12       0x70
-%define CTX_R13       0x78
-%define CTX_R14       0x80
-%define CTX_R15       0x88
-
-%define CTX_CS        0x90
-%define CTX_SS        0x92
-%define CTX_FS        0x94
-%define CTX_GS        0x96
-
-%define CTX_FSB       0xA0
-%define CTX_GSB       0xA8
-%define CTX_CR3       0xB0
-%define CTX_KGSB      0xB8
-
-%define CTX_SIZE      0xC0
+extern lapic_eoi
 
 global preempt_hdlr
 preempt_hdlr:
@@ -136,32 +105,31 @@ preempt_hdlr:
     shl rdx, 32
     or rax, rdx
     mov [rdi + CTX_GSB], rax
-    mov rax, cr3
-    mov [rdi + CTX_CR3], rax
 
-    mov ecx, 0xC0000102
-    rdmsr
-    shl rdx, 32
-    or rax, rdx
-    mov [rdi + CTX_KGSB], rax
+    ; leave CTX_CR3 alone — process_state_t keeps the HHDM pointer
+    ; from spawn, and cr3 the register is physical
 
-    cmp word [rdi + CTX_CS], 0x08
-    je .defer_preempt
+    mov rbx, rdi
+    and rsp, ~0xF
+    call lapic_eoi
+    mov rdi, rbx
+
+    ; still in the kernel (syscall, nested irq, loader, …): just mark
+    ; it and let syscall_s switch using the *user* return state
+    test byte [rdi + CTX_CS], 3
+    jz .defer_preempt
 
     call scheduler_switch
 
+    ; only one runnable process — drop back into it
+    jmp .leave
+
 .defer_preempt:
     mov byte [rel preempt_pending], 1
-    lea rdi, [rel preempt_ctx]
-    mov rsi, rsp
-    mov rcx, CTX_SIZE / 8
-.rep_save:
-    mov rax, [rsi]
-    mov [rdi], rax
-    add rsi, 8
-    add rdi, 8
-    loop .rep_save
-    add rsp, CTX_SIZE
+
+.leave:
+    ; rdi still holds the ctx we allocated; the original rsp is ctx + SIZE
+    lea rsp, [rdi + CTX_SIZE]
     pop rax
     pop rbx
     pop rcx

@@ -167,8 +167,10 @@ void kmain_aftergdt() {
 
     if (init_scheduler() < 0) panic("Failed to initialize scheduler\n");
 
-    char* init_argv[] = {"/init"};
-    new_process("/init", init_argv, 0); // load in pid0 (init)
-    start_scheduler(); // hand off control to the scheduler
-    for (;;);
+    char* init_argv[] = {"/init", NULL};
+    if (new_process("/init", init_argv, 0) < 0) {
+        panic("failed to load /init - is the user disk built?\n");
+    }
+
+    start_scheduler();
 }

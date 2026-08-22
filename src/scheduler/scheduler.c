@@ -27,7 +27,7 @@ procctx_t preempt_ctx;
 int init_scheduler() {
     if (!hpet_active()) return -1;
     hpet_mkpreemptive_timer(&_schdlr_timer, 20, preempt_hdlr);
-    return 0;
+    return 0; // dont start the preempt timer yet because we dont have processes yet, start_scheduler should do that
 }
 
 void proc2ctx(procctx_t* dst, process_state_t* src) {
@@ -65,7 +65,10 @@ void ctx2proc(process_state_t* dst, procctx_t* src) {
     switch_ctx(&ctx);
 }
 
-u8 nextproc() {
+// next alive process after current_pid, or -1 when everything is dead
+int nextproc() {
+    if (nprocs == 0) return -1;
+
     u8 start = current_pid;
     u8 pid = current_pid;
     do {
@@ -74,25 +77,34 @@ u8 nextproc() {
             return pid;
         }
     } while (pid != start);
-    return current_pid;
+    return -1;
 }
 
 void scheduler_switch(procctx_t* proc) {
-    u8 tgtpid = nextproc();
+    int tgtpid = nextproc();
 
-    if (tgtpid == current_pid) {
+    if (tgtpid < 0 || tgtpid == (int)current_pid) {
         return;
     }
 
     process_state_t* tgtproc = &proctbl[tgtpid];
     process_state_t* currproc = &proctbl[current_pid];
+    u64 curcr3 = currproc->cr3;
 
     ctx2proc(currproc, proc);
+    current_pid = (u8)tgtpid;
 
+    hpet_start_preemptive(&_schdlr_timer);
     reset_kgsb();
     procctx_t ctx;
     proc2ctx(&ctx, tgtproc);
     vmm_sasp((page_table_t*)tgtproc->cr3);
 
+    // whoever exited before the switch doesn't need
+    // their address space anymore
+    if (currproc->is_dead) {
+        vmm_dasp((page_table_t*)curcr3);
+    }
+    
     switch_ctx(&ctx);
 }

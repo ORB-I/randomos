@@ -6,12 +6,14 @@ XORRISO := xorriso
 QEMU := qemu-system-x86_64
 
 ASFLAGS      := -Iinclude -felf64
-LDFLAGS      := -Tshare/link.ld -m64 -ffreestanding -O0 -nostdlib
+LDFLAGS      := -Tshare/link.ld -m64 -ffreestanding -O0 -nostdlib -no-pie
 LIBS         := -Llib -llai -lff -lflanterm -lgcc
+# -fno-pie keeps distro gccs (which default to PIE) happy alongside
+# a real x86_64-elf cross compiler
 CCFLAGS      := -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
-				-m64 -nostdlib -fno-builtin -fno-stack-protector -Iinclude \
+				-m64 -nostdlib -fno-builtin -fno-stack-protector -fno-pie -Iinclude \
 		        -nostartfiles -nodefaultlibs -ffreestanding -Wall -Wextra -g \
-				-MMD -MP -O0
+		        -MMD -MP -O0
 XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
         		-no-emul-boot -boot-load-size 4 -boot-info-table -hfsplus \
         		-apm-block-size 2048 --efi-boot boot/limine/limine-uefi-cd.bin \

@@ -2,6 +2,7 @@
 #include <core/idt.h>
 #include <core/mem/vmm.h>
 #include <core/asmh.h>
+#include <core/panic.h>
 
 #include <drivers/time/gettimeofday.h>
 #include <drivers/term.h>
@@ -24,7 +25,6 @@
 #define MSR_LSTAR         0xC0000082
 #define MSR_SFMASK        0xC0000084
 #define MSR_USER_GS_BASE 0xC0000101
-#define MSR_IA32_FMASK 0xC0000084
 
 extern void syscall_s();
 
@@ -32,9 +32,13 @@ void init_syscalls() {
     reset_kgsb();
     wrmsr(MSR_LSTAR, (u64)syscall_s);
     wrmsr(MSR_STAR, ((u64)0x1B << 48) | ((u64)0x08 << 32));
-    wrmsr(MSR_SFMASK, 0x204);
+    // mask DF so user std can't make kernel memcpy/memset run backwards.
+    // IF stays unmasked: the HPET clock timer must keep firing for sleepms()
+    // to work, and the preempt timer sets a flag that syscall_s checks on
+    // exit. the critical sections (scheduler_switch calls) are guarded with
+    // explicit cli/sti instead.
+    wrmsr(MSR_SFMASK, (1 << 10));
     wrmsr(MSR_EFER, rdmsr(MSR_EFER) | 1);
-    wrmsr(MSR_IA32_FMASK, 0x200);
 }
 
 struct sysregs {
@@ -50,41 +54,19 @@ bool syscall_c(struct sysregs* args) {
     switch (args->num) {
         case SYS_EXIT: {
             vmm_skasp();
-            u8 ppid = proctbl[current_pid].ppid;
             proctbl[current_pid].is_dead = 1;
-            process_state_t* pctx = (process_state_t*)&proctbl[ppid];
-            vmm_sasp((page_table_t*)pctx->cr3);
-            reset_kgsb();
 
-            asm volatile(
-                "movq 0x00(%[p]), %%rax\n\t"
-                "movq 0x08(%[p]), %%rbx\n\t"
-                "movq 0x10(%[p]), %%rcx\n\t"
-                "movq 0x18(%[p]), %%rdx\n\t"
-                "movq 0x20(%[p]), %%rsi\n\t"
-                "movq 0x28(%[p]), %%rdi\n\t"
-                "movq 0x30(%[p]), %%rbp\n\t"
-                "movq 0x38(%[p]), %%r8\n\t"
-                "movq 0x40(%[p]), %%r9\n\t"
-                "movq 0x48(%[p]), %%r10\n\t"
-                "movq 0x50(%[p]), %%r11\n\t"
-                "movq 0x58(%[p]), %%r12\n\t"
-                "movq 0x60(%[p]), %%r13\n\t"
-                "movq 0x68(%[p]), %%r14\n\t"
-                "movq 0x70(%[p]), %%r15\n\t"
-                "movw 0x94(%[p]), %%fs\n\t"
-                "movw 0x96(%[p]), %%gs\n\t"
-                "pushq 0x92(%[p])\n\t"
-                "movq 0x08(%[p]), %%rsp\n\t"
-                "pushq 0x90(%[p])\n\t"
-                "pushq 0x10(%[p])\n\t"
-                "pushq 0x00(%[p])\n\t"
-                "iretq\n\t"
-                :
-                : [p] "r"(pctx)
-                : "memory"
-            );
-            return true;
+            // the running context is being abandoned, so what we hand
+            // to the scheduler as "saved state" doesn't matter — it only
+            // gets archived into a process that will never run again.
+            // cli prevents the preempt timer from nesting into
+            // scheduler_switch and corrupting the context copy.
+            asm volatile("cli");
+            procctx_t abandoned = {0};
+            scheduler_switch(&abandoned);
+
+            // scheduler_switch only returns when nobody is left
+            panic("all processes have exited");
         }
         case SYS_READ: {
             args->num = read(args->a0, (u8*)args->a1, args->a2);
