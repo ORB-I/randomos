@@ -1,8 +1,8 @@
-CC := x86_64-elf-gcc
-LD := x86_64-elf-ld
+CC := clang --target=x86_64-elf
+LD := ld.lld
 AS := nasm
-AR := x86_64-elf-ar
-NM := x86_64-elf-nm
+AR := llvm-ar --format=default
+NM := llvm-nm
 XORRISO := xorriso
 QEMU := qemu-system-x86_64
 
@@ -39,7 +39,7 @@ SUBDIRS := user/libc user/progs
 
 all: $(ISO)
 	@for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir; \
+		$(MAKE) -C $$dir CC=$(CC) LD=$(LD) AS=$(AS) AR=$(AR) NM=$(NM); \
 	done
 
 $(ISO): $(EXE)
@@ -95,7 +95,7 @@ clean:
 	@echo "[CLEAN]"
 	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS)
 	@for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir $@; \
+		$(MAKE) -C $$dir CC=$(CC) LD=$(LD) AS=$(AS) AR=$(AR) NM=$(NM) $@; \
 	done
 
 .PHONY: run clean all
