@@ -241,6 +241,10 @@ bool syscall_c(struct sysregs* args) {
             args->num = get_mouse_info((mouse_info_t*)args->a0);
             goto ret;
         }
+        case SYS_NEWPROC: {
+            args->num = new_process((const char*)args->a0, (char**)args->a1, current_pid);
+            goto ret;
+        }
         default: args->num = -1;
     }
 ret: {

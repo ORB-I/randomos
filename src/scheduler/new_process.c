@@ -42,5 +42,5 @@ int new_process(const char* path, char** argv, u8 ppid) {
     proc->is_dead = 0;
     proc->ppid = ppid;
 
-    return 0;
+    return proc->pid;
 }

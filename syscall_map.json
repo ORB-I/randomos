@@ -481,5 +481,20 @@
                 "name": "buf"
             }
         ]
+    },
+    "SYS_NEWPROC": {
+        "nr": 42,
+        "nargs": 2,
+        "returns": "u8",
+        "args": [
+            {
+                "type": "const char*",
+                "name": "path"
+            },
+            {
+                "type": "char**",
+                "name": "args"
+            }
+        ]
     }
 }

@@ -817,35 +817,4 @@ loadprog_res_t load_program(const char* path, char** argv) {
         .entry = entry,
         .rsp = rsp_cpy
     };
-
-    /*init_syscalls();
-
-    vmm_sasp(nasp);
-    asm volatile(
-        "cli\n\t"
-
-        "mov $0x23, %%ax\n\t"
-        "mov %%ax, %%ds\n\t"
-        "mov %%ax, %%es\n\t"
-
-        "xor %%ax, %%ax\n\t"
-        "mov %%ax, %%fs\n\t"
-        "mov %%ax, %%gs\n\t"
-
-        "pushq $0x23\n\t"
-        "pushq %%rsi\n\t"
-
-        "pushfq\n\t"
-        "popq %%rax\n\t"
-        "orq $0x200, %%rax\n\t"
-        "pushq %%rax\n\t"
-
-        "pushq $0x1b\n\t"
-        "pushq %%rdi\n\t"
-
-        "iretq\n\t"
-        :
-        : "D"(entry), "S"(rsp_cpy)
-        : "rax", "memory"
-    );*/
 }

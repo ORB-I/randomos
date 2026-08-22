@@ -30,12 +30,15 @@ ALL_SOFILE_OBJS := $(ALL_LIB_OBJS:.o=.so.o)
 
 CRTSRC := src/crt.asm
 
+DRIVE ?= ../../drive.img
+
 all: $(LIBC) $(CRT) $(LIBC_SO)
 
 $(LIBC): $(ALL_LIB_OBJS)
 	$(AR) rcs $@ $^
 $(LIBC_SO): $(ALL_SOFILE_OBJS)
 	$(CC) $(LDFLAGS_SO) $^ -o $@
+	mcopy -voi $(DRIVE) -s $@ ::/$@
 $(CRT): $(CRTSRC)
 	$(AS) $(ASFLAGS) $< -o $@
 %.so.o: %.c
