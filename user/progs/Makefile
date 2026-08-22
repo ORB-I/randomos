@@ -6,7 +6,7 @@ CCFLAGS := ../libc/libc.a ../libc/crt0.o \
     -nostdlib -fno-builtin -fno-stack-protector \
     -I../libc/include -nostartfiles -nodefaultlibs \
     -ffreestanding -m64 -T../../share/user.ld \
-	-fno-pie -no-pie -fuse-ld=lld \
+	-fno-pie -fuse-ld=lld -Wl,--no-pie \
 	-g -MMD -MP -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 	-Wall -Wextra
 
