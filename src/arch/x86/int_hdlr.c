@@ -34,6 +34,8 @@ static void kill_user_process(struct CpuState* regs, const char* msg, va_list ls
     vmm_skasp();
 
     proctbl[current_pid].is_dead = 1;
+    reparent_children(current_pid);
+    wake_waiter(current_pid);
 
     // context is garbage — process is dead, so what we save doesn't matter
     asm volatile("cli");

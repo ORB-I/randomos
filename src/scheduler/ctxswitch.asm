@@ -39,7 +39,20 @@ switch_ctx:
     mov rax, [r15 + CTX_RFLAGS]
     and rax, ~RFLAGS_DROP
     or rax, 2
-    mov [r15 + CTX_RFLAGS], rax
+
+    ; 64-bit accesses ignore DS/ES, but iretq still loads SS from the
+    ; frame, and user code expects the same RPL on the data segs
+    movzx ecx, word [r15 + CTX_SS]
+    mov ds, cx
+    mov es, cx
+
+    push rcx                         ; SS
+    push qword [r15 + CTX_RSP]       ; RSP
+    push rax                         ; RFLAGS
+
+    movzx eax, word [r15 + CTX_CS]
+    push rax                         ; CS
+    push qword [r15 + CTX_RIP]       ; RIP
 
     mov rax, [r15 + CTX_RAX]
     mov rbx, [r15 + CTX_RBX]
@@ -55,20 +68,6 @@ switch_ctx:
     mov r12, [r15 + CTX_R12]
     mov r13, [r15 + CTX_R13]
     mov r14, [r15 + CTX_R14]
-
-    ; 64-bit accesses ignore DS/ES, but iretq still loads SS from the
-    ; frame, and user code expects the same RPL on the data segs
-    movzx eax, word [r15 + CTX_SS]
-    mov ds, ax
-    mov es, ax
-
-    push rax
-    push qword [r15 + CTX_RSP]
-    push qword [r15 + CTX_RFLAGS]
-
-    movzx eax, word [r15 + CTX_CS]
-    push rax
-    push qword [r15 + CTX_RIP]
-
     mov r15, [r15 + CTX_R15]
+
     iretq
