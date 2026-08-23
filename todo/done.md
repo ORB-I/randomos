@@ -41,3 +41,6 @@ Newest entries go at the bottom of each section.
       NEWPROC starts failing after roughly 254 spawns
 - [x] SYS_EXIT throws its exit code away, WAIT can only ever report pids
 - [x] add getpid syscall
+- [x] environment variables
+- [x] switch to PATH
+- [x] refactor disk to use directories for stuff (/bin, /lib, /etc)

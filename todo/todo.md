@@ -19,7 +19,4 @@
 ## No owner yet
 
 - [ ] login support (/etc/passwd)
-- [ ] environment variables
-- [ ] switch to PATH
-- [ ] refactor disk to use directories for stuff (/bin, /lib, /etc)
 - [ ] Documentation for randomOS (in near future - not for now.)
