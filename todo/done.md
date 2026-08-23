@@ -22,7 +22,9 @@ Newest entries go at the bottom of each section.
 - [x] Implement USBMSD driver
 - [x] Add WAIT syscall so parent processes can wait till a child dies
 - [x] Add KILL syscall so that processes can be killed
-- [x] Improve syscall safety, pointer validation, reparenting, and kill protections — @eskridd
+- [x] Improve syscall safety, pointer validation, reparenting, and kill protections
+- [x] Fix USBMSD Bulk-Only reset flow and wait_ready initialization order
+- [x] Make SYS_SLEEP non-busy-spinning via timer wake deadlines and scheduler idle halting
 
 ## @Wdboyes13
 

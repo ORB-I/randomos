@@ -235,7 +235,9 @@ bool syscall_c(struct sysregs* args) {
             if (args->a0 == 0) {
                 preempt_pending = 1;
             } else {
-                sleepms(args->a0);
+                proctbl[current_pid].wake_ms = (getms ? getms() : 0) + args->a0;
+                proctbl[current_pid].is_blocked = 1;
+                preempt_pending = 1;
             }
             args->num = 0;
             goto ret;

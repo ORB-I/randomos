@@ -157,24 +157,28 @@ static int usbmsd_scsi_cmd(u8 cmd, void* data, u32 len) {
     return 0;
 }
 
-static int usbmsd_wait_ready(uhci_controller_t* hc, u8 addr) {
+static int usbmsd_reset(uhci_controller_t* hc, u8 addr, u8 iface) {
+    usb_device_request_t req;
+    req.req_type = 0x21; // Class, Interface, Host-to-Device
+    req.req = 0xFF;      // Bulk-Only Mass Storage Reset
+    req.val = 0;
+    req.idx = iface;
+    req.len = 0;
+
+    return uhci_control_transfer(hc, addr, false, &req, NULL, 0);
+}
+
+static int usbmsd_wait_ready(void) {
     for (int i = 0; i < 20; i++) {
         if (usbmsd_scsi_cmd(SCSI_TEST_UNIT_READY, NULL, 0) == 0) {
             return 0;
         }
-        sleepms(100);
+        sleepms(50);
     }
     return -1;
 }
 
 int usbmsd_init(void) {
-    usb_device_request_t req;
-    req.req_type = 0x21;
-    req.req = 0x0A;
-    req.val = 0;
-    req.idx = 0;
-    req.len = 0;
-
     uhci_controller_t* conts;
     usize nconts = uhci_get_controllers(&conts);
 
@@ -211,14 +215,21 @@ int usbmsd_init(void) {
 
             pmm_ffree((void*)((u64)cfg_buf - HHDM_START), 1);
 
-            if (usbmsd_wait_ready(hc, new_addr) < 0) continue;
+            // Send Bulk-Only Mass Storage Reset request
+            usbmsd_reset(hc, new_addr, 0);
 
+            // Populate usbmsd_dev before waiting for SCSI unit ready
             memset(&usbmsd_dev, 0, sizeof(usbmsd_dev));
             usbmsd_dev.ctrl = hc;
             usbmsd_dev.addr = new_addr;
             usbmsd_dev.ep_in = ep_in;
             usbmsd_dev.ep_out = ep_out;
             usbmsd_dev.max_packet = max_pkt;
+
+            if (usbmsd_wait_ready() < 0) {
+                memset(&usbmsd_dev, 0, sizeof(usbmsd_dev));
+                continue;
+            }
 
             hc->port_in_use[p] = 1;
             hc->addrs[new_addr] = 1;
@@ -233,6 +244,7 @@ int usbmsd_init(void) {
 }
 
 void usbmsd_secread(u8 drv, u32 lba, u8* buf) {
+    (void)drv;
     if (usbmsd_dev.addr == 0) return;
 
     usbmsd_cbw_t cbw;
@@ -257,6 +269,7 @@ void usbmsd_secread(u8 drv, u32 lba, u8* buf) {
 }
 
 void usbmsd_secwrite(u8 drv, u32 lba, u8* buf) {
+    (void)drv;
     if (usbmsd_dev.addr == 0) return;
 
     usbmsd_cbw_t cbw;
