@@ -52,7 +52,6 @@ void ctx2proc(process_state_t* dst, procctx_t* src) {
     dst->r13 = src->r13; dst->r14 = src->r14; dst->r15 = src->r15;
     dst->cs = src->cs; dst->ss = src->ss; dst->fs = src->fs;
     dst->gs = src->gs; dst->fsb = src->fsb; dst->gsb = src->gsb;
-    dst->cr3 = src->cr3;
 }
 
 [[noreturn]] void switch_ctx(procctx_t* ctx);
