@@ -6,8 +6,6 @@
 
 ## In progress
 
-- [ ] Improve syscall.c more — @eskridd
-
 ## Open
 
 - [ ] Audit most of the code — @eskridd
