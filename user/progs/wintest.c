@@ -38,9 +38,14 @@ int main() {
     int x = info.width/2, y = info.height/2;
     mouse_info_t minfo = {0, 0, 0};
     while (1) {
-        get_mouse_info(&minfo);
-        x += minfo.x;
-        y += minfo.y;
+        if (get_mouse_info(&minfo) < 0) {
+            serial_printf("mouse failed\r\n");
+        } else {
+            x += minfo.x;
+            y += minfo.y;
+            serial_printf("x=%d,y=%d\r\n");
+        }
+
         gui_fill_buf((u32*)info.ptr, 0, 0, info.width, info.height, blue);
         gui_rectfill(gctx, minfo.x, minfo.y, 10, 10, red);
         flush_scr();

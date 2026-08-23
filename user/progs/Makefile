@@ -27,7 +27,8 @@ PROGS := init \
 		 keytest \
 		 mousetest \
 		 id \
-		 whoami
+		 whoami \
+		 serialtest
 
 DRIVE ?= ../../drive.img
 

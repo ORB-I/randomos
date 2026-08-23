@@ -14,6 +14,7 @@
 #include <drivers/display/fb.h>
 #include <drivers/time/clock.h>
 #include <drivers/hid/kbd.h>
+#include <drivers/display/serial.h>
 
 #include <lib/loader.h>
 #include <lib/syscall.h>
@@ -409,7 +410,9 @@ bool syscall_c(struct sysregs* args) {
             goto ret;
         }
         case SYS_GETMOUSEINFO: {
-            if (!args->a0) { args->num = -1; goto ret; }
+            if (!args->a0) { 
+                args->num = -1; goto ret; 
+            }
             args->num = get_mouse_info((mouse_info_t*)args->a0);
             goto ret;
         }
@@ -496,6 +499,11 @@ bool syscall_c(struct sysregs* args) {
             } else {
                 args->num = (u64)(s64)-1;
             }
+        case SYS_SERIALWRITE: {
+            for (usize i = 0; i < args->a1; i++) {
+                serial_putchar(((char*)args->a0)[i]);
+            }
+            args->num = 0;
             goto ret;
         }
         default: args->num = -1;

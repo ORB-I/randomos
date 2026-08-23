@@ -53,5 +53,6 @@
 #define SYS_SETEUID       51
 #define SYS_GETEGID       52
 #define SYS_SETEGID       53
+#define SYS_SERIALWRITE   54
 
 void init_syscalls();
