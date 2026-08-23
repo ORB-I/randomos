@@ -52,7 +52,7 @@ struct sysregs {
 // whoever was parked in SYS_WAIT on pid (or was waiting for any child)
 // gets to run again, rax doubles as their wait return value so it gets
 // handed the dying childs pid
-static void wake_waiter(u8 pid) {
+void wake_waiter(u8 pid) {
     process_state_t* parent = &proctbl[proctbl[pid].ppid];
     if (parent->is_blocked && (parent->wait_pid == pid ||
                                parent->wait_pid == WAIT_ANY)) {
@@ -62,7 +62,7 @@ static void wake_waiter(u8 pid) {
 }
 
 // reparent orphan children of an exiting or killed process to init (pid 0)
-static void reparent_children(u8 old_ppid) {
+void reparent_children(u8 old_ppid) {
     for (u8 i = 0; i < nprocs; i++) {
         if (!proctbl[i].is_dead && proctbl[i].ppid == old_ppid) {
             proctbl[i].ppid = 0;
