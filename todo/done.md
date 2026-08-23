@@ -25,6 +25,10 @@ Newest entries go at the bottom of each section.
 - [x] Improve syscall safety, pointer validation, reparenting, and kill protections
 - [x] Fix USBMSD Bulk-Only reset flow and wait_ready initialization order
 - [x] Make SYS_SLEEP non-busy-spinning via timer wake deadlines and scheduler idle halting
+- [x] Fix user mmap memory allocation range, sys_newproc address space isolation, and process execution
+- [x] Fix libc create_fb return type check, fprintf fd cast, and UHCI link operator precedence
+- [x] Fix storage stack drive parameter routing and disk_ioctl geometry reporting in ff16host.c
+- [x] Squash remaining -Wextra warnings across kernel and libc (liballoc, strftime, laihost, wm)
 
 ## @Wdboyes13
 

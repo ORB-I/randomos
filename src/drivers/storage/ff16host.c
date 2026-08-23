@@ -33,49 +33,49 @@ DSTATUS disk_status(BYTE pdrv) {
 }
 
 static DRESULT ata_secread_wrap(BYTE pdrv, BYTE* buf, LBA_t sector, UINT count) {
-    (void)pdrv;
+    u8 drv = (pdrv != 0) ? pdrv : (u8)ff16_drive;
     for (UINT i = 0; i < count; i++) {
-        ata_secread((u8)ff16_drive, (u32)(sector + i), buf + (i * 512));
+        ata_secread(drv, (u32)(sector + i), buf + (i * 512));
     }
     return RES_OK;
 }
 
 static DRESULT ata_secwrite_wrap(BYTE pdrv, const BYTE* buf, LBA_t sector, UINT count) {
-    (void)pdrv;
+    u8 drv = (pdrv != 0) ? pdrv : (u8)ff16_drive;
     for (UINT i = 0; i < count; i++) {
-        ata_secwrite((u8)ff16_drive, (u32)(sector + i), (u8*)(buf + (i * 512)));
+        ata_secwrite(drv, (u32)(sector + i), (u8*)(buf + (i * 512)));
     }
     return RES_OK;
 }
 
 static DRESULT ahci_secread_wrap(BYTE pdrv, BYTE* buf, LBA_t sector, UINT count) {
-    (void)pdrv;
+    u8 drv = (pdrv != 0) ? pdrv : (u8)ff16_drive;
     for (UINT i = 0; i < count; i++) {
-        ahci_secread((u8)ff16_drive, (u64)(sector + i), buf + (i * 512));
+        ahci_secread(drv, (u64)(sector + i), buf + (i * 512));
     }
     return RES_OK;
 }
 
 static DRESULT ahci_secwrite_wrap(BYTE pdrv, const BYTE* buf, LBA_t sector, UINT count) {
-    (void)pdrv;
+    u8 drv = (pdrv != 0) ? pdrv : (u8)ff16_drive;
     for (UINT i = 0; i < count; i++) {
-        ahci_secwrite((u8)ff16_drive, (u64)(sector + i), (u8*)(buf + (i * 512)));
+        ahci_secwrite(drv, (u64)(sector + i), (u8*)(buf + (i * 512)));
     }
     return RES_OK;
 }
 
 static DRESULT usbmsd_secread_wrap(BYTE pdrv, BYTE* buf, LBA_t sector, UINT count) {
-    (void)pdrv;
+    u8 drv = (pdrv != 0) ? pdrv : (u8)ff16_drive;
     for (UINT i = 0; i < count; i++) {
-        usbmsd_secread((u8)ff16_drive, (u32)(sector + i), buf + (i * 512));
+        usbmsd_secread(drv, (u32)(sector + i), buf + (i * 512));
     }
     return RES_OK;
 }
 
 static DRESULT usbmsd_secwrite_wrap(BYTE pdrv, const BYTE* buf, LBA_t sector, UINT count) {
-    (void)pdrv;
+    u8 drv = (pdrv != 0) ? pdrv : (u8)ff16_drive;
     for (UINT i = 0; i < count; i++) {
-        usbmsd_secwrite((u8)ff16_drive, (u32)(sector + i), (u8*)(buf + (i * 512)));
+        usbmsd_secwrite(drv, (u32)(sector + i), (u8*)(buf + (i * 512)));
     }
     return RES_OK;
 }
@@ -91,13 +91,13 @@ void ff16_set_usbmsd(void) {
 }
 
 DRESULT disk_read(BYTE pdrv, BYTE* buf, LBA_t sector, UINT count) {
-    if (ff16_drive > 2) return RES_NOTRDY;
+    if (ff16_drive > 2 && pdrv == 0) return RES_NOTRDY;
     diskio_read_t fn = diskio_rd ? diskio_rd : ata_secread_wrap;
     return fn(pdrv, buf, sector, count);
 }
 
 DRESULT disk_write(BYTE pdrv, const BYTE* buf, LBA_t sector, UINT count) {
-    if (ff16_drive > 2) return RES_NOTRDY;
+    if (ff16_drive > 2 && pdrv == 0) return RES_NOTRDY;
     diskio_write_t fn = diskio_wr ? diskio_wr : ata_secwrite_wrap;
     return fn(pdrv, buf, sector, count);
 }
@@ -114,7 +114,8 @@ DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void* buf) {
             *(DWORD*)buf = 1;
             return RES_OK;
         case GET_SECTOR_COUNT:
-            *(LBA_t*)buf = 268435456;
+            // Standard 128MB virtual disk sector count (262144 sectors) or max supported LBA
+            *(LBA_t*)buf = 262144;
             return RES_OK;
     }
     return RES_PARERR;

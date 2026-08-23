@@ -33,11 +33,14 @@ segment_ld_t load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp, u64 load
     if (phdr->p_memsz == 0) return SEGLD_ERR;
     u64 seg_vaddr = load_base + phdr->p_vaddr;
 
-    usize npgs = phdr->p_memsz / 4096;
-    if (phdr->p_memsz % 4096 != 0) npgs++;
+    u64 start_page = seg_vaddr & ~0xFFFULL;
+    u64 end_page = (seg_vaddr + phdr->p_memsz + 0xFFFULL) & ~0xFFFULL;
+    usize npgs = (usize)((end_page - start_page) / 4096);
 
-    void* addr = vmm_map_pages(vmm_cpml4v(), USER_START + seg_vaddr, 0, npgs, MAP_ANYPHYS | MAP_CONT | PAGE_WRITE);
-    if (!addr) return SEGLD_ERR;
+    void* mapped = vmm_map_pages(vmm_cpml4v(), start_page, 0, npgs, MAP_ANYPHYS | MAP_CONT | PAGE_WRITE);
+    if (!mapped) return SEGLD_ERR;
+
+    void* addr = (void*)seg_vaddr;
 
     if (lseek(fd, phdr->p_offset, SEEK_SET) < 0) {
         printf("Loader: failed to seek phdr offset\n");
@@ -45,7 +48,7 @@ segment_ld_t load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp, u64 load
     }
 
     if (phdr->p_memsz > phdr->p_filesz) {
-        memset(addr, 0, phdr->p_memsz);
+        memset((void*)(seg_vaddr + phdr->p_filesz), 0, phdr->p_memsz - phdr->p_filesz);
     }
 
     ssize nread = read(fd, addr, phdr->p_filesz);
@@ -59,14 +62,12 @@ segment_ld_t load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp, u64 load
         flgs |= PAGE_WRITE;
     }
 
-    u64 paddr = vmm_get_phys(vmm_cpml4v(), (u64)addr);
-    if (!vmm_map_pages(nasp, seg_vaddr, paddr, npgs, MAP_CONT | flgs)) {
+    u64 paddr = vmm_get_phys(vmm_cpml4v(), start_page);
+    if (!vmm_map_pages(nasp, start_page, paddr, npgs, MAP_CONT | flgs)) {
         return SEGLD_ERR;
     }
 
-    // leave this to later
-    //vmm_unmap_pages(vmm_cpml4v(), (u64)addr, npgs, UNMAP_KEEPPHYS);
-    return (segment_ld_t){0, (void*)seg_vaddr, npgs};
+    return (segment_ld_t){0, (void*)start_page, npgs};
 }
 
 #define MAX_LIBRARIES 128

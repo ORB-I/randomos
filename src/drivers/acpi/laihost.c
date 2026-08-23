@@ -65,7 +65,7 @@ void laihost_pci_writed(u16 seg, u8 bus, u8 slot, u8 fn, u16 off, uint32_t val) 
 void laihost_sleep(u64 ms) { sleepms(ms); }
 
 void* laihost_map(uintptr_t phys_addr, size_t _) {  (void)_; return (void*)(phys_addr + HHDM_START); }
-void laihost_unmap(void* _, size_t __) { (void)__; (void)__; }
+void laihost_unmap(void* _, size_t __) { (void)_; (void)__; }
 
 void* laihost_scan(const char *sig, size_t index) {
     if (__lai_core_acpi__->xsdt == NULL && __lai_core_acpi__->rsdt == NULL) panic("No RSDT/XSDT found");

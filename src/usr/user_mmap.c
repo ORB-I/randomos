@@ -1,20 +1,24 @@
 #include <core/mem/vmm.h>
 #include <core/std.h>
 
-typedef struct {
-    u64 vaddr_base;
-    u64 vaddr_end;
-    u64 pgcnt;
-} vmm_range_t;
-
-extern vmm_range_t vmm_umapr;
+extern u8 current_pid;
 
 void* user_mmap(page_table_t* uasp, void* reqaddr, u64 npages) {
+    if (npages == 0) return NULL;
+
     if (reqaddr == 0) {
-        return vmm_map_pages(uasp, 0, 0, npages, MAP_ANYPHYS | MAP_ANYVIRT | PAGE_USER | PAGE_WRITE);
+        u64 alloc_bytes = npages * 4096;
+        if (vmm_umapr[current_pid].vaddr_curr + alloc_bytes > vmm_umapr[current_pid].vaddr_end) {
+            return NULL;
+        }
+        u64 vaddr = vmm_umapr[current_pid].vaddr_curr;
+        vmm_umapr[current_pid].vaddr_curr += alloc_bytes;
+
+        return vmm_map_pages(uasp, vaddr, 0, npages, MAP_ANYPHYS | PAGE_USER | PAGE_WRITE);
     } else {
-        if (!vmm_rangeinusrmap((u64)reqaddr, npages)) return NULL;
-        return vmm_map_pages(uasp, (u64)reqaddr, 0, npages, MAP_ANYPHYS | PAGE_USER | PAGE_WRITE);
+        u64 addr = (u64)reqaddr;
+        if (!vmm_rangeinusrmap(addr, npages)) return NULL;
+        return vmm_map_pages(uasp, addr, 0, npages, MAP_ANYPHYS | PAGE_USER | PAGE_WRITE);
     }
 }
 

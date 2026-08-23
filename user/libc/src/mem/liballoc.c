@@ -42,7 +42,7 @@ static int l_pageCount = 16;			//< Minimum number of pages to allocate.
  */
 static inline int getexp( unsigned int size )
 {
-	if ( size < (1<<MINEXP) ) 
+	if ( size < (1U<<MINEXP) ) 
 	{
 		#ifdef DEBUG
 		printf("getexp returns -1 for %i less than MINEXP\n", size );
@@ -55,7 +55,7 @@ static inline int getexp( unsigned int size )
 
 	while ( shift < MAXEXP )
 	{
-		if ( (1<<shift) > size ) break;
+		if ( (1U<<shift) > size ) break;
 		shift += 1;
 	}
 
@@ -504,7 +504,7 @@ void*   realloc(void *p, size_t size)
 {
 	void *ptr;
 	struct boundary_tag *tag;
-	int real_size;
+	size_t real_size;
 	
 	if ( size == 0 )
 	{
@@ -513,10 +513,10 @@ void*   realloc(void *p, size_t size)
 	}
 	if ( p == NULL ) return malloc( size );
 
-	if ( liballoc_lock != NULL ) liballoc_lock();		// lockit
-		tag = (struct boundary_tag*)((unsigned long)p - sizeof( struct boundary_tag ));
-		real_size = tag->size;
-	if ( liballoc_unlock != NULL ) liballoc_unlock();
+	liballoc_lock();		// lockit
+	tag = (struct boundary_tag*)((unsigned long)p - sizeof( struct boundary_tag ));
+	real_size = tag->size;
+	liballoc_unlock();
 
 	if ( real_size > size ) real_size = size;
 

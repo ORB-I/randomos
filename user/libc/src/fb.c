@@ -4,9 +4,9 @@
 
 int create_fb(int type) {
     int fb;
-    usize sz = __syscall4(SYS_CREATEFBWMEM, type, 0, 0, (u64)&fb);
-    if (sz < 0) return -1;
-    void* mem = malloc(sz);
+    s64 sz = (s64)__syscall4(SYS_CREATEFBWMEM, type, 0, 0, (u64)&fb);
+    if (sz <= 0) return -1;
+    void* mem = malloc((usize)sz);
     if (!mem) return -1;
     if (__syscall4(SYS_CREATEFBWMEM, type, (u64)mem, sz, (u64)&fb) < 0) {
         free(mem);

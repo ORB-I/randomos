@@ -22,12 +22,6 @@ typedef struct vmm_region {
 static vmm_region_t* vmmr_head  = NULL;
 static vmm_region_t vmmr_nodes[MAX_VNODES] = {0};
 
-typedef struct {
-    u64 vaddr_base;
-    u64 vaddr_end;
-    u64 pgcnt;
-} vmm_range_t;
-
 vmm_range_t vmm_umapr[255];
 
 static vmm_region_t* allocvmmr() {
@@ -42,20 +36,22 @@ static vmm_region_t* allocvmmr() {
 // all maps with flag MAP_USRMAP must be
 // within the range specified in umapr
 void vmm_setumapbase(u8 pid, u64 base) {
-    vmm_umapr[pid].vaddr_base = base;
+    u64 aligned_base = (base + 0xFFF) & ~0xFFFULL;
+    if (aligned_base < 0x10000000) {
+        aligned_base = 0x10000000;
+    }
+    vmm_umapr[pid].vaddr_base = aligned_base;
+    vmm_umapr[pid].vaddr_curr = aligned_base;
     vmm_umapr[pid].vaddr_end  = USER_END - (16 * 4096);
 
     u64 size = vmm_umapr[pid].vaddr_end - vmm_umapr[pid].vaddr_base;
-    do {
-        vmm_umapr[pid].vaddr_end--;
-        size = vmm_umapr[pid].vaddr_end - vmm_umapr[pid].vaddr_base;
-    } while (size % 4096 != 0);
-
     vmm_umapr[pid].pgcnt = size / 4096;
 }
 
 void vmm_remumap(u8 pid, page_table_t* uasp) {
+    (void)uasp;
     vmm_umapr[pid].vaddr_base = 0;
+    vmm_umapr[pid].vaddr_curr = 0;
     vmm_umapr[pid].vaddr_end = 0;
     vmm_umapr[pid].pgcnt = 0;
 }
