@@ -8,6 +8,7 @@
 #include <drivers/apic.h>
 #include <drivers/hid/usbhid/usbhid_kbd.h>
 #include <drivers/hid/ps2/kbd.h>
+#include <drivers/time/clock.h>
 
 #define KEYBUF_SZ 256
 
@@ -26,10 +27,27 @@ bool kbsc_full = false;
 u8 kbd_get_raw(void) {
     while (!kb_has_sc()) {
         if (kb_type == KBD_USBHID) {
-            usb_hid_kbd_poll();
+            usb_hid_kbd_poll(10);
         }
         asm volatile("pause");
     }
+
+    u8 sc = dequeue_sc();
+    return sc;
+}
+
+u8 kbd_getrawto(u64 timeout) {
+    if (kb_type == KBD_USBHID) {
+        usb_hid_kbd_poll(timeout);
+    } else {
+        u64 c = 0;
+        while (!kb_has_sc() && c < timeout) {
+            sleepms(1);
+            c++;
+        }
+    }
+
+    if (!kb_has_sc()) return 0;
 
     u8 sc = dequeue_sc();
     return sc;
@@ -120,7 +138,7 @@ void noecho(int on) {
 char getchar(void) {
     while (!kb_has_char()) {
         if (kb_type == KBD_USBHID) {
-            usb_hid_kbd_poll();
+            usb_hid_kbd_poll(10);
         }
         asm volatile("pause");
     }

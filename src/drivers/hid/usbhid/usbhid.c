@@ -4,7 +4,7 @@
 #include <lib/string.h>
 #include <drivers/time/clock.h>
 
-void* usbhid_poll(usb_dev_info_t* dev) {
+void* usbhid_poll(usb_dev_info_t* dev, u64 timeout) {
     if (!dev->ctrl || dev->addr == -1) {
         return NULL;
     }
@@ -28,7 +28,7 @@ void* usbhid_poll(usb_dev_info_t* dev) {
     uhci_controller_t* hc = dev->ctrl;
     hc->queue_head->element = (u32)in_td_phys;
 
-    for (int i = 0; i < 10; i++) {
+    for (u64 i = 0; i < timeout; i++) {
         if (!(in_td->ctrl & UHCI_TD_CTRL_ACT)) {
             break;
         }

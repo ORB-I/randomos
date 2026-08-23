@@ -5,6 +5,7 @@
 #include <drivers/hid/kbd.h>
 #include <core/mem/pmm.h>
 #include <core/printf.h>
+#include <drivers/hid/usbhid/usbhid.h>
 #include <core/mem/vmm.h>
 
 static const char hid_scancode_map[256] = {
@@ -120,48 +121,16 @@ int usb_hid_kbd_init() {
 }
 
 extern bool shift_pressed;
-void usb_hid_kbd_poll() {
-    if (!_uhci_usbhid_kbd.ctrl || _uhci_usbhid_kbd.addr == -1) {
-        return;
-    }
+void usb_hid_kbd_poll(u64 timeout) {
+    usb_hid_kbd_report_t rprt = {0};
+    void* res = usbhid_poll(&_uhci_usbhid_kbd, timeout);
 
-    usb_hid_kbd_report_t curr_report = {0};
-
-    void* page_phys = pmm_falloc(1);
-    if (!page_phys) {
-        return;
-    }
-
-    u64 page_virt = (u64)page_phys + HHDM_START;
-    memset((void*)page_virt, 0, 4096);
-
-    uhci_td_t* in_td = (uhci_td_t*)(page_virt + 64);
-    u64 in_td_phys = (u64)page_phys + 64;
-
-    in_td->link = UHCI_TD_PTR_T;
-    in_td->ctrl = UHCI_TD_CTRL_ACT | UHCI_TD_CTRL_CERR | UHCI_TD_CTRL_LS | UHCI_TD_CTRL_IOC;
-    in_td->token = (7 << 21) | (0 << 19) | (1 << 15) | (_uhci_usbhid_kbd.addr << 8) | UHCI_PID_IN;
-    in_td->buffer = (u32)(u64)page_phys;
-
-    uhci_controller_t* hc = _uhci_usbhid_kbd.ctrl;
-    hc->queue_head->element = (u32)in_td_phys;
-
-    for (int i = 0; i < 10; i++) {
-        if (!(in_td->ctrl & UHCI_TD_CTRL_ACT)) {
-            break;
-        }
-        sleepms(1);
-    }
-
-    hc->queue_head->element = UHCI_TD_PTR_T;
-
-    if (!(in_td->ctrl & UHCI_TD_CTRL_ACT)) {
-        memcpy(&curr_report, (void*)page_virt, sizeof(usb_hid_kbd_report_t));
-
-        bool shift = (curr_report.modifiers & 0x22) != 0;
+    if (res) {
+        memcpy(&rprt, (void*)res, sizeof(usb_hid_kbd_report_t));
+        bool shift = (rprt.modifiers & 0x22) != 0;
 
         for (int i = 0; i < 6; i++) {
-            u8 key = curr_report.keys[i];
+            u8 key = rprt.keys[i];
             if (key == 0) {
                 continue;
             }
@@ -189,7 +158,7 @@ void usb_hid_kbd_poll() {
             }
             bool still_down = false;
             for (int j = 0; j < 6; j++) {
-                if (curr_report.keys[j] == oldk) {
+                if (rprt.keys[j] == oldk) {
                     still_down = true;
                     break;
                 }
@@ -204,7 +173,7 @@ void usb_hid_kbd_poll() {
         }
 
         for (int i = 0; i < 6; i++) {
-            u8 newk = curr_report.keys[i];
+            u8 newk = rprt.keys[i];
             if (newk == 0) {
                 continue;
             }
@@ -223,8 +192,7 @@ void usb_hid_kbd_poll() {
             }
         }
 
-        prev_report = curr_report;
+        prev_report = rprt;
+        usbhid_pollfree(res);
     }
-
-    pmm_ffree(page_phys, 1);
 }

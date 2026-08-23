@@ -55,6 +55,7 @@
 #define SYS_GETEGID       52
 #define SYS_SETEGID       53
 #define SYS_SERIALWRITE   54
+#define SYS_GETRAWSCTO    55
 
 u64 __syscall0(u64 nr);
 u64 __syscall1(u64 nr, u64 arg0);

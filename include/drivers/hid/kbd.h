@@ -20,3 +20,4 @@ char dequeue_sc(void);
 bool kb_has_sc(void);
 void kbd_setshift(int shift);
 int kbd_getshift();
+u8 kbd_getrawto(u64 timeout);

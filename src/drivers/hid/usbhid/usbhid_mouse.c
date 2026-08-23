@@ -47,7 +47,7 @@ int usb_hid_mouse_init() {
 
 void usb_hid_mouse_poll() {
     usb_hid_mouse_report_t rprt = {0};
-    void* res = usbhid_poll(&_uhci_usbhid_mouse);
+    void* res = usbhid_poll(&_uhci_usbhid_mouse, 10);
     if (res) {
         memcpy(&rprt, (void*)res, sizeof(usb_hid_mouse_report_t));
         int btns = 0;

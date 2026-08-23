@@ -49,7 +49,7 @@ int main() {
         gui_fill_buf((u32*)info.ptr, 0, 0, info.width, info.height, blue);
         gui_rectfill(gctx, x, y, 10, 10, red);
         flush_scr();
-        int sc = kbd_get_raw();
+        int sc = kbd_get_raw_to(5);
         if (sc == 0x01) {
             break;
         }
