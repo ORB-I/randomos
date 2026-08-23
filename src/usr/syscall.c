@@ -499,15 +499,17 @@ bool syscall_c(struct sysregs* args) {
             } else {
                 args->num = (u64)(s64)-1;
             }
-        case SYS_SERIALWRITE: {
-            for (usize i = 0; i < args->a1; i++) {
-                serial_putchar(((char*)args->a0)[i]);
-            }
-            args->num = 0;
             goto ret;
         }
-        default: args->num = -1;
-    }
+        case SYS_SERIALWRITE: {
+                for (usize i = 0; i < args->a1; i++) {
+                    serial_putchar(((char*)args->a0)[i]);
+                }
+                args->num = 0;
+                goto ret;
+            }
+            default: args->num = -1;
+        }
 ret: {
     vmm_sasp(uasp); // idk why just try
     u64 ret = args->num;
@@ -515,4 +517,5 @@ ret: {
     args->num = ret;
 }
 return false;
+
 }
