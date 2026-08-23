@@ -67,8 +67,15 @@ ssize read(int fd, void* buf, usize size) {
     if (fd < 3) {
         switch (fd) {
             // can read stdin but not stdout/stderr yet lol
-            case 0:
-                return getstr(buf, size);
+            case 0: {
+                for (usize i = 0; i < size; i++) {
+                    *((char*)&buf[i]) = getchar();
+                    if (*((char*)&buf[i]) == '\n') {
+                        return i;
+                    }
+                }
+                return size;
+            }
             case 1: return -1;
             case 2: return -1;
             default: return -1; // doing this to make the compiler happy, even though it cant be reached
