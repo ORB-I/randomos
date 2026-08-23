@@ -33,6 +33,7 @@
       unused wday_names in strftime.c, unused wm_hit in progs/wm.c
 - [ ] kernel-only warnings: unused params in laihost_unmap, vmm_remumap,
       liballoc sign compare (src/kern/mem/liballoc.c:58,516-521)
+- [ ] system hangs right after new process is created by current init
 
 ## Design debt
 
