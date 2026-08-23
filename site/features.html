@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RandomOS</title>
+    <link rel="stylesheet" href="https://unpkg.com/mvp.css">
+    <style>
+        :root {
+            --bgclr: #202b38;
+            --hdrclr: #1b242e;
+            --textclr: #E2E2E2;
+        }
+
+        body {
+            background-color: var(--bgclr);
+            color: var(--textclr);
+        }
+
+        .site-main {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            min-height: 100dvh;
+        }
+
+        main {
+            max-width: 51%;
+        }
+
+        footer {
+            max-width: 55%;
+        }
+
+        header {
+            text-align: left !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding-left: 2rem !important;
+            background-color: var(--hdrclr);
+            overflow: hidden;
+            gap: 0rem;
+            display: flex;
+            flex-direction: column;
+
+            h1,
+            h2,
+            p {
+                margin-bottom: 0;
+            }
+        }
+
+        hr {
+            margin-bottom: 0;
+            margin-top: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="site-main">
+        <header>
+            <h1>
+                <a href="/randomos/index.html" class="clean-link">RandomOS</a>
+            </h1>
+            <h2>The most random OS without an RNG</h2>
+            <p><a href="/randomos/features.html">Features</a> / <a
+                    href="https://github.com/Wdboyes13/randomos">GitHub</a> / <a
+                    href="/randomos/license.html">License</a></p>
+        </header>
+        <main>
+            <h1>Features</h1>
+            <ul>
+                <li>Mulitasking</li>
+                <li>FAT16</li>
+                <li>Dynamic ELF</li>
+                <li>PS/2 and USB-HID Keyboard and Mouse support</li>
+                <li>SATA support</li>
+                <li>Full dynamic memory management</li>
+                <li>Power state management</li>
+                <li>Ability to get time of day (via BIOS/CMOS)</li>
+                <li>High precision timing</li>
+                <li>Multiple framebuffer support</li>
+            </ul>
+        </main>
+        <footer>
+            <sub>
+                This website is created by @Wdboyes13 under the MIT license.
+            </sub>
+        </footer>
+    </div>
+</body>
+
+</html>

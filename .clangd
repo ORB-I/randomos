@@ -1,0 +1,15 @@
+CompileFlags:
+    Add:
+        - --target=x86_64-elf
+        - -m64
+        - -nostdlib
+        - -nostdlibinc
+        - -fno-builtin
+        - -fno-stack-protector
+        - -nostartfiles
+        - -nodefaultlibs
+        - -ffreestanding
+        - -Wall
+        - -Wextra
+        - -I/Users/william/dev/work/coding/randomos/user/libc/include
+        - -I/Users/william/dev/work/coding/randomos/include
