@@ -162,7 +162,6 @@ int readoff(int fd, void* buf, usize sz, off_t off) {
 }
 
 loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
-    printf("Loading library at base %p\n", base);
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
         return LOADLIB_ERR;

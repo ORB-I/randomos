@@ -43,11 +43,11 @@ int main() {
         } else {
             x += minfo.x;
             y += minfo.y;
-            serial_printf("x=%d,y=%d\r\n");
+            serial_printf("x=%d,y=%d\r\n", x, y);
         }
 
         gui_fill_buf((u32*)info.ptr, 0, 0, info.width, info.height, blue);
-        gui_rectfill(gctx, minfo.x, minfo.y, 10, 10, red);
+        gui_rectfill(gctx, x, y, 10, 10, red);
         flush_scr();
         int sc = kbd_get_raw();
         if (sc == 0x01) {
