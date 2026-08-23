@@ -419,7 +419,7 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
     return (loadlib_res_t){0, info};
 }
 
-int program_processdyn(int fd, u64 load_low, u64 load_high, Elf64_Ehdr* ehdr,
+int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
                        Elf64_Shdr* shdrs, char* shstrtab, page_table_t* nasp) {
     usize ndyns = 0;
     Elf64_Shdr* dynshdr = NULL;
@@ -476,7 +476,7 @@ int program_processdyn(int fd, u64 load_low, u64 load_high, Elf64_Ehdr* ehdr,
         return -1;
     }
 
-    u64 lib_base = (load_high + 0xFFF) & ~0xFFFULL;;
+    u64 lib_base = (*load_high + 0xFFF) & ~0xFFFULL;;
 
 
     if (dynshdr && ndyns > 0) {
@@ -512,11 +512,9 @@ int program_processdyn(int fd, u64 load_low, u64 load_high, Elf64_Ehdr* ehdr,
         }
     }
 
-    vmm_setumapbase(lib_base);
-
     dyninfo_t info = {
         .base = 0,
-        .size = load_high - load_low,
+        .size = *load_high - load_low,
         .dynsym = dynsym,
         .nsyms = dynsym_shdr->sh_size / sizeof(Elf64_Sym),
         .dynstr = dynstr
@@ -592,6 +590,7 @@ int program_processdyn(int fd, u64 load_low, u64 load_high, Elf64_Ehdr* ehdr,
     }
     memset(loaded_libs, 0, sizeof(loaded_libs));
     nloaded = 0;
+    *load_high = lib_base;
 
     return 0;
 }
@@ -659,8 +658,6 @@ loadprog_res_t load_program(const char* path, char** argv) {
         if (seg_vaddr < load_low)  load_low  = seg_vaddr;
         if (phdrs[i].p_type == PT_LOAD) nloads++;
     }
-
-    vmm_setumapbase(load_high);
 
     int is_dyn = 0;
     page_table_t* nasp = vmm_casp();
@@ -757,7 +754,7 @@ loadprog_res_t load_program(const char* path, char** argv) {
     }
 
     if (is_dyn) {
-        if (program_processdyn(fd, load_low, load_high, &ehdr, shdrs, shstrtab, nasp) < 0) {
+        if (program_processdyn(fd, load_low, &load_high, &ehdr, shdrs, shstrtab, nasp) < 0) {
             clrksegs(segs, nldsegs);
             close(fd);
             free(shdrs);
@@ -820,6 +817,7 @@ loadprog_res_t load_program(const char* path, char** argv) {
         .status = 0,
         .pgtbl = nasp,
         .entry = entry,
-        .rsp = rsp_cpy
+        .rsp = rsp_cpy,
+        .load_high = load_high
     };
 }

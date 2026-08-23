@@ -41,7 +41,7 @@ static void kill_user_process(struct CpuState* regs, const char* msg, va_list ls
     scheduler_switch(&abandoned);
 
     // scheduler_switch returns only when nothing is left to run
-    vmm_remumap(uasp);
+    vmm_remumap(current_pid, uasp);
     vmm_dasp(uasp);
     panic("all processes have exited");
 }

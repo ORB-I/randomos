@@ -1,3 +1,4 @@
+#include "scheduler/process.h"
 #include <core/limreqs.h>
 #include <core/mem/vmm.h>
 #include <core/mem/pmm.h>
@@ -27,7 +28,7 @@ typedef struct {
     u64 pgcnt;
 } vmm_range_t;
 
-vmm_range_t vmm_umapr = {0, 0, 0};
+vmm_range_t vmm_umapr[255];
 
 static vmm_region_t* allocvmmr() {
     for (int i = 0; i < MAX_VNODES; i++) {
@@ -40,34 +41,27 @@ static vmm_region_t* allocvmmr() {
 
 // all maps with flag MAP_USRMAP must be
 // within the range specified in umapr
-void vmm_setumapbase(u64 base) {
-    vmm_umapr.vaddr_base = base;
-    vmm_umapr.vaddr_end  = USER_END - (16 * 4096);
+void vmm_setumapbase(u8 pid, u64 base) {
+    vmm_umapr[pid].vaddr_base = base;
+    vmm_umapr[pid].vaddr_end  = USER_END - (16 * 4096);
 
-    u64 size = vmm_umapr.vaddr_end - vmm_umapr.vaddr_base;
+    u64 size = vmm_umapr[pid].vaddr_end - vmm_umapr[pid].vaddr_base;
     do {
-        vmm_umapr.vaddr_end--;
-        size = vmm_umapr.vaddr_end - vmm_umapr.vaddr_base;
+        vmm_umapr[pid].vaddr_end--;
+        size = vmm_umapr[pid].vaddr_end - vmm_umapr[pid].vaddr_base;
     } while (size % 4096 != 0);
 
-    vmm_umapr.pgcnt = size / 4096;
+    vmm_umapr[pid].pgcnt = size / 4096;
 }
 
-void vmm_remumap(page_table_t* uasp) {
-    //u64 caddr = vmm_umapr.vaddr_base;
-    //while (vmm_umapr.pgcnt > 0) {
-    //    vmm_unmap_page(uasp, caddr, 0);
-    //    caddr += 4096;
-    //    vmm_umapr.pgcnt--;
-    //}
-
-    vmm_umapr.vaddr_base = 0;
-    vmm_umapr.vaddr_end = 0;
-    vmm_umapr.pgcnt = 0;
+void vmm_remumap(u8 pid, page_table_t* uasp) {
+    vmm_umapr[pid].vaddr_base = 0;
+    vmm_umapr[pid].vaddr_end = 0;
+    vmm_umapr[pid].pgcnt = 0;
 }
 
 int vmm_rangeinusrmap(u64 addr, u64 npages) {
-    return (addr >= vmm_umapr.vaddr_base && addr + (npages * 4096) <= vmm_umapr.vaddr_end);
+    return (addr >= vmm_umapr[current_pid].vaddr_base && addr + (npages * 4096) <= vmm_umapr[current_pid].vaddr_end);
 }
 
 u64 vmm_ffreer(size_t pgcnt, int user) {
@@ -80,7 +74,7 @@ u64 vmm_ffreer(size_t pgcnt, int user) {
             u64 region_end = curr->vaddr_base + (curr->page_count * 4096);
 
             if (user) {
-                u64 usable_start = (start_vaddr < vmm_umapr.vaddr_base) ? vmm_umapr.vaddr_base : start_vaddr;
+                u64 usable_start = (start_vaddr < vmm_umapr[current_pid].vaddr_base) ? vmm_umapr[current_pid].vaddr_base : start_vaddr;
 
                 if (vmm_rangeinusrmap(usable_start, pgcnt) &&
                     (usable_start + alloc_size) <= region_end) {
@@ -336,7 +330,7 @@ void* vmm_map_pages(page_table_t* pml4v, u64 vst, u64 pst, size_t pgcnt, u64 flg
         vst = vmm_ffreer(pgcnt, flg & MAP_USRMAP);
         if (!vst) return NULL; 
     } else if (flg & MAP_USRMAP) {
-        if (vst < vmm_umapr.vaddr_base || vst + (pgcnt * 4096) > vmm_umapr.vaddr_end) {
+        if (vst < vmm_umapr[current_pid].vaddr_base || vst + (pgcnt * 4096) > vmm_umapr[current_pid].vaddr_end) {
             return NULL;
         }
     }

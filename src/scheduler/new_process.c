@@ -45,5 +45,7 @@ int new_process(const char* path, char** argv, u8 ppid) {
     proc->wait_pid = WAIT_ANY;
     proc->wake_ms = 0;
 
+    vmm_setumapbase(proc->pid, res.load_high);
+
     return proc->pid;
 }

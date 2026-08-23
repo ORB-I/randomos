@@ -54,7 +54,7 @@ void vmm_dasp(page_table_t* tpml4);
 void* user_mmap(page_table_t* uasp, void* reqaddr, u64 npages);
 int user_munmap(page_table_t* uasp, void* addr, u64 npages);
 int vmm_rangeinusrmap(u64 addr, u64 npages);
-void vmm_setumapbase(u64 base);
-void vmm_remumap(page_table_t* uasp);
+void vmm_setumapbase(u8 pid, u64 base);
+void vmm_remumap(u8 pid, page_table_t* uasp);
 
 void* xlate_limptr(void* limine_vaddr);
