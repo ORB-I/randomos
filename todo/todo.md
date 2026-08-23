@@ -18,7 +18,6 @@
 
 ## No owner yet
 
-- [ ] Write Intel E1000 driver
 - [ ] Multi-user support
 - [ ] login support (/etc/passwd)
 - [ ] environment variables
