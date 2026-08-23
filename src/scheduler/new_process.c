@@ -4,7 +4,7 @@
 
 process_state_t proctbl[MAX_PROCESSES];
 
-int new_process(const char* path, char** argv, u8 ppid) {
+int new_process(const char* path, char** argv, char** envp, u8 ppid) {
     process_state_t* proc = NULL;
     u8 pid = 0;
     for (usize i = 0; i < MAX_PROCESSES; i++) {
@@ -16,7 +16,7 @@ int new_process(const char* path, char** argv, u8 ppid) {
     }
     if (!proc) return -1;
 
-    loadprog_res_t res = load_program(path, argv);
+    loadprog_res_t res = load_program(path, argv, envp);
     if (res.status < 0) return -1;
 
     proc->rip = res.entry;

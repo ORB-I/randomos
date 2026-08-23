@@ -141,17 +141,25 @@ static s64 kill_process(s64 pid) {
     return 0;
 }
 
-static int sys_newproc(page_table_t* uasp, const char *path, char **argv, u8 ppid) {
+static int sys_newproc(page_table_t* uasp, const char* path, char** argv, char** envp, u8 ppid) {
     // we need to copy our args into the kasp and switch
     // cuz if we dont new_process calls load_program
     // which without switching will overwrite the current user program
 
     usize nargs = 0;
+    usize nenv = 0;
     usize totalsz = sizeof(char*); // space for the NULL terminator
+
     while (nargs < 16 && argv[nargs] != NULL) { // 16 cuz thats ARGMAX
         totalsz += sizeof(char*) + strlen(argv[nargs]) + 1;
         nargs++;
     }
+
+    while (envp[nenv] != NULL) {
+        totalsz += sizeof(char*) + strlen(envp[nenv]) + 1;
+        nenv++;
+    }
+
     totalsz += strlen(path) + 1;
     
     usize npgs = (totalsz + 4095) / 4096;
@@ -161,7 +169,8 @@ static int sys_newproc(page_table_t* uasp, const char *path, char **argv, u8 ppi
 
     void* virt = (void*)((u64)phys + HHDM_START);
     char** kargv = (char**)virt;
-    char* p = (char*)virt + sizeof(char*) * (nargs + 1);
+    char** kenvp = (char**)(virt + sizeof(char*) * (nargs + 1));
+    char* p = (char*)kenvp + sizeof(char*) * (nenv + 1);
 
     usize pathlen = strlen(path) + 1;
 
@@ -176,11 +185,18 @@ static int sys_newproc(page_table_t* uasp, const char *path, char **argv, u8 ppi
         memcpy(p, argv[i], len);
         p += len;
     }
-
     kargv[nargs] = NULL;
 
+    for (usize i = 0; i < nenv; i++) {
+        usize len = strlen(envp[i]) + 1;
+        kenvp[i] = p;
+        memcpy(p, envp[i], len);
+        p += len;
+    }
+    kenvp[nenv] = NULL;
+
     vmm_skasp();
-    int ret = new_process(kpath, kargv, ppid);
+    int ret = new_process(kpath, kargv, kenvp, ppid);
     vmm_sasp(uasp);
 
     pmm_ffree(phys, npgs);
@@ -418,7 +434,7 @@ bool syscall_c(struct sysregs* args) {
         }
         case SYS_NEWPROC: {
             if (!args->a0 || !args->a1) { args->num = -1; goto ret; }
-            args->num = sys_newproc(uasp, (char*)args->a0, (char**)args->a1, current_pid);
+            args->num = sys_newproc(uasp, (char*)args->a0, (char**)args->a1, (char**)args->a2, current_pid);
             goto ret;
         }
         case SYS_WAIT: {

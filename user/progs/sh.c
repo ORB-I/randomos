@@ -2,7 +2,9 @@
 #include <stdbool.h>
 #include <mem.h>
 #include <sys/process.h>
+#include <str.h>
 #include <fs.h>
+#include <env.h>
 
 #define MAX_ARGS 16
 s32 parse_args(char* str, char** argv) {
@@ -33,7 +35,57 @@ s32 parse_args(char* str, char** argv) {
     return argc;
 }
 
+char* find_exe(char* av0, int* isalloc) {
+    if (strneq("../", av0, 3) || strneq("./", av0, 2) || strneq("/", av0, 1)) {
+        struct stat st;
+        if (stat(av0, &st) != -1) {
+            return av0;
+        } else {
+            printf("could not find program\n");
+            return NULL;
+        }
+    } else {
+        char* _PATH = getenv("PATH");
+        if (!_PATH) {
+            printf("failed to get PATH\n");
+            return NULL;
+        }
+
+        char* PATH = strdup(_PATH);
+        if (!PATH) {
+            printf("failed to get PATH\n");
+            return NULL;
+        }
+
+        char* tk = strtok(PATH, ":");
+        usize av0len = strlen(av0);
+        struct stat st;
+        while (tk != NULL) {
+            char* fpath = malloc(strlen(tk) + av0len + 2);
+            if (!fpath) {
+                tk = strtok(NULL, ":");
+                continue;
+            }
+
+            sprintf(fpath, "%s/%s", tk, av0);
+            if (stat(fpath, &st) != -1) {
+                *isalloc = 1;
+                free(PATH);
+                return fpath;
+            }
+            free(fpath);
+            tk = strtok(NULL, ":");
+        }
+
+        free(PATH);
+        return NULL;
+    }
+}
+
 int main() {
+    if (!environ) {
+        printf("no environ\n");
+    }
     while (1) {
         char* argv[MAX_ARGS];
 
@@ -49,19 +101,22 @@ int main() {
             continue;
         }
 
-        struct stat st;
-        if (stat(argv[0], &st) != -1) {
-            int pid = newproc(argv[0], argv);
+        int isalloc = 0;
+        char* path = find_exe(argv[0], &isalloc);
+        if (path) {
+            int pid = newproc(path, argv, environ);
             if (pid < 0) {
                 printf("failed to start program\n");
+                if (isalloc) free(path);
+                continue;
             }
+
             int ex;
             wait(pid, &ex);
-            printf("Exited with code %d\n", ex);
+            free(path);
         } else {
-            printf("no such file\n");
+            printf("failed to find program\n");
         }
-
         free(cmd);
     }
 }

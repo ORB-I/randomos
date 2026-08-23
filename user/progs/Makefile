@@ -28,7 +28,8 @@ PROGS := init \
 		 mousetest \
 		 id \
 		 whoami \
-		 serialtest
+		 serialtest \
+		 environ
 
 DRIVE ?= ../../drive.img
 
@@ -42,11 +43,14 @@ all: $(DRIVE) $(PROGFILES)
 $(DRIVE):
 	dd if=/dev/zero of=$@ bs=1M count=16
 	mkfs.msdos -F 16 $@
+	mmd -i $(DRIVE) ::/bin
+	mmd -i $(DRIVE) ::/etc
+	mmd -i $(DRIVE) ::/lib
 
 $(PROGFILES): %.elf: %.c $(DEPLIBS)
 	$(CC) $(CCFLAGS) -c $< -o $(basename $@).o
 	$(LD) $(LDFLAGS) $(basename $@).o $(DEPLIBS) -o $@
-	mcopy -voi $(DRIVE) -s $@ ::/$(basename $@)
+	mcopy -voi $(DRIVE) -s $@ ::/bin/$(basename $@)
 
 clean:
 	rm -f $(PROGFILES) $(PROGS:=.o) $(DEPS) $(DRIVE)

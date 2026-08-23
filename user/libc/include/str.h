@@ -12,3 +12,5 @@ void* memcpy(void* dest, const void* src, usize count);
 int memcmp(const void* s1, const void* s2, usize n);
 
 char* strchr(const char* str, char c);
+char* strdup(char* str);
+char* strtok(char* str, const char* delim);

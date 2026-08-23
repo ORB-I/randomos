@@ -9,7 +9,7 @@
 ## Open
 
 - [ ] Audit most of the code — @eskridd
-- [ ] Work on wm and mouse driver - @Wdboyes13 
+- [ ] Work on wm and mouse driver - @Wdboyes13
 - [ ] Add automated testing framework - @Wdboyes13
 
 ## Known issues
@@ -22,4 +22,4 @@
 - [ ] environment variables
 - [ ] switch to PATH
 - [ ] refactor disk to use directories for stuff (/bin, /lib, /etc)
-- [ ] Documentation for randomOS ( in near future - not for now. )
+- [ ] Documentation for randomOS (in near future - not for now.)

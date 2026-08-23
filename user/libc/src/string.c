@@ -1,5 +1,6 @@
 #include <str.h>
 #include <stddef.h>
+#include <mem.h>
 
 usize strlen(const char* str) {
     const char* ststr = str;
@@ -85,4 +86,52 @@ char* strchr(const char* str, char c) {
     }
     if (c == '\0') return (char*)str;
     return NULL;
+}
+
+char* strdup(char* str) {
+    usize len = strlen(str);
+    char* mem = malloc(len + 1);
+    if (!mem) return NULL;
+    memcpy(mem, str, len + 1);
+    return mem;
+}
+
+static int _strtok_isdelim(char c, const char* delim) {
+    while (*delim != '\0') {
+        if (c == *delim) {
+            return 1;
+        }
+        delim++;
+    }
+    return 0;
+}
+
+char* strtok(char* str, const char* delim) {
+    static char* ntok = NULL;
+    if (str) {
+        ntok = str; 
+    }
+
+    if (!ntok || *ntok == '\0') {
+        return NULL;
+    }
+
+    while (*ntok && _strtok_isdelim(*ntok, delim)) {
+        ntok++;
+    }
+
+    if (*ntok == '\0') {
+        return NULL;
+    }
+
+    char* tkstart = ntok;
+    while (*ntok) {
+        if (_strtok_isdelim(*ntok, delim)) {
+            *ntok = '\0';
+            ntok++;
+            return tkstart;
+        }
+        ntok++;
+    }
+    return tkstart;
 }

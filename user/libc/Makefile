@@ -5,9 +5,10 @@ CCFLAGS := -m64 -nostdlib -fno-builtin \
     -fno-stack-protector -Iinclude \
     -nostartfiles -nodefaultlibs \
     -ffreestanding -Wall -Wextra -g \
-	-MMD -MP -mno-mmx -mno-sse -mno-sse2 -mno-red-zone
+	-MMD -MP -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
+	-Wl,--allow-shlib-undefined
 CCFLAGS_SO := $(CCFLAGS) -fPIC
-LDFLAGS_SO := -shared -Wl,-soname,libc.so -Wl,-shared -m64 -nostdlib -ffreestanding
+LDFLAGS_SO := -shared -Wl,-soname,/lib/libc.so -Wl,-shared -m64 -nostdlib -ffreestanding
 
 LIBC_SO := libc.so
 LIBC := libc.a
@@ -38,12 +39,15 @@ all: $(DRIVE) $(LIBC) $(CRT) $(LIBC_SO)
 $(DRIVE):
 	dd if=/dev/zero of=$@ bs=1M count=16
 	mkfs.msdos -F 16 $@
+	mmd -i $(DRIVE) ::/bin
+	mmd -i $(DRIVE) ::/etc
+	mmd -i $(DRIVE) ::/lib
 
 $(LIBC): $(ALL_LIB_OBJS)
 	$(AR) rcs $@ $^
 $(LIBC_SO): $(ALL_SOFILE_OBJS)
 	$(CC) $(LDFLAGS_SO) $^ -o $@
-	mcopy -voi $(DRIVE) -s $@ ::/$@
+	mcopy -voi $(DRIVE) -s $@ ::/lib/$@
 $(CRT): $(CRTSRC)
 	$(AS) $(ASFLAGS) $< -o $@
 %.so.o: %.c

@@ -79,6 +79,7 @@ typedef struct {
     char* dynstr;
 } dyninfo_t;
 dyninfo_t loaded_libs[MAX_LIBRARIES];
+dyninfo_t loaded_exe;
 usize nloaded = 0;
 
 #define MSR_KERNEL_GS_BASE 0xC0000102
@@ -90,7 +91,7 @@ void reset_kgsb() {
     wrmsr(MSR_KERNEL_GS_BASE, (u64)&gsblk);
 }
 
-u64 locate_extern(const char* name) {
+u64 locate_extern(const char* name, usize* sz) {
     for (usize l = 0; l < nloaded; l++) {
         dyninfo_t* info = &loaded_libs[l];
         for (usize s = 0; s < info->nsyms; s++) {
@@ -98,10 +99,25 @@ u64 locate_extern(const char* name) {
             if (sym->st_shndx == SHN_UNDEF) {
                 continue;
             }
+
             const char* symnam = info->dynstr + sym->st_name;
             if (streq(name, symnam)) {
+                if (sz) *sz = sym->st_size;
                 return info->base + sym->st_value;
             }
+        }
+    }
+
+    for (usize s = 0; s < loaded_exe.nsyms; s++) {
+        Elf64_Sym* sym = &loaded_exe.dynsym[s];
+        if (sym->st_shndx == SHN_UNDEF) {
+            continue;
+        }
+
+        const char* symnam = loaded_exe.dynstr + sym->st_name;
+        if (streq(name, symnam)) {
+            if (sz) *sz = sym->st_size;
+            return loaded_exe.base + sym->st_value;
         }
     }
     return 0;
@@ -124,7 +140,7 @@ int apply_rela(Elf64_Rela* rela, dyninfo_t* info) {
             if (sym->st_shndx != SHN_UNDEF) {
                 symaddr = info->base + sym->st_value;
             } else {
-                symaddr = locate_extern(info->dynstr + sym->st_name);
+                symaddr = locate_extern(info->dynstr + sym->st_name, NULL);
                 if (!symaddr) {
                     printf("Loader: symbol resolution failed for %s\n", info->dynstr + sym->st_name);
                     return -1;
@@ -132,6 +148,23 @@ int apply_rela(Elf64_Rela* rela, dyninfo_t* info) {
             }
             v2r = symaddr + rela->r_addend;
             break;
+        }
+        case R_X86_64_COPY: {
+            Elf64_Sym* sym = &info->dynsym[ELF64_R_SYM(rela->r_info)];
+            u64 symaddr;
+            usize sz = 0;
+            if (sym->st_shndx != SHN_UNDEF) {
+                symaddr = info->base + sym->st_value;
+                sz = sym->st_size;
+            } else {
+                symaddr = locate_extern(info->dynstr + sym->st_name, &sz);
+                if (!symaddr) {
+                    printf("Loader: symbol resolution failed for %s\n", info->dynstr + sym->st_name);
+                    return -1;
+                }
+            }
+
+            memcpy((void*)rela->r_offset, (void*)symaddr, sz);
         }
         default: return 0;
     }
@@ -476,8 +509,15 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
         return -1;
     }
 
-    u64 lib_base = (*load_high + 0xFFF) & ~0xFFFULL;;
+    u64 lib_base = (*load_high + 0xFFF) & ~0xFFFULL;
 
+    loaded_exe = (dyninfo_t){
+        .base = (u64)load_low,
+        .size = (usize)load_high - (usize)load_low,
+        .dynsym = dynsym,
+        .nsyms = dynsym_shdr->sh_size / sizeof(Elf64_Sym),
+        .dynstr = dynstr
+    };
 
     if (dynshdr && ndyns > 0) {
         if (lseek(fd, dynshdr->sh_offset, SEEK_SET) < 0) {
@@ -589,16 +629,17 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
         free(loaded_libs[i].dynsym);
     }
     memset(loaded_libs, 0, sizeof(loaded_libs));
+    memset(&loaded_exe, 0, sizeof(loaded_exe));
     nloaded = 0;
     *load_high = lib_base;
 
     return 0;
 }
 
-loadprog_res_t load_program(const char* path, char** argv) {
+loadprog_res_t load_program(const char* path, char** argv, char** environ) {
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
-        printf("Loader: failed to open file\n");
+        printf("Loader: failed to open file %s\n", path);
         return LOADPROG_ERR;
     }
 
@@ -784,8 +825,20 @@ loadprog_res_t load_program(const char* path, char** argv) {
         ac++;
     }
 
-    u64 avaddrs[ARGMAX + 1] = {0};
+    usize nenv = 0;
+    while (environ[nenv] != NULL) {
+        nenv++;
+    }
 
+    u64 evaddrs[nenv + 1];
+    for (int i = nenv - 1; i >= 0; i--) {
+        usize len = strlen(environ[i]) + 1;
+        rsp_cpy -= (u64)len;
+        memcpy((void*)rsp_cpy, environ[i], len);
+        evaddrs[i] = rsp_cpy;
+    }
+
+    u64 avaddrs[ARGMAX + 1] = {0};
     for (int i = ac - 1; i >= 0; i--) {
         usize len = strlen(argv[i]) + 1;
         rsp_cpy -= (u64)len;
@@ -794,6 +847,14 @@ loadprog_res_t load_program(const char* path, char** argv) {
     }
 
     rsp_cpy &= ~15;
+
+    rsp_cpy -= sizeof(u64);
+    *(u64*)rsp_cpy = 0;
+
+    for (int i = nenv - 1; i >= 0; i--) {
+        rsp_cpy -= sizeof(u64);
+        *(u64*)rsp_cpy = (u64)evaddrs[i];
+    }
 
     rsp_cpy -= sizeof(u64);
     *(u64*)rsp_cpy = 0;

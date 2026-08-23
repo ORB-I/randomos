@@ -149,6 +149,7 @@ typedef struct {
 // reloc types (x86_64)
 #define R_X86_64_NONE      0
 #define R_X86_64_64        1
+#define R_X86_64_COPY      5
 #define R_X86_64_GLOB_DAT  6
 #define R_X86_64_JUMP_SLOT 7
 #define R_X86_64_RELATIVE  8

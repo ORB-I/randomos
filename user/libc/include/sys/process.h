@@ -9,7 +9,7 @@ int wait(int pid, int* code);
 // exist, is already dead or is the caller itself (use exit for that)
 int kill(int pid);
 
-int newproc(const char* path, char** argv);
+int newproc(const char* path, char** argv, char** envp);
 int getpid();
 
 uid_t getuid(void);

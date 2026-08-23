@@ -89,6 +89,15 @@ void init_allterm() {
     term_clear();
 }
 
+int try_init(const char* path) {
+    char* argv[] = {(char*)path, NULL};
+    char* envp[] = {NULL};
+    if (new_process(path, argv, envp, 0) < 0) {
+        return 0;
+    }
+    return 1;
+}
+
 void kmain_aftergdt() {
     init_fpu();
     if (init_clock(CLOCK_TSC) < 0) {
@@ -169,11 +178,17 @@ void kmain_aftergdt() {
     init_mouse(mbtype);
 
     if (init_scheduler() < 0) panic("Failed to initialize scheduler\n");
+    /*if (!try_init("/init") &&
+        !try_init("/bin/init") &&
+        !try_init("/sbin/init") &&
+        !try_init("/bin/sh")) {
+        panic("failed to find a working init");
+    }*/
 
-    char* init_argv[] = {"/init", NULL};
-    if (new_process("/init", init_argv, 0) < 0) {
-        panic("failed to load /init - is the user disk built?\n");
+    char* argv[] = {"/bin/init", NULL};
+    char* envp[] = {NULL};
+    if (new_process("/bin/init", argv, envp, 0) < 0) {
+        panic("init failed");
     }
-
     start_scheduler();
 }

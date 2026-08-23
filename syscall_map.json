@@ -493,7 +493,11 @@
             },
             {
                 "type": "char**",
-                "name": "args"
+                "name": "argv"
+            },
+            {
+                "type": "char**",
+                "name": "envp"
             }
         ]
     },
