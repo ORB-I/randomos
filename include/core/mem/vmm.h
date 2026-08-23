@@ -51,6 +51,15 @@ void vmm_sasp(page_table_t* tpml4);
 void vmm_skasp();
 void vmm_dasp(page_table_t* tpml4);
 
+typedef struct {
+    u64 vaddr_base;
+    u64 vaddr_curr;
+    u64 vaddr_end;
+    u64 pgcnt;
+} vmm_range_t;
+
+extern vmm_range_t vmm_umapr[255];
+
 void* user_mmap(page_table_t* uasp, void* reqaddr, u64 npages);
 int user_munmap(page_table_t* uasp, void* addr, u64 npages);
 int vmm_rangeinusrmap(u64 addr, u64 npages);

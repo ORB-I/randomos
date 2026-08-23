@@ -9,27 +9,9 @@
 ## Open
 
 - [ ] Audit most of the code — @eskridd
-- [ ] Squash remaining -Wextra warnings in kernel + libc (list below in known issues) — @eskridd
 
 ## Known issues
 
-- [ ] libc create_fb checks `sz < 0` on a usize, so a failed syscall
-      comes back as a huge size instead of being caught
-      (user/libc/src/fb.c:8)
-- [ ] fprintf smuggles the fd through a void* callback with int<->ptr
-      casts, works by luck on x86_64 (user/libc/src/printf.c:946)
-- [ ] uhci bulk transfer link pointer math mixes + and | without parens,
-      intent unclear (src/drivers/usb/uhci.c:463)
-- [ ] disk_ioctl hands every drive the same made up geometry: hardcoded
-      512 byte sectors and a fixed sector count (src/drivers/storage/ff16host.c)
-- [ ] storage stack pretends to be multi-drive but isnt: ff16host routes
-      everything through one global, ahci/usbmsd ignore their drv param
-- [ ] libc-only warnings: sign compares + dead null checks in liballoc,
-      unused wday_names in strftime.c, unused wm_hit in progs/wm.c
-- [ ] kernel-only warnings: unused params in laihost_unmap, vmm_remumap,
-      liballoc sign compare (src/kern/mem/liballoc.c:58,516-521)
-- [ ] programs hang right after being run (init => shell => ls (hangs))
-      this does not happen for pid1 (sh, child of init) and pid0 (init)
 
 ## Design debt
 

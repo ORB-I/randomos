@@ -460,7 +460,7 @@ int uhci_bulk_transfer(uhci_controller_t* hc, u8 dev_addr, u8 ep, void* data, u3
         u64 td_phys = tdsp + (tdcnt * sizeof(uhci_td_t));
         tdcnt++;
 
-        td->link = (tdcnt < 255) ? (u32)(td_phys + sizeof(uhci_td_t) | UHCI_TD_PTR_VF) : UHCI_TD_PTR_T;
+        td->link = (tdcnt < 255) ? (u32)((td_phys + sizeof(uhci_td_t)) | UHCI_TD_PTR_VF) : UHCI_TD_PTR_T;
         td->ctrl = ctrlb;
         td->token = ((pksz - 1) << 21) | ((u32)tgl << 20) | (0 << 19) | ep_bit | ((u32)dev_addr << 8) | epid;
         td->buffer = (u32)(dtbophys + dtoff);

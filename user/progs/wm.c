@@ -106,7 +106,7 @@ static int wm_top(void) {
     return top;
 }
 
-static bool wm_hit(u64 x, u64 y, int* out) {
+static bool __attribute__((unused)) wm_hit(u64 x, u64 y, int* out) {
     int top = wm_top();
     for (int i = top; i >= 0; i--) {
         if (!wins[i].open) continue;

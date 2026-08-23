@@ -62,7 +62,7 @@ usize strftime(char* dst, usize max, const char* fmt, ctime_t* ct) {
                 break;
             }
             case 'A': {
-                const char* s = abbr_wday[wday];
+                const char* s = wday_names[wday];
                 while (*s && out < max - 1) dst[out++] = *s++;
                 break;
             }
