@@ -43,6 +43,7 @@ int new_process(const char* path, char** argv, u8 ppid) {
     proc->ppid = ppid;
     proc->is_blocked = 0;
     proc->wait_pid = WAIT_ANY;
+    proc->wake_ms = 0;
 
     return proc->pid;
 }

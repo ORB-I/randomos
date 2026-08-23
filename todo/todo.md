@@ -13,9 +13,6 @@
 
 ## Known issues
 
-- [ ] usbmsd: init() builds a usb control request it never sends and
-      wait_ready ignores both its args, looks like the mass storage
-      reset flow was never finished (src/drivers/storage/usbmsd.c:160-180)
 - [ ] libc create_fb checks `sz < 0` on a usize, so a failed syscall
       comes back as a huge size instead of being caught
       (user/libc/src/fb.c:8)
@@ -34,14 +31,9 @@
 
 ## Design debt
 
-- [ ] SYS_SLEEP busy-spins inside the syscall, and since preemption is
-      deferred in kernel mode the whole machine freezes until it returns
 - [ ] dead processes are never reaped, pid slots are gone forever and
       NEWPROC starts failing after roughly 254 spawns
 - [ ] SYS_EXIT throws its exit code away, WAIT can only ever report pids
-- [ ] KILL lets any process kill any other, including init (pid 0)
-- [ ] killing a parent leaves its children pointing at a dead ppid,
-      there is no reparenting
 
 ## No owner yet
 

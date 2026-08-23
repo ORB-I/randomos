@@ -23,11 +23,13 @@ typedef struct {
     u8 is_dead;
     u8 ppid;
 
-    // set while parked in SYS_WAIT, the scheduler skips us and exit
-    // clears this again when the child we asked for dies
+    // set while parked in SYS_WAIT or SYS_SLEEP, the scheduler skips us and exit
+    // clears this again when the child we asked for dies or sleep deadline passes
     u8 is_blocked;
     // child pid we are blocked on, WAIT_ANY when anyone dying is fine
     u8 wait_pid;
+    // target time in ms to wake up if sleeping
+    u64 wake_ms;
 } process_state_t;
 
 typedef struct {
