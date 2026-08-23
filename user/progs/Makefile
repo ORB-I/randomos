@@ -25,7 +25,9 @@ PROGS := init \
 		 dspinfo \
 		 wintest \
 		 keytest \
-		 mousetest
+		 mousetest \
+		 id \
+		 whoami
 
 DRIVE ?= ../../drive.img
 

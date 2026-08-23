@@ -30,6 +30,7 @@ Newest entries go at the bottom of each section.
 - [x] Fix storage stack drive parameter routing and disk_ioctl geometry reporting in ff16host.c
 - [x] Squash remaining -Wextra warnings across kernel and libc (liballoc, strftime, laihost, wm)
 - [x] Implement Intel E1000 Gigabit Ethernet network driver
+- [x] Implement multi-user support (uid, gid, euid, egid syscalls, credentials inheritance, and userland id/whoami)
 
 ## @Wdboyes13
 

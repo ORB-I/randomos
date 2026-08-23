@@ -50,6 +50,19 @@ int new_process(const char* path, char** argv, u8 ppid) {
     proc->is_blocked = 0;
     proc->wait_pid = WAIT_ANY;
     proc->wake_ms = 0;
+
+    if (ppid < MAX_PROCESSES && proctbl[ppid].used && pid != 0) {
+        proc->uid = proctbl[ppid].uid;
+        proc->gid = proctbl[ppid].gid;
+        proc->euid = proctbl[ppid].euid;
+        proc->egid = proctbl[ppid].egid;
+    } else {
+        proc->uid = 0;
+        proc->gid = 0;
+        proc->euid = 0;
+        proc->egid = 0;
+    }
+
     proc->used = 1;
 
     vmm_setumapbase(proc->pid, res.load_high);

@@ -18,9 +18,8 @@
 
 ## No owner yet
 
-- [ ] Multi-user support
 - [ ] login support (/etc/passwd)
 - [ ] environment variables
 - [ ] switch to PATH
 - [ ] refactor disk to use directories for stuff (/bin, /lib, /etc)
-- [ ] Documentation for randomOS ( in near future )
+- [ ] Documentation for randomOS ( in near future - not for now. )

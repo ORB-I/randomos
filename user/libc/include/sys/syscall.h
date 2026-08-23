@@ -46,6 +46,14 @@
 #define SYS_WAIT          43
 #define SYS_KILL          44
 #define SYS_GETPID        45
+#define SYS_GETUID        46
+#define SYS_SETUID        47
+#define SYS_GETGID        48
+#define SYS_SETGID        49
+#define SYS_GETEUID       50
+#define SYS_SETEUID       51
+#define SYS_GETEGID       52
+#define SYS_SETEGID       53
 
 u64 __syscall0(u64 nr);
 u64 __syscall1(u64 nr, u64 arg0);

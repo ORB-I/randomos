@@ -16,3 +16,35 @@ int newproc(const char* path, char** argv) {
 int getpid() {
     return (int)__syscall0(SYS_GETPID);
 }
+
+uid_t getuid(void) {
+    return (uid_t)__syscall0(SYS_GETUID);
+}
+
+int setuid(uid_t uid) {
+    return (int)(s64)__syscall1(SYS_SETUID, (u64)uid);
+}
+
+gid_t getgid(void) {
+    return (gid_t)__syscall0(SYS_GETGID);
+}
+
+int setgid(gid_t gid) {
+    return (int)(s64)__syscall1(SYS_SETGID, (u64)gid);
+}
+
+uid_t geteuid(void) {
+    return (uid_t)__syscall0(SYS_GETEUID);
+}
+
+int seteuid(uid_t euid) {
+    return (int)(s64)__syscall1(SYS_SETEUID, (u64)euid);
+}
+
+gid_t getegid(void) {
+    return (gid_t)__syscall0(SYS_GETEGID);
+}
+
+int setegid(gid_t egid) {
+    return (int)(s64)__syscall1(SYS_SETEGID, (u64)egid);
+}

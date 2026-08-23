@@ -34,6 +34,11 @@ typedef struct {
     u16 code;
     int* codeptr;
 
+    uid_t uid;
+    gid_t gid;
+    uid_t euid;
+    gid_t egid;
+
     u8 used; // process table entrry in use
 } process_state_t;
 
