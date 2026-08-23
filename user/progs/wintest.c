@@ -35,9 +35,12 @@ int main() {
     switch_fb(gui);
     flush_scr();
 
-    mouse_info_t minfo = {info.width/2, info.height/2, 0};
+    int x = info.width/2, y = info.height/2;
+    mouse_info_t minfo = {0, 0, 0};
     while (1) {
         get_mouse_info(&minfo);
+        x += minfo.x;
+        y += minfo.y;
         gui_fill_buf((u32*)info.ptr, 0, 0, info.width, info.height, blue);
         gui_rectfill(gctx, minfo.x, minfo.y, 10, 10, red);
         flush_scr();

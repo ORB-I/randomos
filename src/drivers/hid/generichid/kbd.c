@@ -4,7 +4,7 @@
 #include <core/printf.h>
 
 #include <drivers/hid/kbd.h>
-#include <drivers/term.h>
+#include <drivers/display/term.h>
 #include <drivers/apic.h>
 #include <drivers/hid/usbhid/usbhid_kbd.h>
 #include <drivers/hid/ps2/kbd.h>

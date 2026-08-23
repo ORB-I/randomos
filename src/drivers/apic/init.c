@@ -3,7 +3,6 @@
 #include <core/asmh.h>
 #include <core/panic.h>
 #include <drivers/acpi.h>
-#include <drivers/term.h>
 #include <drivers/apic.h>
 #include <drivers/pic.h>
 #include <lai/core.h>

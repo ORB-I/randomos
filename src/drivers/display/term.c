@@ -1,10 +1,10 @@
-#include <drivers/term.h>
+#include <drivers/display/term.h>
 #include <flanterm/flanterm.h>
 #include <flanterm/flanterm_backends/fb.h>
 #include <core/limreqs.h>
 #include <lib/printf.h>
 #include <drivers/hid/kbd.h>
-#include <drivers/fb.h>
+#include <drivers/display/fb.h>
 
 struct flanterm_context* _term_ctx;
 int _term_flush = 1;

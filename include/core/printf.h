@@ -108,6 +108,7 @@ int vprintf(const char* format, va_list va);
  */
 int fctprintf(void (*out)(char character, void* arg), void* arg, const char* format, ...);
 
+int serial_printf(const char* fmt, ...);
 
 #ifdef __cplusplus
 }

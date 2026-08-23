@@ -37,7 +37,8 @@
 #include <core/printf.h>
 #include <core/liballoc.h>
 #include <lib/string.h>
-#include <drivers/term.h>
+#include <drivers/display/term.h>
+#include <drivers/display/serial.h>
 
 // define this globally (e.g. gcc -DPRINTF_INCLUDE_CONFIG_H ...) to include the
 // printf_config.h header file
@@ -929,4 +930,18 @@ int fctprintf(void (*out)(char character, void* arg), void* arg, const char* for
   const int ret = _vsnprintf(_out_fct, (char*)(uintptr_t)&out_fct_wrap, (usize)-1, format, va);
   va_end(va);
   return ret;
+}
+
+void _serial_out(char c, void* _) {
+    (void)_;
+    serial_putchar(c);
+}
+
+int serial_printf(const char* fmt, ...) {
+    va_list lst;
+    va_start(lst, fmt);
+    const out_fct_wrap_type serial_fct = { _serial_out, NULL };
+    const int ret = _vsnprintf(_out_fct, (char*)(uintptr_t)&serial_fct, (usize)-1, fmt, lst);
+    va_end(lst);
+    return ret;
 }

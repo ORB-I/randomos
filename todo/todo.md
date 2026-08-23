@@ -9,15 +9,19 @@
 ## Open
 
 - [ ] Audit most of the code — @eskridd
-- [ ] Work on wm and mouse driver - @Wdboyes13
-- [ ] Write Intel E1000 driver  
+- [ ] Work on wm and mouse driver - @Wdboyes13 
 - [ ] Add automated testing framework - @Wdboyes13
 
 ## Known issues
-
 
 ## Design debt
 
 ## No owner yet
 
+- [ ] Write Intel E1000 driver
+- [ ] Multi-user support
+- [ ] login support (/etc/passwd)
+- [ ] environment variables
+- [ ] switch to PATH
+- [ ] refactor disk to use directories for stuff (/bin, /lib, /etc)
 - [ ] Documentation for randomOS ( in near future )

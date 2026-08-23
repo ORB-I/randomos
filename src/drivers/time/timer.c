@@ -1,7 +1,6 @@
 #include <core/std.h>
 #include <core/asmh.h>
 
-#include <drivers/term.h>
 #include <drivers/acpi.h>
 #include <drivers/pic.h>
 

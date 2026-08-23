@@ -8,10 +8,10 @@
 #include <core/printf.h>
 
 #include <drivers/time/gettimeofday.h>
-#include <drivers/term.h>
+#include <drivers/display/term.h>
 #include <drivers/storage/fs.h>
 #include <drivers/hid/mouse.h>
-#include <drivers/fb.h>
+#include <drivers/display/fb.h>
 #include <drivers/time/clock.h>
 #include <drivers/hid/kbd.h>
 

@@ -1,5 +1,5 @@
 #include "core/limine.h"
-#include <drivers/fb.h>
+#include <drivers/display/fb.h>
 #include <lib/string.h>
 #include <core/liballoc.h>
 

@@ -4,8 +4,8 @@
 #include <core/printf.h>
 #include <core/mem/vmm.h>
 #include <core/idt.h>
-#include <drivers/term.h>
-#include <drivers/fb.h>
+#include <drivers/display/term.h>
+#include <drivers/display/fb.h>
 #include <scheduler/process.h>
 #include <scheduler/scheduler.h>
 #include <lib/loader.h>

@@ -3,7 +3,7 @@
 #include <core/printf.h>
 #include <lib/string.h>
 #include <drivers/storage/fs.h>
-#include <drivers/term.h>
+#include <drivers/display/term.h>
 #include <drivers/hid/kbd.h>
 
 FIL fp[128];

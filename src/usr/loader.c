@@ -4,7 +4,7 @@
 #include <core/mem/vmm.h>
 #include <core/liballoc.h>
 #include <core/printf.h>
-#include <drivers/term.h>
+#include <drivers/display/term.h>
 #include <lib/loader.h>
 #include <lib/syscall.h>
 #include <core/printf.h>

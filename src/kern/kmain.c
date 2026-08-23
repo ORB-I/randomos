@@ -20,13 +20,13 @@
 #include <drivers/hid/mouse.h>
 #include <drivers/apic.h>
 #include <drivers/acpi.h>
-#include <drivers/term.h>
+#include <drivers/display/term.h>
 #include <drivers/storage/ata.h>
 #include <drivers/storage/ff16_init.h>
 #include <drivers/storage/fs.h>
 #include <drivers/storage/ahci.h>
 #include <drivers/storage/usbmsd.h>
-#include <drivers/fb.h>
+#include <drivers/display/fb.h>
 #include <drivers/usb/uhci.h>
 #include <drivers/time/clock.h>
 
