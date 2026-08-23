@@ -1,5 +1,6 @@
 #include <lib/loader.h>
 #include <scheduler/process.h>
+#include <core/printf.h>
 
 process_state_t proctbl[MAX_PROCESSES];
 u8 nprocs = 0;

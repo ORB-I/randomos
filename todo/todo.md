@@ -28,8 +28,8 @@
       unused wday_names in strftime.c, unused wm_hit in progs/wm.c
 - [ ] kernel-only warnings: unused params in laihost_unmap, vmm_remumap,
       liballoc sign compare (src/kern/mem/liballoc.c:58,516-521)
-- [ ] parent process page faults right after SYS_NEWPROC hits retq on __syscall2
-      likely that the stack is corrupted by then
+- [ ] programs hang right after being run (init => shell => ls (hangs))
+      this does not happen for pid1 (sh, child of init) and pid0 (init)
 
 ## Design debt
 

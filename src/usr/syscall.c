@@ -2,7 +2,9 @@
 #include <core/idt.h>
 #include <core/mem/vmm.h>
 #include <core/asmh.h>
+#include <core/liballoc.h>
 #include <core/panic.h>
+#include <core/mem/pmm.h>
 
 #include <drivers/time/gettimeofday.h>
 #include <drivers/term.h>
@@ -14,6 +16,7 @@
 
 #include <lib/loader.h>
 #include <lib/syscall.h>
+#include <lib/string.h>
 #include <scheduler/process.h>
 #include <scheduler/scheduler.h>
 #include <lib/loader.h>
@@ -131,6 +134,53 @@ static s64 kill_process(s64 pid) {
     // the targets page tables right now.
     vmm_dasp((page_table_t*)proctbl[pid].cr3);
     return 0;
+}
+
+static int sys_newproc(page_table_t* uasp, const char *path, char **argv, u8 ppid) {
+    // we need to copy our args into the kasp and switch
+    // cuz if we dont new_process calls load_program
+    // which without switching will overwrite the current user program
+
+    usize nargs = 0;
+    usize totalsz = sizeof(char*); // space for the NULL terminator
+    while (nargs < 16 && argv[nargs] != NULL) { // 16 cuz thats ARGMAX
+        totalsz += sizeof(char*) + strlen(argv[nargs]) + 1;
+        nargs++;
+    }
+    totalsz += strlen(path) + 1;
+    
+    usize npgs = (totalsz + 4095) / 4096;
+
+    void* phys = pmm_falloc(npgs);
+    if (!phys) return -1;
+
+    void* virt = (void*)((u64)phys + HHDM_START);
+    char** kargv = (char**)virt;
+    char* p = (char*)virt + sizeof(char*) * (nargs + 1);
+
+    usize pathlen = strlen(path) + 1;
+
+    char* kpath = p;
+
+    memcpy(p, path, pathlen);
+    p += pathlen;
+
+    for (usize i = 0; i < nargs; i++) {
+        usize len = strlen(argv[i]) + 1;
+        kargv[i] = p;
+        memcpy(p, argv[i], len);
+        p += len;
+    }
+
+    kargv[nargs] = NULL;
+
+    vmm_skasp();
+    int ret = new_process(kpath, kargv, ppid);
+    vmm_sasp(uasp);
+
+    pmm_ffree(phys, npgs);
+
+    return ret;
 }
 
 bool syscall_c(struct sysregs* args) {
@@ -356,7 +406,7 @@ bool syscall_c(struct sysregs* args) {
         }
         case SYS_NEWPROC: {
             if (!args->a0 || !args->a1) { args->num = -1; goto ret; }
-            args->num = new_process((const char*)args->a0, (char**)args->a1, current_pid);
+            args->num = sys_newproc(uasp, (char*)args->a0, (char**)args->a1, current_pid);
             goto ret;
         }
         case SYS_WAIT: {
