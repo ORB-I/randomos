@@ -524,5 +524,73 @@
         "nargs": 0,
         "returns": "int",
         "args": null
+    },
+    "SYS_GETUID": {
+        "nr": 46,
+        "nargs": 0,
+        "returns": "uid_t",
+        "args": null
+    },
+    "SYS_SETUID": {
+        "nr": 47,
+        "nargs": 1,
+        "returns": "int",
+        "args": [
+            {
+                "type": "uid_t",
+                "name": "uid"
+            }
+        ]
+    },
+    "SYS_GETGID": {
+        "nr": 48,
+        "nargs": 0,
+        "returns": "gid_t",
+        "args": null
+    },
+    "SYS_SETGID": {
+        "nr": 49,
+        "nargs": 1,
+        "returns": "int",
+        "args": [
+            {
+                "type": "gid_t",
+                "name": "gid"
+            }
+        ]
+    },
+    "SYS_GETEUID": {
+        "nr": 50,
+        "nargs": 0,
+        "returns": "uid_t",
+        "args": null
+    },
+    "SYS_SETEUID": {
+        "nr": 51,
+        "nargs": 1,
+        "returns": "int",
+        "args": [
+            {
+                "type": "uid_t",
+                "name": "euid"
+            }
+        ]
+    },
+    "SYS_GETEGID": {
+        "nr": 52,
+        "nargs": 0,
+        "returns": "gid_t",
+        "args": null
+    },
+    "SYS_SETEGID": {
+        "nr": 53,
+        "nargs": 1,
+        "returns": "int",
+        "args": [
+            {
+                "type": "gid_t",
+                "name": "egid"
+            }
+        ]
     }
 }

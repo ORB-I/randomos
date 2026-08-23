@@ -111,8 +111,15 @@ static s64 new_wait(s64 pid, int* code) {
 // shoots another process dead from the outside, returns 0 when the pid
 // is gone and -1 when its init, ourselves, doesnt exist or is already dead
 static s64 kill_process(s64 pid) {
-    if (pid <= 0 || pid == current_pid ||
-        proctbl[pid].is_dead) {
+    if (pid <= 0 || pid >= MAX_PROCESSES || pid == current_pid ||
+        !proctbl[pid].used || proctbl[pid].is_dead) {
+        return -1;
+    }
+
+    /* Permission check: only root or owner can kill process */
+    if (proctbl[current_pid].euid != 0 &&
+        proctbl[current_pid].euid != proctbl[pid].uid &&
+        proctbl[current_pid].uid != proctbl[pid].uid) {
         return -1;
     }
 
@@ -426,6 +433,72 @@ bool syscall_c(struct sysregs* args) {
             args->num = current_pid;
             goto ret;
         }
+        case SYS_GETUID: {
+            args->num = (u64)proctbl[current_pid].uid;
+            goto ret;
+        }
+        case SYS_SETUID: {
+            uid_t nuid = (uid_t)args->a0;
+            if (proctbl[current_pid].euid == 0) {
+                proctbl[current_pid].uid = nuid;
+                proctbl[current_pid].euid = nuid;
+                args->num = 0;
+            } else if (nuid == proctbl[current_pid].uid || nuid == proctbl[current_pid].euid) {
+                proctbl[current_pid].euid = nuid;
+                args->num = 0;
+            } else {
+                args->num = (u64)(s64)-1;
+            }
+            goto ret;
+        }
+        case SYS_GETGID: {
+            args->num = (u64)proctbl[current_pid].gid;
+            goto ret;
+        }
+        case SYS_SETGID: {
+            gid_t ngid = (gid_t)args->a0;
+            if (proctbl[current_pid].euid == 0) {
+                proctbl[current_pid].gid = ngid;
+                proctbl[current_pid].egid = ngid;
+                args->num = 0;
+            } else if (ngid == proctbl[current_pid].gid || ngid == proctbl[current_pid].egid) {
+                proctbl[current_pid].egid = ngid;
+                args->num = 0;
+            } else {
+                args->num = (u64)(s64)-1;
+            }
+            goto ret;
+        }
+        case SYS_GETEUID: {
+            args->num = (u64)proctbl[current_pid].euid;
+            goto ret;
+        }
+        case SYS_SETEUID: {
+            uid_t neuid = (uid_t)args->a0;
+            if (proctbl[current_pid].euid == 0 ||
+                neuid == proctbl[current_pid].uid ||
+                neuid == proctbl[current_pid].euid) {
+                proctbl[current_pid].euid = neuid;
+                args->num = 0;
+            } else {
+                args->num = (u64)(s64)-1;
+            }
+            goto ret;
+        }
+        case SYS_GETEGID: {
+            args->num = (u64)proctbl[current_pid].egid;
+            goto ret;
+        }
+        case SYS_SETEGID: {
+            gid_t negid = (gid_t)args->a0;
+            if (proctbl[current_pid].euid == 0 ||
+                negid == proctbl[current_pid].gid ||
+                negid == proctbl[current_pid].egid) {
+                proctbl[current_pid].egid = negid;
+                args->num = 0;
+            } else {
+                args->num = (u64)(s64)-1;
+            }
         case SYS_SERIALWRITE: {
             for (usize i = 0; i < args->a1; i++) {
                 serial_putchar(((char*)args->a0)[i]);

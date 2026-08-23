@@ -28,6 +28,7 @@
 #include <drivers/storage/usbmsd.h>
 #include <drivers/display/fb.h>
 #include <drivers/usb/uhci.h>
+#include <drivers/net/e1000.h>
 #include <drivers/time/clock.h>
 
 #include <lai/helpers/pm.h>
@@ -157,6 +158,8 @@ void kmain_aftergdt() {
         kbtype = KBD_PS2;
         mbtype = MOUSE_PS2;
     }
+
+    e1000_init();
 
     init_syscalls();
 

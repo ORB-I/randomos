@@ -24,7 +24,8 @@ QFLAGS       := -M pc -boot d -m 1G -monitor stdio \
   				-device ide-hd,drive=disk,bus=ide.0,unit=0 \
 				-device piix3-usb-uhci,id=uhci \
 				-device usb-kbd,bus=uhci.0,port=1 \
-				-device usb-mouse,bus=uhci.0,port=2
+				-device usb-mouse,bus=uhci.0,port=2 \
+				-netdev user,id=net0 -device e1000,netdev=net0
 
 AS_SRC := $(shell find src -name '*.asm')
 CC_SRC := $(shell find src -name '*.c')
