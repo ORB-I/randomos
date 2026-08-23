@@ -8,7 +8,7 @@ CCFLAGS := -nostdlib -fno-builtin -fno-stack-protector \
 	-fno-pie \
 	-g -MMD -MP -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 	-Wall -Wextra
-LDFLAGS := -m elf_x86_64 --no-pie -T ../../share/user.ld
+LDFLAGS := -m elf_x86_64 --no-pie
 
 PROGS := init \
 		 sh \
@@ -34,10 +34,7 @@ DEPS := $(PROGS:=.d)
 
 PROGFILES := $(PROGS:=.elf)
 
-all: $(PROGFILES)
-	@for prog in $(PROGS); do \
-		mcopy -voi $(DRIVE) -s $$prog.elf ::/$$prog; \
-	done
+all: $(DRIVE) $(PROGFILES)
 
 $(DRIVE):
 	dd if=/dev/zero of=$@ bs=1M count=16

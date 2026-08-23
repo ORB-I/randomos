@@ -370,6 +370,7 @@ bool syscall_c(struct sysregs* args) {
         default: args->num = -1;
     }
 ret: {
+    vmm_sasp(uasp); // idk why just try
     u64 ret = args->num;
     memcpy(args, &svargs, sizeof(*args));
     args->num = ret;
