@@ -5,5 +5,6 @@
 
 void fputchar(int fd, char c);
 void putchar(char c);
+char* readline(const char* prompt);
 
 #include <printf.h>

@@ -1,12 +1,13 @@
 #pragma once
 #include <sys/types.h>
 
-#define TCTL_FLUSH 0
-#define TCTL_CLEAR 1
-#define TCTL_SCLR  2
-#define TCTL_CCLR  3
-#define TCTL_AFLSH 4
-#define TCTL_GAFLH 5
+#define TCTL_FLUSH  0
+#define TCTL_CLEAR  1
+#define TCTL_SCLR   2
+#define TCTL_CCLR   3
+#define TCTL_AFLSH  4
+#define TCTL_GAFLH  5
+#define TCTL_NOECHO 6
 
 #define STDIN  0
 #define STDOUT 1
@@ -45,3 +46,5 @@ int wait(int pid);
 // terminates another process, 0 when it worked, -1 when the pid doesnt
 // exist, is already dead or is the caller itself (use exit for that)
 int kill(int pid);
+
+int newproc(const char* path, char** argv);

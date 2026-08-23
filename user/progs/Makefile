@@ -11,6 +11,7 @@ CCFLAGS := -nostdlib -fno-builtin -fno-stack-protector \
 LDFLAGS := -m elf_x86_64 --no-pie
 
 PROGS := init \
+		 sh \
 		 echo \
 		 ls \
 		 mkfile \

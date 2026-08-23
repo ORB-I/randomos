@@ -1,7 +1,7 @@
-#include <core/liballoc.h>
-#include <drivers/term.h>
-#include <core/printf.h>
-#include <drivers/hid/kbd.h>
+#include <io.h>
+#include <kbd.h>
+#include <mem.h>
+#include <sys/sysfn.h>
 
 #define INITBUFSZ 256
 
@@ -12,28 +12,28 @@ char* readline(const char* prompt) {
     if (!buf) return NULL;
     if (prompt != NULL) {
         printf("%s", prompt);
-        term_flush();
+        termctl(TCTL_FLUSH, 0);
     }
 
+    termctl(TCTL_NOECHO, 1);
     usize i = 0;
-    noecho(1);
 
     while (1) {
         char c = (char)getchar();
         if (c == '\n' || c == '\r') {
-            term_putchar(c);
+            putchar(c);
             break;
         } else if (c == '\b') {
             if (i == 0) continue;
             else {
                 buf[i--] = '\0';
-                term_putchar('\b');
-                term_putchar(' ');
-                term_putchar('\b');
+                putchar('\b');
+                putchar(' ');
+                putchar('\b');
                 continue;
             }
         } else {
-            term_putchar(c);
+            putchar(c);
         }
 
         if (i >= bufsz - 1) {
@@ -49,7 +49,7 @@ char* readline(const char* prompt) {
         buf[i] = c;
         i++;
     }
-    noecho(0);
+    termctl(TCTL_NOECHO, 0);
 
     buf[i] = '\0';
     return buf;

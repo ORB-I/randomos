@@ -1,12 +1,13 @@
 #pragma once
 #include <core/std.h>
 
-#define TCTL_FLUSH 0
-#define TCTL_CLEAR 1
-#define TCTL_SCLR  2
-#define TCTL_CCLR  3
-#define TCTL_AFLSH 4
-#define TCTL_GAFLH 5
+#define TCTL_FLUSH  0
+#define TCTL_CLEAR  1
+#define TCTL_SCLR   2
+#define TCTL_CCLR   3
+#define TCTL_AFLSH  4
+#define TCTL_GAFLH  5
+#define TCTL_NOECHO 6
 
 typedef enum {
     TERM_BLACK = 0,

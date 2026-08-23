@@ -3,6 +3,7 @@
 #include <flanterm/flanterm_backends/fb.h>
 #include <core/limreqs.h>
 #include <lib/printf.h>
+#include <drivers/hid/kbd.h>
 #include <drivers/fb.h>
 
 struct flanterm_context* _term_ctx;
@@ -135,6 +136,8 @@ int termctl(int code, int arg0) {
             return 0;
         case TCTL_GAFLH:
             return _term_flush;
+        case TCTL_NOECHO:
+            noecho(arg0);
         default: return -1;
     }
 }
