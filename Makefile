@@ -36,7 +36,9 @@ DEPS := $(CC_SRC:.c=.d)
 
 SUBDIRS := user/libc user/progs
 
-all: $(ISO)
+all: subdirs $(ISO)
+
+subdirs:
 	@for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)'; \
 	done
@@ -64,8 +66,9 @@ $(EXE): $(OBJ)
 	@echo "[LD] $@"
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 	python3 mkksyms.py $(NM) $@
-ksyms.c: $(OBJ)
-	python3 mkksyms.py $(NM) $^
+	$(CC) $(CCFLAGS) -c ksyms.c -o ksyms.o
+	$(LD) $(LDFLAGS) ksyms.o $^ -o $@ $(LIBS)
+	@rm -f ksyms.o ksyms.d
 
 
 %.o: %.c
@@ -97,5 +100,5 @@ compile_commands.json: clean
 		exit 1; \
 	fi
 
-.PHONY: run clean all
+.PHONY: run clean all subdirs
 -include $(DEPS)

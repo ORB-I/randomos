@@ -6,7 +6,7 @@ Own your section with ## @name
 
 Newest entries go at the bottom of each section.
 
-## @44tl
+## @eskridd
 
 - [x] Switch from 8259 PIC to IOAPIC
 - [x] Write UHCI or xHCI driver

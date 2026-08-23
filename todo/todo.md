@@ -6,12 +6,12 @@
 
 ## In progress
 
-- [ ] Improve syscall.c more — @44tl
+- [ ] Improve syscall.c more — @eskridd
 
 ## Open
 
-- [ ] Audit most of the code — @44tl
-- [ ] Squash remaining -Wextra warnings in kernel + libc (list below in known issues) — @44tl
+- [ ] Audit most of the code — @eskridd
+- [ ] Squash remaining -Wextra warnings in kernel + libc (list below in known issues) — @eskridd
 
 ## Known issues
 

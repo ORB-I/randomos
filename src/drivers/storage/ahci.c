@@ -347,6 +347,7 @@ int ahci_init(void) {
 }
 
 void ahci_secread(u8 drv, u64 lba, u8* buf) {
+    (void)drv;
     if (ahci_port < 0) return;
     if (ahci_issue_cmd(ahci_port, lba, 1, buf, 0) < 0) {
         printf("AHCI: Read error at LBA %d\n", lba);
@@ -354,6 +355,7 @@ void ahci_secread(u8 drv, u64 lba, u8* buf) {
 }
 
 void ahci_secwrite(u8 drv, u64 lba, u8* buf) {
+    (void)drv;
     if (ahci_port < 0) return;
     if (ahci_issue_cmd(ahci_port, lba, 1, buf, 1) < 0) {
         printf("AHCI: Write error at LBA %d\n", lba);
