@@ -58,6 +58,15 @@ static void wake_waiter(u8 pid) {
     }
 }
 
+// reparent orphan children of an exiting or killed process to init (pid 0)
+static void reparent_children(u8 old_ppid) {
+    for (u8 i = 0; i < nprocs; i++) {
+        if (!proctbl[i].is_dead && proctbl[i].ppid == old_ppid) {
+            proctbl[i].ppid = 0;
+        }
+    }
+}
+
 // returns the pid of whichever child died, or -1 when pid isnt
 // actually our child. a negative arg waits for any child instead of
 // a specific one.
@@ -100,9 +109,9 @@ static s64 wait_child(s64 pid) {
 }
 
 // shoots another process dead from the outside, returns 0 when the pid
-// is gone and -1 when its ourselves, doesnt exist or is already dead
+// is gone and -1 when its init, ourselves, doesnt exist or is already dead
 static s64 kill_process(s64 pid) {
-    if (pid < 0 || pid >= nprocs || pid == current_pid ||
+    if (pid <= 0 || pid >= nprocs || pid == current_pid ||
         proctbl[pid].is_dead) {
         return -1;
     }
@@ -112,8 +121,7 @@ static s64 kill_process(s64 pid) {
     proctbl[pid].is_blocked = 0;
     proctbl[pid].is_dead = 1;
 
-    // same courtesy a normal exit gets, a parent blocked on this pid
-    // (or on anyone) shouldnt sit there until the end of time
+    reparent_children((u8)pid);
     wake_waiter((u8)pid);
 
     // normal exits get their address space torn down by
@@ -134,6 +142,7 @@ bool syscall_c(struct sysregs* args) {
         case SYS_EXIT: {
             vmm_skasp();
             proctbl[current_pid].is_dead = 1;
+            reparent_children(current_pid);
             wake_waiter(current_pid);
 
             // the running context is being abandoned, so what we hand
@@ -149,14 +158,17 @@ bool syscall_c(struct sysregs* args) {
             panic("all processes have exited");
         }
         case SYS_READ: {
+            if (!args->a1) { args->num = -1; goto ret; }
             args->num = read(args->a0, (u8*)args->a1, args->a2);
             goto ret;
         }
         case SYS_WRITE: {
+            if (!args->a1) { args->num = -1; goto ret; }
             args->num = write(args->a0, (u8*)args->a1, args->a2);
             goto ret;
         }
         case SYS_OPEN: {
+            if (!args->a0) { args->num = -1; goto ret; }
             args->num = open((char*)args->a0, args->a1);
             goto ret;
         }
@@ -165,8 +177,9 @@ bool syscall_c(struct sysregs* args) {
             goto ret;
         }
         case SYS_CREAT: {
+            if (!args->a0) { args->num = -1; goto ret; }
             int fd;
-            if ((fd = open((char*)args->a0, O_CREAT)) < 0) {
+            if ((fd = open((char*)args->a0, O_CREAT | O_WRONLY | O_TRUNC)) < 0) {
                 args->num = -1;
                 goto ret;
             } else {
@@ -175,10 +188,12 @@ bool syscall_c(struct sysregs* args) {
             }
         }
         case SYS_UNLINK: {
+            if (!args->a0) { args->num = -1; goto ret; }
             args->num = unlink((char*)args->a0);
             goto ret;
         }
         case SYS_CHDIR: {
+            if (!args->a0) { args->num = -1; goto ret; }
             args->num = chdir((char*)args->a0);
             goto ret;
         }
@@ -187,14 +202,17 @@ bool syscall_c(struct sysregs* args) {
             goto ret;
         }
         case SYS_RENAME: {
+            if (!args->a0 || !args->a1) { args->num = -1; goto ret; }
             args->num = rename((char*)args->a0, (char*)args->a1);
             goto ret;
         }
         case SYS_MKDIR: {
+            if (!args->a0) { args->num = -1; goto ret; }
             args->num = mkdir((char*)args->a0);
             goto ret;
         }
         case SYS_RMDIR: {
+            if (!args->a0) { args->num = -1; goto ret; }
             args->num = unlink((char*)args->a0);
             goto ret;
         }
@@ -204,6 +222,7 @@ bool syscall_c(struct sysregs* args) {
             goto ret;
         }
         case SYS_STAT: {
+            if (!args->a0 || !args->a1) { args->num = -1; goto ret; }
             args->num = stat((char*)args->a0, (struct stat*)args->a1);
             goto ret;
         }
@@ -213,23 +232,33 @@ bool syscall_c(struct sysregs* args) {
             goto ret;
         }
         case SYS_SLEEP: {
-            sleepms(args->a0);
+            if (args->a0 == 0) {
+                preempt_pending = 1;
+            } else {
+                proctbl[current_pid].wake_ms = (getms ? getms() : 0) + args->a0;
+                proctbl[current_pid].is_blocked = 1;
+                preempt_pending = 1;
+            }
             args->num = 0;
             goto ret;
         }
         case SYS_READDIR: {
+            if (!args->a0 || !args->a1) { args->num = -1; goto ret; }
             args->num = readdir((DIR*)args->a0, (struct stat*)args->a1);
             goto ret;
         }
         case SYS_OPENDIR: {
+            if (!args->a0) { args->num = 0; goto ret; }
             args->num = (u64)opendir((char*)args->a0);
             goto ret;
         }
         case SYS_CLOSEDIR: {
+            if (!args->a0) { args->num = -1; goto ret; }
             args->num = closedir((DIR*)args->a0);
             goto ret;
         }
         case SYS_GETCWD: {
+            if (!args->a0) { args->num = -1; goto ret; }
             args->num = getcwd((char*)args->a0, args->a1);
             goto ret;
         }
@@ -269,6 +298,7 @@ bool syscall_c(struct sysregs* args) {
             goto ret;
         }
         case SYS_GETFBINF: {
+            if (!args->a1) { args->num = -1; goto ret; }
             args->num = get_fbinfo(args->a0, (framebuf_info_t*)args->a1);
             goto ret;
         }
@@ -285,7 +315,9 @@ bool syscall_c(struct sysregs* args) {
             goto ret;
         }
         case SYS_GETMTIMEOFDAY: {
+            if (!args->a0) { args->num = -1; goto ret; }
             getmtimeofday((struct millitime*)args->a0);
+            args->num = 0;
             goto ret;
         }
         case SYS_GETTIMEMONOMS: {
@@ -318,10 +350,12 @@ bool syscall_c(struct sysregs* args) {
             goto ret;
         }
         case SYS_GETMOUSEINFO: {
+            if (!args->a0) { args->num = -1; goto ret; }
             args->num = get_mouse_info((mouse_info_t*)args->a0);
             goto ret;
         }
         case SYS_NEWPROC: {
+            if (!args->a0 || !args->a1) { args->num = -1; goto ret; }
             args->num = new_process((const char*)args->a0, (char**)args->a1, current_pid);
             goto ret;
         }
@@ -336,7 +370,6 @@ bool syscall_c(struct sysregs* args) {
         default: args->num = -1;
     }
 ret: {
-
     u64 ret = args->num;
     memcpy(args, &svargs, sizeof(*args));
     args->num = ret;

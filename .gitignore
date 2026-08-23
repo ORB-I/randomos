@@ -1,19 +1,48 @@
-.clangd
-.vscode
+# ADD COMMENTS TO WHATEVER YOU ADD HERE, TY. - eskrid
 
-.DS_Store
+# Build artifacts & compilation databases
+compile_commands.json
+.cache/
+.clangd/
 
+# Object files and compiler dependencies
 *.o
+*.so.o
 *.d
+*.so.d
+
+# Built libraries & binary executables
+*.a
 *.elf
-libc.a
+limine-binary/limine
+limine-binary/limine.exe
+
+# Generated kernel symbols
+ksyms.c
+ksyms.o
+ksyms.d
+
+# Disk and bootable ISO images
 *.img
 *.iso
-iso
-ksyms.c
+iso/
 
-.cache
+# Debugging symbols & history
+*.dSYM/
+*.gdb
+.gdb_history
 
-*.dSYM
+# Python cache
 __pycache__/
-*.pyc
+*.py[cod]
+
+# IDEs and text editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Operating system files
+.DS_Store
+Thumbs.db

@@ -3,6 +3,7 @@
 #include <core/mem/vmm.h>
 #include <lib/loader.h>
 #include <core/asmh.h>
+#include <drivers/time/clock.h>
 
 // these arent defined
 // in a header because theyre only
@@ -70,21 +71,45 @@ void ctx2proc(process_state_t* dst, procctx_t* src) {
 int nextproc() {
     if (nprocs == 0) return -1;
 
+    u64 now = getms ? getms() : 0;
     u8 start = current_pid;
     u8 pid = current_pid;
     do {
         pid = (pid + 1) % nprocs;
-        if (!proctbl[pid].is_dead && !proctbl[pid].is_blocked) {
-            return pid;
+        if (!proctbl[pid].is_dead) {
+            if (proctbl[pid].is_blocked && proctbl[pid].wake_ms > 0 && now >= proctbl[pid].wake_ms) {
+                proctbl[pid].is_blocked = 0;
+                proctbl[pid].wake_ms = 0;
+            }
+            if (!proctbl[pid].is_blocked) {
+                return pid;
+            }
         }
     } while (pid != start);
+
+    if (!proctbl[current_pid].is_dead) {
+        if (proctbl[current_pid].is_blocked && proctbl[current_pid].wake_ms > 0 && now >= proctbl[current_pid].wake_ms) {
+            proctbl[current_pid].is_blocked = 0;
+            proctbl[current_pid].wake_ms = 0;
+        }
+        if (!proctbl[current_pid].is_blocked) {
+            return current_pid;
+        }
+    }
+
     return -1;
 }
 
 void scheduler_switch(procctx_t* proc) {
     int tgtpid = nextproc();
 
-    if (tgtpid < 0 || tgtpid == (int)current_pid) {
+    while (tgtpid < 0) {
+        // If all processes are blocked or sleeping, halt until next timer tick
+        asm volatile("sti; hlt; cli");
+        tgtpid = nextproc();
+    }
+
+    if (tgtpid == (int)current_pid && !proctbl[current_pid].is_dead) {
         return;
     }
 

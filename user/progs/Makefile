@@ -34,7 +34,11 @@ DEPS := $(PROGS:=.d)
 
 PROGFILES := $(PROGS:=.elf)
 
-all: $(DRIVE) $(PROGFILES)
+all: $(PROGFILES)
+	@for prog in $(PROGS); do \
+		mcopy -voi $(DRIVE) -s $$prog.elf ::/$$prog; \
+	done
+
 $(DRIVE):
 	dd if=/dev/zero of=$@ bs=1M count=16
 	mkfs.msdos -F 16 $@
