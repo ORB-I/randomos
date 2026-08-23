@@ -8,7 +8,7 @@ CCFLAGS := -nostdlib -fno-builtin -fno-stack-protector \
 	-fno-pie \
 	-g -MMD -MP -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 	-Wall -Wextra
-LDFLAGS := -m elf_x86_64 --no-pie
+LDFLAGS := -m elf_x86_64 --no-pie -T ../../share/user.ld
 
 PROGS := init \
 		 sh \

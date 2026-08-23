@@ -21,12 +21,14 @@ struct CpuState {
 
 // kill the faulting user process and hand control back to the scheduler.
 // if no processes remain, fall through to the kernel panic path below.
-static void kill_user_process(struct CpuState* regs, const char* msg) {
+static void kill_user_process(struct CpuState* regs, const char* msg, va_list lst) {
     asm volatile("swapgs" ::: "memory");
 
-    printf("user fault (pid %d): %s\n", current_pid, msg);
-    printf("  RIP=%016lx  RSP=%016lx  CS=%04lx\n",
+    printf("user fault (pid %d): ", current_pid, msg);
+    vprintf(msg, lst);
+    printf("\nRIP=%016lx  RSP=%016lx  CS=%04lx\n",
            regs->rip, regs->rsp, regs->cs);
+    va_end(lst);
 
     page_table_t* uasp = vmm_cpml4v();
     vmm_skasp();
@@ -46,10 +48,12 @@ static void kill_user_process(struct CpuState* regs, const char* msg) {
 
 void except_panic(struct CpuState* regs, const char* msg, ...) {
     asm("cli");
+    va_list lst;
+    va_start(lst, msg);
 
     // user-mode fault: kill the process, don't take down the kernel
     if ((regs->cs & 0x3) == 3) {
-        kill_user_process(regs, msg);
+        kill_user_process(regs, msg, lst);
         // never reached unless all processes are dead (panic above)
         return;
     }
@@ -58,9 +62,6 @@ void except_panic(struct CpuState* regs, const char* msg, ...) {
     if (tfb >= 0) {
         switch_fb(tfb);
     }
-
-    va_list lst;
-    va_start(lst, msg);
 
     printf("*** KERNEL EXCEPTION ***\n");
     vprintf(msg, lst);
@@ -92,7 +93,7 @@ void c_int_hdlr(struct CpuState* regs) {
             u64 badaddr;
             u32 ec = regs->error_code;
             asm volatile("mov %%cr2, %0" : "=r"(badaddr));
-            except_panic(regs, "Page fault on address 0x%016x (%s %s %s %s %s)\n",
+            except_panic(regs, "Page fault on address 0x%016x (%s %s %s %s %s)",
                 badaddr,
                 (ec & (1 << 0)) ? "Present" : "Not-Present",
                 (ec & (1 << 1)) ? "Write" : "Read",
@@ -103,7 +104,7 @@ void c_int_hdlr(struct CpuState* regs) {
             break;
         }
         case 17: except_panic(regs, "Alignment check fault (at %s)", syms); break;
-        default: except_panic(regs, "Unhandled Exception: %d at %s\n", regs->intr_no, syms);
+        default: except_panic(regs, "Unhandled Exception: %d at %s", regs->intr_no, syms);
     }
 }
 

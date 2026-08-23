@@ -21,10 +21,13 @@ LIBA_SRC := $(filter-out ./src/crt.asm src/crt.asm, $(ASMSRC))
 LIBOBJ := $(LIBSRC:.c=.o)
 ASMOBJ := $(LIBA_SRC:.asm=.o)
 
+LIB_SOOBJ := $(LIBSRC:.c=.so.o)
+ASM_SOOBJ := $(LIBA_SRC:.asm=.so.o)
+
 DEPS := $(LIBSRC:.c=.d)
 
 ALL_LIB_OBJS := $(LIBOBJ) $(ASMOBJ)
-ALL_SOFILE_OBJS := $(ALL_LIB_OBJS:.o=.so.o)
+ALL_SOFILE_OBJS := $(LIB_SOOBJ) $(ASM_SOOBJ)
 
 CRTSRC := src/crt.asm
 
@@ -52,7 +55,9 @@ $(CRT): $(CRTSRC)
 %.o: %.asm
 	$(AS) $(ASFLAGS) $< -o $@
 clean:
-	rm -f $(LIBC) $(CRT) $(LIBOBJ) $(ASMOBJ) $(DEPS)
+	rm -f $(LIBC) $(CRT) $(LIBOBJ) $(ASMOBJ) $(DEPS) $(LIBC_SO) $(ALL_SOFILE_OBJS)
 
 .PHONY: all clean
+.SECONDARY: $(ALL_SOFILE_OBJS) $(ALL_LIB_OBJS)
+
 -include $(DEPS)

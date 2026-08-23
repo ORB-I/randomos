@@ -135,6 +135,8 @@ int apply_rela(Elf64_Rela* rela, dyninfo_t* info) {
         default: return 0;
     }
 
+    //printf("Relocating %p => %p\n", tgt_vaddr, v2r);
+
     *((u64*)tgt_vaddr) = v2r;
     return 0;
 }
@@ -159,6 +161,7 @@ int readoff(int fd, void* buf, usize sz, off_t off) {
 }
 
 loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
+    printf("Loading library at base %p\n", base);
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
         return LOADLIB_ERR;
@@ -587,6 +590,8 @@ int program_processdyn(int fd, u64 load_low, u64 load_high, Elf64_Ehdr* ehdr,
         free(loaded_libs[i].dynstr);
         free(loaded_libs[i].dynsym);
     }
+    memset(loaded_libs, 0, sizeof(loaded_libs));
+    nloaded = 0;
 
     return 0;
 }

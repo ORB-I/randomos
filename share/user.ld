@@ -44,8 +44,11 @@ SECTIONS {
         *(.rela.plt)
     } :rodata
 
-    .hash : ALIGN(4) {
+        .hash : ALIGN(4) {
         *(.hash)
+    } :rodata
+
+    .gnu.hash : ALIGN(8) {
         *(.gnu.hash)
     } :rodata
     
