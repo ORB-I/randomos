@@ -10,6 +10,8 @@
 
 - [ ] Audit most of the code — @eskridd
 - [ ] Work on wm and mouse driver - @Wdboyes13
+- [ ] Write Intel E1000 driver  
+- [ ] Add automated testing framework - @Wdboyes13
 
 ## Known issues
 
