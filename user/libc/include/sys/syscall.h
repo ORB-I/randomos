@@ -45,6 +45,7 @@
 #define SYS_NEWPROC       42
 #define SYS_WAIT          43
 #define SYS_KILL          44
+#define SYS_GETPID        45
 
 u64 __syscall0(u64 nr);
 u64 __syscall1(u64 nr, u64 arg0);

@@ -44,5 +44,6 @@
 #define SYS_NEWPROC       42
 #define SYS_WAIT          43
 #define SYS_KILL          44
+#define SYS_GETPID        45
 
 void init_syscalls();

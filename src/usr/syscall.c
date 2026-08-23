@@ -417,6 +417,10 @@ bool syscall_c(struct sysregs* args) {
             args->num = kill_process((s64)args->a0);
             goto ret;
         }
+        case SYS_GETPID: {
+            args->num = current_pid;
+            goto ret;
+        }
         default: args->num = -1;
     }
 ret: {

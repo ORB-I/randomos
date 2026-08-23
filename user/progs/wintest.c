@@ -3,6 +3,7 @@
 #include <io.h>
 #include <sys/sysfn.h>
 #include <kbd.h>
+#include <mouse.h>
 
 static int initfb = -1;
 
@@ -28,12 +29,18 @@ int main() {
     if (!gctx) return fail("Failed to initialize GUI drawing");
 
     u32 blue = gui_rgb(gctx, 0, 0, 255);
+    u32 red = gui_rgb(gctx, 255, 0, 0);
     gui_fill_buf((u32*)info.ptr, 0, 0, info.width, info.height, blue);
 
     switch_fb(gui);
     flush_scr();
 
+    mouse_info_t minfo = {info.width/2, info.height/2, 0};
     while (1) {
+        get_mouse_info(&minfo);
+        gui_fill_buf((u32*)info.ptr, 0, 0, info.width, info.height, blue);
+        gui_rectfill(gctx, minfo.x, minfo.y, 10, 10, red);
+        flush_scr();
         int sc = kbd_get_raw();
         if (sc == 0x01) {
             break;

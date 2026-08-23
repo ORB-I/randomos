@@ -518,5 +518,11 @@
                 "name": "pid"
             }
         ]
+    },
+    "SYS_GETPID": {
+        "nr": 45,
+        "nargs": 0,
+        "returns": "int",
+        "args": null
     }
 }
