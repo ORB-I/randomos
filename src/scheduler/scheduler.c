@@ -68,14 +68,13 @@ void ctx2proc(process_state_t* dst, procctx_t* src) {
 // next runnable process after current_pid (dead and blocked ones dont
 // count), or -1 when there is nobody left to run
 int nextproc() {
-    if (nprocs == 0) return -1;
-
     u64 now = getms ? getms() : 0;
     u8 start = current_pid;
     u8 pid = current_pid;
+
     do {
-        pid = (pid + 1) % nprocs;
-        if (!proctbl[pid].is_dead) {
+        pid = (pid + 1) % MAX_PROCESSES;
+        if (proctbl[pid].used && !proctbl[pid].is_dead) {
             if (proctbl[pid].is_blocked && proctbl[pid].wake_ms > 0 && now >= proctbl[pid].wake_ms) {
                 proctbl[pid].is_blocked = 0;
                 proctbl[pid].wake_ms = 0;
@@ -85,17 +84,6 @@ int nextproc() {
             }
         }
     } while (pid != start);
-
-    if (!proctbl[current_pid].is_dead) {
-        if (proctbl[current_pid].is_blocked && proctbl[current_pid].wake_ms > 0 && now >= proctbl[current_pid].wake_ms) {
-            proctbl[current_pid].is_blocked = 0;
-            proctbl[current_pid].wake_ms = 0;
-        }
-        if (!proctbl[current_pid].is_blocked) {
-            return current_pid;
-        }
-    }
-
     return -1;
 }
 

@@ -30,6 +30,11 @@ typedef struct {
     u8 wait_pid;
     // target time in ms to wake up if sleeping
     u64 wake_ms;
+
+    u16 code;
+    int* codeptr;
+
+    u8 used; // process table entrry in use
 } process_state_t;
 
 typedef struct {
@@ -49,7 +54,6 @@ typedef struct {
 } __attribute__((packed)) procctx_t;
 
 extern process_state_t proctbl[MAX_PROCESSES];
-extern u8 nprocs;
 extern u8 current_pid;
 int new_process(const char* path, char** argv, u8 ppid);
 void wake_waiter(u8 pid);

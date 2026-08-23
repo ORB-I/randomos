@@ -35,3 +35,7 @@ Newest entries go at the bottom of each section.
 - [x] Add USBHID and PS/2 mouse support
 - [x] Make it so ET_EXECs get DT_NEEDED tags processed
 - [x] Fix USBHID Mouse hanging
+- [x] dead processes are never reaped, pid slots are gone forever and
+      NEWPROC starts failing after roughly 254 spawns
+- [x] SYS_EXIT throws its exit code away, WAIT can only ever report pids
+- [x] add getpid syscall

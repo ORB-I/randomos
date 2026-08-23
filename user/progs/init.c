@@ -1,5 +1,5 @@
 #include <io.h>
-#include <sys/sysfn.h>
+#include <sys/process.h>
 
 int main() {
     printf("Welcome to RandomOS\n");
@@ -8,6 +8,7 @@ int main() {
     if ((pid = newproc("sh", shargv)) < 0) {
         printf("failed to start shell\n");
     }
-    wait(pid);
+    int exit;
+    wait(pid, &exit);
     for (;;);
 }

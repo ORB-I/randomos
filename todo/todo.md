@@ -9,15 +9,12 @@
 ## Open
 
 - [ ] Audit most of the code — @eskridd
+- [ ] Work on wm and mouse driver - @Wdboyes13
 
 ## Known issues
 
 
 ## Design debt
-
-- [ ] dead processes are never reaped, pid slots are gone forever and
-      NEWPROC starts failing after roughly 254 spawns
-- [ ] SYS_EXIT throws its exit code away, WAIT can only ever report pids
 
 ## No owner yet
 

@@ -5,6 +5,7 @@
 #include <core/liballoc.h>
 #include <core/panic.h>
 #include <core/mem/pmm.h>
+#include <core/printf.h>
 
 #include <drivers/time/gettimeofday.h>
 #include <drivers/term.h>
@@ -58,63 +59,58 @@ void wake_waiter(u8 pid) {
                                parent->wait_pid == WAIT_ANY)) {
         parent->is_blocked = 0;
         parent->rax = pid;
+        page_table_t* cr3 = vmm_cpml4v();
+        vmm_sasp((page_table_t*)parent->cr3);
+        if (parent->codeptr) *parent->codeptr = proctbl[pid].code;
+        vmm_sasp(cr3);
+        proctbl[pid].used = 0;
     }
 }
 
 // reparent orphan children of an exiting or killed process to init (pid 0)
 void reparent_children(u8 old_ppid) {
-    for (u8 i = 0; i < nprocs; i++) {
-        if (!proctbl[i].is_dead && proctbl[i].ppid == old_ppid) {
+    for (u8 i = 0; i < MAX_PROCESSES; i++) {
+        if (proctbl[i].used && !proctbl[i].is_dead && proctbl[i].ppid == old_ppid) {
             proctbl[i].ppid = 0;
         }
     }
 }
 
-// returns the pid of whichever child died, or -1 when pid isnt
-// actually our child. a negative arg waits for any child instead of
-// a specific one.
-static s64 wait_child(s64 pid) {
+static s64 new_wait(s64 pid, int* code) {
     if (pid >= 0) {
-        if (pid >= nprocs || pid == current_pid ||
-            proctbl[pid].ppid != current_pid) {
-            return -1;
-        }
+        if (pid >= MAX_PROCESSES || !proctbl[pid].used || pid == current_pid) return -1;
         if (!proctbl[pid].is_dead) {
-            // parking works by flagging preempt_pending: on the way
-            // out syscall_s snapshots our user state and switches
-            // away, and is_blocked stops nextproc() from handing
-            // the cpu back to us until exit clears it. rax gets the
-            // child pid now so its already right once we resume.
             proctbl[current_pid].wait_pid = (u8)pid;
             proctbl[current_pid].is_blocked = 1;
+            proctbl[current_pid].codeptr = code;
             preempt_pending = 1;
+            if (code) *code = -1;
+        } else {
+            proctbl[pid].used = 0;
+            if (code) *code = proctbl[pid].code;
         }
         return pid;
-    }
+    } else {
+        for (usize i = 0; i < MAX_PROCESSES; i++) {
+            if (i != current_pid && proctbl[i].ppid == current_pid && proctbl[i].is_dead) {
+                proctbl[i].used = 0;
+                if (code) *code = proctbl[pid].code;
+                return i;
+            }
+        }
 
-    // any child: one that already died satisfies the call on the
-    // spot, otherwise block and let the first exit fill in rax
-    for (u8 i = 0; i < nprocs; i++) {
-        if (i != current_pid && proctbl[i].ppid == current_pid &&
-            proctbl[i].is_dead) {
-            return (s64)i;
-        }
+        // if no processes are dead we should hang the process
+        proctbl[current_pid].wait_pid = WAIT_ANY;
+        proctbl[current_pid].is_blocked = 1;
+        proctbl[current_pid].codeptr = code;
+        return -1;
     }
-    for (u8 i = 0; i < nprocs; i++) {
-        if (i != current_pid && proctbl[i].ppid == current_pid) {
-            proctbl[current_pid].wait_pid = WAIT_ANY;
-            proctbl[current_pid].is_blocked = 1;
-            preempt_pending = 1;
-            return (s64)i; // placeholder, exit overwrites with the real pid
-        }
-    }
-    return -1;
 }
 
 // shoots another process dead from the outside, returns 0 when the pid
 // is gone and -1 when its init, ourselves, doesnt exist or is already dead
 static s64 kill_process(s64 pid) {
-    if (pid <= 0 || pid >= nprocs || pid == current_pid ||
+    if (pid <= 0 || pid == current_pid ||
         proctbl[pid].is_dead) {
         return -1;
     }
@@ -133,6 +129,7 @@ static s64 kill_process(s64 pid) {
     // safe because were running on our own cr3, nobody can be inside
     // the targets page tables right now.
     vmm_dasp((page_table_t*)proctbl[pid].cr3);
+    proctbl[pid].used = 0;
     return 0;
 }
 
@@ -183,6 +180,26 @@ static int sys_newproc(page_table_t* uasp, const char *path, char **argv, u8 ppi
     return ret;
 }
 
+[[noreturn]] void sys_exit(int code) {
+    vmm_skasp();
+    proctbl[current_pid].code = code;
+    proctbl[current_pid].is_dead = 1;
+    reparent_children(current_pid);
+    wake_waiter(current_pid);
+
+    // the running context is being abandoned, so what we hand
+    // to the scheduler as "saved state" doesn't matter — it only
+    // gets archived into a process that will never run again.
+    // cli prevents the preempt timer from nesting into
+    // scheduler_switch and corrupting the context copy.
+    asm volatile("cli");
+    procctx_t abandoned = {0};
+    scheduler_switch(&abandoned);
+
+    // scheduler_switch only returns when nobody is left
+    panic("all processes have exited");
+}
+
 bool syscall_c(struct sysregs* args) {
     page_table_t* uasp = vmm_cpml4v();
     struct sysregs svargs;
@@ -190,22 +207,7 @@ bool syscall_c(struct sysregs* args) {
 
     switch (args->num) {
         case SYS_EXIT: {
-            vmm_skasp();
-            proctbl[current_pid].is_dead = 1;
-            reparent_children(current_pid);
-            wake_waiter(current_pid);
-
-            // the running context is being abandoned, so what we hand
-            // to the scheduler as "saved state" doesn't matter — it only
-            // gets archived into a process that will never run again.
-            // cli prevents the preempt timer from nesting into
-            // scheduler_switch and corrupting the context copy.
-            asm volatile("cli");
-            procctx_t abandoned = {0};
-            scheduler_switch(&abandoned);
-
-            // scheduler_switch only returns when nobody is left
-            panic("all processes have exited");
+            sys_exit(args->a0);
         }
         case SYS_READ: {
             if (!args->a1) { args->num = -1; goto ret; }
@@ -410,7 +412,7 @@ bool syscall_c(struct sysregs* args) {
             goto ret;
         }
         case SYS_WAIT: {
-            args->num = wait_child((s64)args->a0);
+            args->num = new_wait((s64)args->a0, (int*)args->a1);
             goto ret;
         }
         case SYS_KILL: {

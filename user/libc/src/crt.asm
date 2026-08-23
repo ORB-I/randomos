@@ -10,6 +10,6 @@ _start:
 
     call main
     
-    mov rbx, rax
+    mov rdi, rax
     mov rax, 1
     syscall

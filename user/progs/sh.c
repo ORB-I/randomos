@@ -1,7 +1,7 @@
 #include <io.h>
 #include <stdbool.h>
 #include <mem.h>
-#include <sys/sysfn.h>
+#include <sys/process.h>
 #include <fs.h>
 
 #define MAX_ARGS 16
@@ -55,7 +55,9 @@ int main() {
             if (pid < 0) {
                 printf("failed to start program\n");
             }
-            wait(pid);
+            int ex;
+            wait(pid, &ex);
+            printf("Exited with code %d\n", ex);
         } else {
             printf("no such file\n");
         }

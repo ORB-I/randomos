@@ -3,17 +3,22 @@
 #include <core/printf.h>
 
 process_state_t proctbl[MAX_PROCESSES];
-u8 nprocs = 0;
 
 int new_process(const char* path, char** argv, u8 ppid) {
-    if (nprocs + 1 >= MAX_PROCESSES) {
-        return -1;
+    process_state_t* proc = NULL;
+    u8 pid = 0;
+    for (usize i = 0; i < MAX_PROCESSES; i++) {
+        if (!proctbl[i].used) {
+            proc = &proctbl[i];
+            pid = i;
+            break;
+        }
     }
+    if (!proc) return -1;
 
     loadprog_res_t res = load_program(path, argv);
     if (res.status < 0) return -1;
 
-    process_state_t* proc = &proctbl[nprocs++];
     proc->rip = res.entry;
     proc->rsp = res.rsp;
     proc->rflags = 0x202;
@@ -39,12 +44,13 @@ int new_process(const char* path, char** argv, u8 ppid) {
     proc->fsb = 0;
     proc->gsb = 0;
     proc->cr3 = (u64)res.pgtbl;
-    proc->pid = nprocs-1;
+    proc->pid = pid;
     proc->is_dead = 0;
     proc->ppid = ppid;
     proc->is_blocked = 0;
     proc->wait_pid = WAIT_ANY;
     proc->wake_ms = 0;
+    proc->used = 1;
 
     vmm_setumapbase(proc->pid, res.load_high);
 
