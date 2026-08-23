@@ -11,5 +11,5 @@ CompileFlags:
         - -ffreestanding
         - -Wall
         - -Wextra
-        - -Iuser/libc/include
-        - -Iinclude
+        - -I/Users/william/dev/work/coding/randomos/user/libc/include
+        - -I/Users/william/dev/work/coding/randomos/include
