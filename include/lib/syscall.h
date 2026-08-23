@@ -45,5 +45,6 @@
 #define SYS_WAIT          43
 #define SYS_KILL          44
 #define SYS_GETPID        45
+#define SYS_SERIALWRITE   46
 
 void init_syscalls();

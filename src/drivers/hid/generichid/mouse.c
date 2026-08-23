@@ -8,6 +8,7 @@
 #include <drivers/hid/usbhid/usbhid_mouse.h>
 #include <drivers/hid/ps2/ps2.h>
 #include <drivers/hid/mouse.h>
+#include <drivers/time/clock.h>
 
 #define MOUSEBUF_SZ 256
 mouse_info_t mousebuf[MOUSEBUF_SZ];
@@ -27,6 +28,7 @@ int get_mouse_info(mouse_info_t* buf) {
             usb_hid_mouse_poll();
         }
         asm volatile("pause");
+        sleepms(5);
     }
 
     mouse_info_t info = dequeue_mouse();

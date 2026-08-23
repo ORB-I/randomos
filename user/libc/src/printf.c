@@ -943,13 +943,26 @@ int vfctprintf(void (*out)(char character, void* arg), void* arg, const char* fo
 }
 
 void _fprintf_putchar(char c, void* arg) {
-    fputchar((int)(uintptr_t)arg, c);
+    fputchar((int)(u64)arg, c);
 }
 
 int fprintf(int fd, const char* fmt, ...) {
     va_list lst;
     va_start(lst, fmt);
-    const int ret = fctprintf(_fprintf_putchar, (void*)(uintptr_t)fd, fmt, lst);
+    int ret = vfctprintf(_fprintf_putchar, (void*)(u64)fd, fmt, lst);
+    va_end(lst);
+    return ret;
+}
+
+void _serial_putchar(char c, void* arg) {
+    (void)arg;
+    serial_write(&c, 1);
+}
+
+int serial_printf(const char* fmt, ...) {
+    va_list lst;
+    va_start(lst, fmt);
+    const int ret = vfctprintf(_serial_putchar, NULL, fmt, lst);
     va_end(lst);
     return ret;
 }

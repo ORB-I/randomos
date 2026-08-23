@@ -25,7 +25,8 @@ PROGS := init \
 		 dspinfo \
 		 wintest \
 		 keytest \
-		 mousetest
+		 mousetest \
+		 serialtest
 
 DRIVE ?= ../../drive.img
 
