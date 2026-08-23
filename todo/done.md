@@ -6,7 +6,7 @@ Own your section with ## @name
 
 Newest entries go at the bottom of each section.
 
-## @44tl
+## @eskridd
 
 - [x] Switch from 8259 PIC to IOAPIC
 - [x] Write UHCI or xHCI driver
@@ -22,6 +22,7 @@ Newest entries go at the bottom of each section.
 - [x] Implement USBMSD driver
 - [x] Add WAIT syscall so parent processes can wait till a child dies
 - [x] Add KILL syscall so that processes can be killed
+- [x] Improve syscall safety, pointer validation, reparenting, and kill protections — @eskridd
 
 ## @Wdboyes13
 
