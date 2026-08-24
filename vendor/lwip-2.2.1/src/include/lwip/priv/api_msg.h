@@ -37,15 +37,15 @@
 #ifndef LWIP_HDR_API_MSG_H
 #define LWIP_HDR_API_MSG_H
 
-#include "lwip/opt.h"
+#include "lwip/lwip/opt.h"
 
-#include "lwip/arch.h"
-#include "lwip/ip_addr.h"
-#include "lwip/err.h"
-#include "lwip/sys.h"
-#include "lwip/igmp.h"
-#include "lwip/api.h"
-#include "lwip/priv/tcpip_priv.h"
+#include "lwip/lwip/arch.h"
+#include "lwip/lwip/ip_addr.h"
+#include "lwip/lwip/err.h"
+#include "lwip/lwip/sys.h"
+#include "lwip/lwip/igmp.h"
+#include "lwip/lwip/api.h"
+#include "lwip/lwip/priv/tcpip_priv.h"
 
 #ifdef __cplusplus
 extern "C" {

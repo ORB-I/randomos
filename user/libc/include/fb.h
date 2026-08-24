@@ -15,10 +15,8 @@ typedef struct {
 } framebuf_info_t;
 
 int create_fb(int type);
-void rmfb(int fb);
 int switch_fb(int fb);
 void clear_fb(int fb);
 void flush_scr();
 int get_fbinfo(int fb, framebuf_info_t* info);
-int get_typefb(int type);
 int get_currfb();

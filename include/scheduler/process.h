@@ -39,6 +39,9 @@ typedef struct {
     uid_t euid;
     gid_t egid;
 
+    struct fdinfo* fds;
+    usize nfds;
+
     u8 used; // process table entrry in use
 } process_state_t;
 

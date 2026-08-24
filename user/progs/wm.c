@@ -142,7 +142,7 @@ static void wm_redraw(int id) {
 }
 
 int main(void) {
-    term_fb = get_typefb(FBTYPE_TERM);
+    term_fb = get_currfb();
     if (term_fb < 0) return 1;
 
     gui_fb_id = create_fb(FBTYPE_GUI);

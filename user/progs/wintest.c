@@ -56,7 +56,7 @@ int main() {
     }
 
     gui_free(gctx);
-    rmfb(gui);
+    close(gui);
     switch_fb(initfb);
 
     return 0;

@@ -37,19 +37,19 @@
 #ifndef LWIP_HDR_TCP_PRIV_H
 #define LWIP_HDR_TCP_PRIV_H
 
-#include "lwip/opt.h"
+#include "lwip/lwip/opt.h"
 
 #if LWIP_TCP /* don't build if not configured for use in lwipopts.h */
 
-#include "lwip/tcp.h"
-#include "lwip/mem.h"
-#include "lwip/pbuf.h"
-#include "lwip/ip.h"
-#include "lwip/icmp.h"
-#include "lwip/err.h"
-#include "lwip/ip6.h"
-#include "lwip/ip6_addr.h"
-#include "lwip/prot/tcp.h"
+#include "lwip/lwip/tcp.h"
+#include "lwip/lwip/mem.h"
+#include "lwip/lwip/pbuf.h"
+#include "lwip/lwip/ip.h"
+#include "lwip/lwip/icmp.h"
+#include "lwip/lwip/err.h"
+#include "lwip/lwip/ip6.h"
+#include "lwip/lwip/ip6_addr.h"
+#include "lwip/lwip/prot/tcp.h"
 
 #ifdef __cplusplus
 extern "C" {

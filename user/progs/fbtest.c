@@ -15,7 +15,7 @@ static int fail(const char* msg) {
 }
 
 int main(void) {
-    termfb = get_typefb(FBTYPE_TERM);
+    termfb = get_currfb();
     if (termfb < 0) return fail("no term fb");
 
     int gui = create_fb(FBTYPE_GUI);

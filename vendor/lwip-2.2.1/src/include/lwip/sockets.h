@@ -39,7 +39,7 @@
 #ifndef LWIP_HDR_SOCKETS_H
 #define LWIP_HDR_SOCKETS_H
 
-#include "lwip/opt.h"
+#include "lwip/lwip/opt.h"
 
 #if LWIP_SOCKET /* don't build if not configured for use in lwipopts.h */
 
@@ -47,13 +47,13 @@
 #include LWIP_SOCKET_EXTERNAL_HEADER_SOCKETS_H
 #else /* LWIP_SOCKET_EXTERNAL_HEADERS */
 
-#include "lwip/ip_addr.h"
-#include "lwip/netif.h"
-#include "lwip/err.h"
-#include "lwip/inet.h"
-#include "lwip/errno.h"
+#include "lwip/lwip/ip_addr.h"
+#include "lwip/lwip/netif.h"
+#include "lwip/lwip/err.h"
+#include "lwip/lwip/inet.h"
+#include "lwip/lwip/errno.h"
 
-#include <string.h>
+#include <lib/string.h>
 
 #ifdef __cplusplus
 extern "C" {

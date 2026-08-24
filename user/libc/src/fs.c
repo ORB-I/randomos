@@ -41,16 +41,12 @@ int stat(char* path, struct stat* st) {
     return (int)__syscall2(SYS_STAT, (u64)path, (u64)st);
 }
 
-int readdir(DIR* dir, struct stat* st) {
+int readdir(int dir, struct stat* st) {
     return (int)__syscall2(SYS_READDIR, (u64)dir, (u64)st);
 }
 
-DIR* opendir(char* path) {
-    return (DIR*)__syscall1(SYS_OPENDIR, (u64)path);
-}
-
-int closedir(DIR* dir) {
-    return (int)__syscall1(SYS_CLOSEDIR, (u64)dir);
+int opendir(char* path) {
+    return (int)__syscall1(SYS_OPENDIR, (u64)path);
 }
 
 int getcwd(char* buf, usize buflen) {

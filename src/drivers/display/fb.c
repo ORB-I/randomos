@@ -1,6 +1,7 @@
-#include "core/limine.h"
+#include <core/limine.h>
 #include <drivers/display/fb.h>
 #include <lib/string.h>
+#include <core/fd.h>
 #include <core/liballoc.h>
 
 fbdrv_ctx_t* fbctx = NULL;
@@ -12,7 +13,6 @@ int init_fbdrv(struct limine_framebuffer* lmfb) {
     if (!fbctx) return -1;
 
     fbctx->backend = lmfb;
-    fbctx->nfbs = 0;
     fbctx->cfb = -1;
 
     return 0;
@@ -20,119 +20,146 @@ int init_fbdrv(struct limine_framebuffer* lmfb) {
 
 void deinit_fbdrv() {
     if (!fbctx) return;
-    for (usize i = 0; i < fbctx->nfbs; i++) {
-        fbctx->fbs[i]->height = fbctx->fbs[i]->width = 0;
-        free(fbctx->fbs[i]->ptr);
-        free(fbctx->fbs[i]);
-    }
-
     free(fbctx);
 }
 
 int create_fb(int type) {
     if (!fbctx) return -1;
-    if (fbctx->nfbs == MAX_FBS) return -1;
-
-    int fb = fbctx->nfbs++;
-    fbctx->fbs[fb] = malloc(sizeof(framebuf_t));
-    if (!fbctx->fbs[fb]) {
-        fbctx->nfbs--;
+    struct fdinfo info = {
+        .fd = -1,
+        .inuse = 0,
+        .type = FDTYPE_FB
+    };
+    struct fdinfo* fd = getnewfd(&info);
+    if (!fd) {
         return -1;
     }
 
-    fbctx->fbs[fb]->height = fbctx->backend->height;
-    fbctx->fbs[fb]->width  = fbctx->backend->width;
-    fbctx->fbs[fb]->pitch  = fbctx->backend->pitch;
-    fbctx->fbs[fb]->type   = type;
-    fbctx->fbs[fb]->ptrsz = fbctx->fbs[fb]->pitch * fbctx->fbs[fb]->height;
-    fbctx->fbs[fb]->ptr    = malloc(fbctx->fbs[fb]->ptrsz);
-
-    if (!fbctx->fbs[fb]->ptr) {
-        free(fbctx->fbs[fb]);
-        fbctx->nfbs--;
+    fd->data.fb = malloc(sizeof(framebuf_t));
+    if (!fd->data.fb) {
+        closefd(fd->fd);
         return -1;
     }
 
-    return fb;
+    fd->data.fb->height = fbctx->backend->height;
+    fd->data.fb->width  = fbctx->backend->width;
+    fd->data.fb->pitch  = fbctx->backend->pitch;
+    fd->data.fb->type   = type;
+    fd->data.fb->ptrsz = fd->data.fb->pitch * fd->data.fb->height;
+    fd->data.fb->ptr    = malloc(fd->data.fb->ptrsz);
+
+    if (!fd->data.fb->ptr) {
+        free(fd->data.fb);
+        closefd(fd->fd);
+        return -1;
+    }
+
+    return fd->fd;
 }
 
 usize create_fb_withmem(int type, void* ptr, usize sz, int* fbdes) {
     if (!fbctx) return -1;
-    if (fbctx->nfbs == MAX_FBS) return -1;
-
-    int fb = fbctx->nfbs++;
-    fbctx->fbs[fb] = malloc(sizeof(framebuf_t));
-    if (!fbctx->fbs[fb]) {
-        fbctx->nfbs--;
+    struct fdinfo info = {
+        .fd = -1,
+        .inuse = 0,
+        .type = FDTYPE_FBW
+    };
+    struct fdinfo* fd = getnewfd(&info);
+    if (!fd) {
         return -1;
     }
 
-    fbctx->fbs[fb]->height = fbctx->backend->height;
-    fbctx->fbs[fb]->width  = fbctx->backend->width;
-    fbctx->fbs[fb]->pitch  = fbctx->backend->pitch;
-    fbctx->fbs[fb]->type   = type;
+    fd->data.fb = malloc(sizeof(framebuf_t));
+    if (!fd->data.fb) {
+        closefd(fd->fd);
+        return -1;
+    }
+
+    fd->data.fb->height = fbctx->backend->height;
+    fd->data.fb->width  = fbctx->backend->width;
+    fd->data.fb->pitch  = fbctx->backend->pitch;
+    fd->data.fb->type   = type;
 
     if (!ptr || sz == 0) {
-        usize nsz = fbctx->fbs[fb]->pitch * fbctx->fbs[fb]->height;
-        free(fbctx->fbs[fb]);
-        fbctx->nfbs--;
+        usize nsz = fd->data.fb->pitch * fd->data.fb->height;
+        free(fd->data.fb);
+        closefd(fd->fd);
         return nsz;
     }
 
-    fbctx->fbs[fb]->ptrsz  = sz;
-    fbctx->fbs[fb]->ptr    = ptr;
+    fd->data.fb->ptrsz  = sz;
+    fd->data.fb->ptr    = ptr;
 
-    if (!fbctx->fbs[fb]->ptr) {
-        free(fbctx->fbs[fb]);
-        fbctx->nfbs--;
+    if (!fd->data.fb->ptr) {
+        free(fd->data.fb);
+        closefd(fd->fd);
         return -1;
     }
 
-    *fbdes = fb;
+    *fbdes = fd->fd;
     return 0;
 }
 
-void free_fb_withmem(int fb) {
-    if (!fbctx) return;
-    if (fb < 0 || fb >= MAX_FBS) return;
-
-    framebuf_t* fbp = fbctx->fbs[fb];
-    if (!fbp) return;
-
-    free(fbp);
-    fbctx->fbs[fb] = NULL;
+int free_fb_withmem(int fb) {
+    struct fdinfo* info;
+    if (getfd(fb, &info) < 0) {
+        return -1;
+    }
+    
+    if (!info->data.fb) return -1;
+    free(info->data.fb);
+    return closefd(fb);
 }
 
-void free_fb(int fb) {
-    if (!fbctx) return;
-    if (fb < 0 || fb >= MAX_FBS) return;
-
-    framebuf_t* fbp = fbctx->fbs[fb];
-    if (!fbp) return;
-
-    free(fbp->ptr);
-    free(fbp);
-    fbctx->fbs[fb] = NULL;
+int free_fb(int fb) {
+    struct fdinfo* info;
+    if (getfd(fb, &info) < 0) {
+        return -1;
+    }
+    
+    if (!info->data.fb) return -1;
+    free(info->data.fb->ptr);
+    free(info->data.fb);
+    return closefd(fb);
 }
 
 int switch_fb(int fb) {
+    struct fdinfo* info;
+    if (getfd(fb, &info) < 0) {
+        return -1;
+    }
+
     if (!fbctx) return -1;
-    if (!fbctx->fbs[fb]) return -1;
+    if (!info->data.fb) return -1;
     fbctx->cfb = fb;
     return 0;
 }
 
 void clear_fb(int fb) {
-    memset(fbctx->fbs[fb]->ptr, 0, fbctx->fbs[fb]->ptrsz);
+    struct fdinfo* info;
+    if (getfd(fb, &info) < 0) {
+        return;
+    }
+
+    memset(info->data.fb->ptr, 0, info->data.fb->ptrsz);
 }
 
 void flush_scr() {
-    memcpy(fbctx->backend->address, fbctx->fbs[fbctx->cfb]->ptr, fbctx->fbs[fbctx->cfb]->ptrsz);
+    struct fdinfo* info;
+    if (getfd(fbctx->cfb, &info) < 0) {
+        return;
+    }
+    memcpy(fbctx->backend->address, info->data.fb->ptr, info->data.fb->ptrsz);
 }
 
 int get_fbinfo(int fb, framebuf_info_t *info) {
     if (!info || !fbctx) return -1;
-    framebuf_t* fbp = fbctx->fbs[fb];
+    struct fdinfo* finfo;
+    if (getfd(fb, &finfo) < 0) {
+        return -1;
+    }
+    
+    framebuf_t* fbp = finfo->data.fb;
     if (!fbp) return -1;
     struct limine_framebuffer* bep = fbctx->backend;
 
@@ -153,15 +180,6 @@ int get_fbinfo(int fb, framebuf_info_t *info) {
     info->mask_shifts[MASK_BLUE]  = bep->blue_mask_shift;
 
     return 0;
-}
-
-int get_typefb(int type) {
-    for (usize i = 0; i < fbctx->nfbs; i++) {
-        if (fbctx->fbs[i]->type == type) {
-            return i;
-        }
-    }
-    return -1;
 }
 
 int get_currfb() {

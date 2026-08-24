@@ -1,8 +1,28 @@
 #include <lib/loader.h>
 #include <scheduler/process.h>
 #include <core/printf.h>
+#include <core/fd.h>
+#include <core/liballoc.h>
+#include <lib/string.h>
+#include <drivers/display/term.h>
+#include <drivers/hid/kbd.h>
 
 process_state_t proctbl[MAX_PROCESSES];
+
+int copy_fds(u8 dst, u8 src) {
+    process_state_t* dproc = &proctbl[dst];
+    process_state_t* sproc = &proctbl[src];
+
+    struct fdinfo* new_fds = malloc(sizeof(struct fdinfo) * sproc->nfds);
+    if (!new_fds) {
+        return -1;
+    }
+
+    memcpy(new_fds, sproc, sizeof(struct fdinfo) * sproc->nfds);
+    dproc->nfds = sproc->nfds;
+    dproc->fds = sproc->fds;
+    return 0;
+}
 
 int kexecve(const char* path, char** argv, char** envp, u8 cpid) {
     process_state_t* proc = &proctbl[cpid];
@@ -40,10 +60,25 @@ int kexecve(const char* path, char** argv, char** envp, u8 cpid) {
     proc->is_blocked = 0;
     proc->wait_pid = WAIT_ANY;
     proc->wake_ms = 0;
-
+    
     vmm_setumapbase(proc->pid, res.load_high);
 
     return 0;
+}
+
+static ssize _stdin_read(void* buf, usize sz) {
+    for (usize i = 0; i < sz; i++) {
+        *((char*)&buf[i]) = getchar();
+        if (*((char*)&buf[i]) == '\n') {
+            return i;
+        }
+    }
+    return sz;
+}
+
+static ssize _stdout_write(void* buf, usize sz) {
+    term_write(buf, sz);
+    return sz;
 }
 
 int new_process(const char* path, char** argv, char** envp, u8 ppid) {
@@ -60,6 +95,38 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
 
     loadprog_res_t res = load_program(path, argv, envp);
     if (res.status < 0) return -1;
+
+    if (pid == 0) {
+        struct fdinfo* new_fds = malloc(sizeof(struct fdinfo) * 3);
+        if (!new_fds) {
+            return -1;
+        }
+
+        new_fds[0] = (struct fdinfo){
+            0, 1, FDTYPE_IO, 
+            .data = {
+                .io = {1, 0, NULL, _stdin_read}
+            }
+        };
+
+        new_fds[1] = (struct fdinfo){
+            1, 1, FDTYPE_IO, 
+            .data = {
+                .io = {0, 1, _stdout_write, NULL}
+            }
+        };
+
+        new_fds[2] = (struct fdinfo){
+            2, 1, FDTYPE_IO,
+            .data = {
+                .io = {0, 1, _stdout_write, NULL}
+            }
+        };
+    } else {
+        if (copy_fds(pid, ppid) < 0) {
+            return -1;
+        }
+    }
 
     proc->rip = res.entry;
     proc->rsp = res.rsp;

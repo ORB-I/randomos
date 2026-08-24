@@ -15,7 +15,6 @@
 #define SEEK_CUR 1
 #define SEEK_END 2
 
-typedef s32 ssize;
 typedef s32 off_t;
 
 struct stat {
@@ -33,9 +32,9 @@ ssize write(int fd, void* buf, usize size);
 off_t lseek(int fd, off_t off, int whence);
 int trunc(int fd);
 int sync(int fd);
-DIR* opendir(const char* path);
-int closedir(DIR* cdp);
-int readdir(DIR* cdp, struct stat* st);
+int opendir(const char* path);
+int closedir(int cdp);
+int readdir(int cdp, struct stat* st);
 int stat(const char* path, struct stat* st);
 int unlink(const char* path);
 int rename(const char* oname, const char* nname);

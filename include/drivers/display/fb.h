@@ -25,8 +25,6 @@ typedef struct {
 #define MAX_FBS 10
 typedef struct FrameBufferDriverCtx {
     struct limine_framebuffer* backend;
-    framebuf_t* fbs[MAX_FBS];
-    usize nfbs;
     int cfb;
 } fbdrv_ctx_t;
 
@@ -34,15 +32,14 @@ int init_fbdrv(struct limine_framebuffer* lmfb);
 void deinit_fbdrv();
 
 int create_fb(int type);
-void free_fb(int fb);
+int free_fb(int fb);
 int switch_fb(int fb);
 int get_fbinfo(int fb, framebuf_info_t* info);
 
 usize create_fb_withmem(int type, void* ptr, usize sz, int* fbdes);
-void free_fb_withmem(int fb);
+int free_fb_withmem(int fb);
 
 void clear_fb(int fb);
 void flush_scr();
 
-int get_typefb(int type);
 int get_currfb();

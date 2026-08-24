@@ -15,13 +15,6 @@ int create_fb(int type) {
     return fb;
 }
 
-void rmfb(int fb) {
-    framebuf_info_t info;
-    get_fbinfo(fb, &info);
-    free(info.ptr);
-    __syscall1(SYS_RMFBWMEM, fb);
-}
-
 int switch_fb(int fb) {
     return __syscall1(SYS_SWITCHFB, fb);
 }
@@ -36,10 +29,6 @@ void flush_scr() {
 
 int get_fbinfo(int fb, framebuf_info_t* info) {
     return __syscall2(SYS_GETFBINF, fb, (u64)info);
-}
-
-int get_typefb(int type) {
-    return __syscall1(SYS_GETFBTYP, type);
 }
 
 int get_currfb() {

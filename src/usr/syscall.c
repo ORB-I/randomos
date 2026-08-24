@@ -367,17 +367,12 @@ bool syscall_c(struct sysregs* args) {
         }
         case SYS_READDIR: {
             if (!args->a0 || !args->a1) { args->num = -1; goto ret; }
-            args->num = readdir((DIR*)args->a0, (struct stat*)args->a1);
+            args->num = readdir((int)args->a0, (struct stat*)args->a1);
             goto ret;
         }
         case SYS_OPENDIR: {
             if (!args->a0) { args->num = 0; goto ret; }
             args->num = (u64)opendir((char*)args->a0);
-            goto ret;
-        }
-        case SYS_CLOSEDIR: {
-            if (!args->a0) { args->num = -1; goto ret; }
-            args->num = closedir((DIR*)args->a0);
             goto ret;
         }
         case SYS_GETCWD: {
@@ -401,11 +396,6 @@ bool syscall_c(struct sysregs* args) {
             args->num = create_fb(args->a0);
             goto ret;
         }
-        case SYS_RMFB: {
-            free_fb(args->a0);
-            args->num = 0;
-            goto ret;
-        }
         case SYS_SWITCHFB: {
             args->num = switch_fb(args->a0);
             goto ret;
@@ -423,10 +413,6 @@ bool syscall_c(struct sysregs* args) {
         case SYS_GETFBINF: {
             if (!args->a1) { args->num = -1; goto ret; }
             args->num = get_fbinfo(args->a0, (framebuf_info_t*)args->a1);
-            goto ret;
-        }
-        case SYS_GETFBTYP: {
-            args->num = get_typefb(args->a0);
             goto ret;
         }
         case SYS_GETCURFB: {
@@ -465,11 +451,6 @@ bool syscall_c(struct sysregs* args) {
         }
         case SYS_CREATEFBWMEM: {
             args->num = create_fb_withmem(args->a0, (void*)args->a1, args->a2, (int*)args->a3);
-            goto ret;
-        }
-        case SYS_RMFBWMEM: {
-            free_fb_withmem(args->a0);
-            args->num = 0;
             goto ret;
         }
         case SYS_GETMOUSEINFO: {

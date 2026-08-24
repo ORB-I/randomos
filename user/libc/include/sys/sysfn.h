@@ -38,3 +38,5 @@ int reboot();
 int poweroff();
 void sleep(int secs);
 int termctl(int code, int arg);
+int open(char* path, u32 flags);
+int close(int fd);

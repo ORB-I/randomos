@@ -5,9 +5,7 @@
 #include <drivers/storage/fs.h>
 #include <drivers/display/term.h>
 #include <drivers/hid/kbd.h>
-
-FIL fp[128];
-DIR dp[128];
+#include <core/fd.h>
 
 FATFS fs;
 int mount(const char* path, int flags) {
@@ -29,112 +27,84 @@ int mount(const char* path, int flags) {
 int umount(const char* path) { return (f_unmount(path) == FR_OK) ? 0 : -1; }
 
 int open(const char* path, int flags) {
-    int fd = -1;
-    for (int i = 0; i < 128; i++) {
-        if (fp[i].obj.fs == NULL) {
-            fd = i;
-            break;
-        }
+    struct fdinfo fdi = {
+        .fd = -1,
+        .inuse = 0,
+        .type = FDTYPE_FILE,
+    };
+    struct fdinfo* fd = getnewfd(&fdi);
+    if (!fd) {
+        return -1;
     }
 
-    if (fd == -1) return -1;
-
-    FRESULT res = f_open(&fp[fd], path, flags & ~O_TRUNC);
-    if (res != FR_OK) return -1;
+    FIL fp;
+    FRESULT res = f_open(&fp, path, flags & ~O_TRUNC);
+    if (res != FR_OK) {
+        closefd(fd->fd);
+        return -1;
+    }
     if ((flags & O_TRUNC) == O_TRUNC) {
-        res = f_truncate(&fp[fd]);
-        if (res != FR_OK) return -1;
-        else return fd + 3;
-    }
-    return fd + 3; // adding 3 to skip stdin, stdout, stderr
-}
-
-int close(int fd) {
-    if (fd < 0 || fd >= 128 + 3) return -1;
-    if (fd < 3) {
-        return 0;
-    } else {
-        if (fp[fd - 3].obj.fs == NULL) return -1;
-
-        FRESULT res = f_close(&fp[fd - 3]);
-        if (res != FR_OK) return -1;
-        memset(&fp[fd - 3], 0, sizeof(FIL));
-    }
-    return 0;
-}
-
-ssize read(int fd, void* buf, usize size) {
-    if (fd < 3) {
-        switch (fd) {
-            // can read stdin but not stdout/stderr yet lol
-            case 0: {
-                for (usize i = 0; i < size; i++) {
-                    *((char*)&buf[i]) = getchar();
-                    if (*((char*)&buf[i]) == '\n') {
-                        return i;
-                    }
-                }
-                return size;
-            }
-            case 1: return -1;
-            case 2: return -1;
-            default: return -1; // doing this to make the compiler happy, even though it cant be reached
+        res = f_truncate(&fp);
+        if (res != FR_OK) {
+            closefd(fd->fd);
+            f_close(&fp);
+            return -1;
         }
-    } else {
-        UINT nread;
-        return (f_read(&fp[fd - 3], buf, size, &nread) == FR_OK) ? (ssize)nread : -1;
     }
-}
-
-ssize write(int fd, void* buf, usize size) {
-    if (fd < 3) {
-        switch (fd) {
-            case 0: return -1; // cant write to stdin yet
-            case 1:
-            case 2:
-                term_write(buf, size);
-                return size;
-            default: return -1;
-        }
-    } else {
-        UINT nwritten;
-        return (f_write(&fp[fd - 3], buf, size, &nwritten) == FR_OK) ? (ssize)nwritten : -1;
-    }
+    return fd->fd;
 }
 
 off_t lseek(int fd, off_t off, int whence) {
-    if (fd < 3) return -1;
+    struct fdinfo* info;
+    if (getfd(fd, &info) < 0) return -1;
+
     if (whence == SEEK_SET) {
-        return f_lseek(&fp[fd - 3], off) == FR_OK ? 0 : -1;
+        return f_lseek(&info->data.file, off) == FR_OK ? 0 : -1;
     } else if (whence == SEEK_CUR) {
-        return f_lseek(&fp[fd - 3], f_tell(&fp[fd - 3]) + off) == FR_OK ? 0 : -1;
+        return f_lseek(&info->data.file, f_tell(&info->data.file) + off) == FR_OK ? 0 : -1;
     } else if (whence == SEEK_END) {
-        return f_lseek(&fp[fd - 3], f_size(&fp[fd - 3]) + off) == FR_OK ? 0 : -1;
+        return f_lseek(&info->data.file, f_size(&info->data.file) + off) == FR_OK ? 0 : -1;
     } else return -1;
 }
 
-int trunc(int fd) { if (fd < 3) return -1; return f_truncate(&fp[fd - 3]) == FR_OK ? 0 : -1; }
-int sync(int fd)  { if (fd < 3) return -1; return f_sync(&fp[fd - 3]) == FR_OK ? 0 : -1; }
-
-DIR* opendir(const char* path) {
-    for (int i = 0; i < 128; i++) {
-        if (dp[i].obj.fs == NULL) {
-            if (f_opendir(&dp[i], path) != FR_OK) {
-                return NULL;
-            }
-            return &dp[i];
-        }
-    }
-    return NULL;
+int trunc(int fd) { 
+    struct fdinfo* info;
+    if (getfd(fd, &info) < 0) {
+        return -1;
+    } 
+    return f_truncate(&info->data.file) == FR_OK ? 0 : -1; 
 }
 
-int closedir(DIR* cdp) {
-    if (!cdp) return -1;
-    if (f_closedir(cdp) == FR_OK) {
-        memset(cdp, 0, sizeof(DIR));
-        return 0;
+int sync(int fd) {
+    struct fdinfo* info;
+    if (getfd(fd, &info) < 0) {
+        return -1;
+    } 
+    return f_sync(&info->data.file) == FR_OK ? 0 : -1; 
+}
+
+int opendir(const char* path) {
+    struct fdinfo fdi = {
+        .fd = -1,
+        .inuse = 0,
+        .type = FDTYPE_DIR,
+    };
+    struct fdinfo* fd = getnewfd(&fdi);
+    if (!fd) {
+        return -1;
     }
+
+    if (f_opendir(&fd->data.dir, path) == FR_OK) {
+        return fd->fd;
+    } else {
+        closefd(fd->fd);
+    }
+
     return -1;
+}
+
+int closedir(int cdp) {
+    return close(cdp);
 }
 
 void convstat(FILINFO* finfo, struct stat* st) {
@@ -143,9 +113,14 @@ void convstat(FILINFO* finfo, struct stat* st) {
     st->st_size = finfo->fsize;
 }
 
-int readdir(DIR* cdp, struct stat* st) {
+int readdir(int cdp, struct stat* st) {
+    struct fdinfo* info;
+    if (getfd(cdp, &info) < 0) {
+        return -1;
+    }
+
     FILINFO inf;
-    if (f_readdir(cdp, &inf) != FR_OK) return -1;
+    if (f_readdir(&info->data.dir, &inf) != FR_OK) return -1;
     if (inf.fname[0] == 0) return -1;
 
     convstat(&inf, st);

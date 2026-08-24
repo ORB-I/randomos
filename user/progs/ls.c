@@ -5,7 +5,7 @@
 #include <sys/sysfn.h>
 
 int list_dir(char* path) {
-    DIR* d = opendir(path);
+    int d = opendir(path);
     if (!d) {
         printf("Failed to open: %s\n", path);
         return 1;
@@ -19,7 +19,7 @@ int list_dir(char* path) {
     termctl(TCTL_AFLSH, 1);
     termctl(TCTL_FLUSH, 0);
 
-    closedir(d);
+    close(d);
     return 0;
 }
 

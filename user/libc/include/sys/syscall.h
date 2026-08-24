@@ -19,18 +19,15 @@
 #define SYS_SLEEP         16
 #define SYS_READDIR       17
 #define SYS_OPENDIR       18
-#define SYS_CLOSEDIR      19
 #define SYS_GETCWD        20
 #define SYS_SYNC          21
 #define SYS_TRUNC         22
 #define SYS_TERMCTL       23
 #define SYS_CREATEFB      24
-#define SYS_RMFB          25
 #define SYS_SWITCHFB      26
 #define SYS_CLEARFB       27
 #define SYS_FLUSHSCR      28
 #define SYS_GETFBINF      29
-#define SYS_GETFBTYP      30
 #define SYS_GETCURFB      31
 #define SYS_GETTIMEOFDAY  32
 #define SYS_GETMTIMEOFDAY 33
@@ -40,7 +37,6 @@
 #define SYS_MUNMAP        37
 #define SYS_GETRAWSC      38
 #define SYS_CREATEFBWMEM  39
-#define SYS_RMFBWMEM      40
 #define SYS_GETMOUSEINFO  41
 #define SYS_NEWPROC       42
 #define SYS_WAIT          43
