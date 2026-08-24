@@ -466,7 +466,6 @@ err_t _e1000_netif_linkout(struct netif *netif, struct pbuf *p) {
 }
 
 void _e1000_netif_rxcb(const void* packet, u16 len) {
-    serial_printf("RX %u bytes\r\n", len);
     struct pbuf* pb = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
     if (!pb) return;
 

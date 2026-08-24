@@ -620,10 +620,7 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
         free(relas);
     }
 
-    // we are completely done with all
-    // dynamic structs so we have to
-    // free them all
-
+    // free dynamically allocated structures after all relocations
     free(dynsym);
     free(dynstr);
     for (usize i = 0; i < nloaded; i++) {

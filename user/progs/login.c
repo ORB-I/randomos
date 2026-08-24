@@ -131,28 +131,9 @@ int parse_salt(char* str, u8* salt, usize size) {
 }
 
 int main() {
-    void* a2wp = malloc(100000 * 1024);
-    if (!a2wp) {
-        printf("failed to setup argon2\n");
-        return 1;
-    }
-    crypto_argon2_config a2cfg = {
-        .algorithm = CRYPTO_ARGON2_ID,
-        .nb_blocks = 100000,
-        .nb_passes = 3,
-        .nb_lanes = 1
-    };
-    crypto_argon2_extras a2ex = {
-        .key = NULL,
-        .ad = NULL,
-        .key_size = 0,
-        .ad_size = 0
-    };
-
     while (1) {
         char *uname, *pwd;
         if (get_info(&uname, &pwd) < 0) {
-            free(a2wp);
             return 1;
         }
 
@@ -161,7 +142,6 @@ int main() {
         switch (ret) {
             case -1:
                 free(uname); free(pwd);
-                free(a2wp);
                 printf("No passwd file or invalid\n");
                 return 1;
             case -2:
@@ -179,91 +159,6 @@ int main() {
             printf("encryption not supported yet\n");
             free(uname); free(pwd);
             continue;
-
-            char* salt = strtok(pass.passwd, "$");
-            if (strlen(salt) < 32) {
-                printf("salt is not at least 16 bytes\n");
-                free(uname); free(pwd);
-                continue;
-            }
-
-            if (strlen(salt) % 2 != 0) {
-                printf("invalid salt\n");
-                free(uname); free(pwd);
-                continue;
-            }
-
-            u8* psalt = malloc(strlen(salt)/2);
-            if (!psalt) {
-                printf("Failed tto allocate salt\n");
-                free(uname); free(pwd);
-                continue;
-            }
-
-            if (parse_salt(salt, psalt, strlen(salt)/2) < 0) {
-                printf("Failed to parse salt\n");
-                free(uname); free(pwd);
-                free(psalt);
-                continue;
-            }
-
-            char* hash = strtok(NULL, "$");
-            if (!hash) {
-                printf("Invalid encrypted password\n");
-                free(uname); free(pwd);
-                free(psalt);
-                continue;
-            }
-
-            if (strlen(hash) % 2 != 0) {
-                printf("invalid hash\n");
-                free(uname); free(pwd);
-                free(psalt);
-                continue;
-            }
-
-            u8* phash = malloc(strlen(hash)/2);
-            if (!phash) {
-                printf("Failed to allocate hash\n");
-                free(uname); free(pwd);
-                free(psalt);
-                continue;
-            }
-
-            if (parse_salt(hash, phash, strlen(hash)/2) < 0) {
-                printf("Failed to parse hash\n");
-                free(uname); free(pwd); free(psalt); free(phash);
-                continue;
-            }
-
-            crypto_argon2_inputs a2is = {
-                .pass = (const u8*)pwd,
-                .salt = psalt,
-                .pass_size = strlen(pwd),
-                .salt_size = strlen(salt) / 2
-            };
-
-            u8 nhash[32];
-            crypto_argon2(nhash, 32, a2wp, a2cfg, a2is, a2ex);
-            if (memcmp(nhash, phash, 32) == 0) {
-                free(psalt); free(phash);
-                setenv("HOME", pass.home, 1);
-                setuid(pass.uid);
-                seteuid(pass.uid);
-                setgid(pass.gid);
-                setegid(pass.gid);
-                char* argv[] = {pass.shell, NULL};
-                free(uname); free(pwd);
-                free(a2wp);
-                int ret = execve(pass.shell, argv, environ);
-                printf("execve failed (%d)\n", ret);
-                return 1;
-            } else {
-                free(psalt); free(phash);
-                free(uname); free(pwd);
-                printf("Incorrect password\n");
-                continue;
-            }
         } else {
             if (!streq(pass.passwd, pwd)) {
                 free(uname); free(pwd);
@@ -277,7 +172,6 @@ int main() {
                 setegid(pass.gid);
                 char* argv[] = {pass.shell, NULL};
                 free(uname); free(pwd);
-                free(a2wp);
                 int ret = execve(pass.shell, argv, environ);
                 printf("execve failed (%d)\n", ret);
                 return 1;

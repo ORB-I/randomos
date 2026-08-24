@@ -852,30 +852,12 @@ static int _vsnprintf(out_fct_type out, char* buffer, const usize maxlen, const 
 }
 
 
-///////////////////////////////////////////////////////////////////////////////
-
-// modified for performance on this kernel
-// so that it collects the string and then
-// only flushes once
 int printf(const char* format, ...)
 {
   va_list va;
   va_start(va, format);
-  char buffer[1];
-  int ret = _vsnprintf(_out_null, buffer, (usize)-1, format, va);
+  const int ret = vprintf(format, va);
   va_end(va);
-
-  char* buf = malloc(ret + 1);
-  if (!buf) return 0;
-
-  va_list newva;
-  va_start(newva, format);
-  ret = vsnprintf(buf, ret + 1, format, newva);
-  va_end(newva);
-
-  write(STDOUT, buf, ret);
-  free(buf);
-
   return ret;
 }
 
@@ -899,40 +881,9 @@ int snprintf(char* buffer, usize count, const char* format, ...)
   return ret;
 }
 
-// modified just like printf
-int vprintf(const char* format, va_list va)
-{
-  va_list vacpy;
-  memcpy(vacpy, va, sizeof(vacpy));
-
-  char buffer[1];
-  int ret = _vsnprintf(_out_null, buffer, (usize)-1, format, va);
-
-  char* buf = malloc(ret + 1);
-  if (!buf) return 0;
-  
-  ret = vsnprintf(buf, ret + 1, format, vacpy);
-  write(STDOUT, buf, ret);
-  free(buf);
-
-  return ret;
-}
-
-
 int vsnprintf(char* buffer, usize count, const char* format, va_list va)
 {
   return _vsnprintf(_out_buffer, buffer, count, format, va);
-}
-
-
-int fctprintf(void (*out)(char character, void* arg), void* arg, const char* format, ...)
-{
-  va_list va;
-  va_start(va, format);
-  const out_fct_wrap_type out_fct_wrap = { out, arg };
-  const int ret = _vsnprintf(_out_fct, (char*)(uintptr_t)&out_fct_wrap, (usize)-1, format, va);
-  va_end(va);
-  return ret;
 }
 
 int vfctprintf(void (*out)(char character, void* arg), void* arg, const char* format, va_list lst)
@@ -942,8 +893,22 @@ int vfctprintf(void (*out)(char character, void* arg), void* arg, const char* fo
   return ret;
 }
 
+int fctprintf(void (*out)(char character, void* arg), void* arg, const char* format, ...)
+{
+  va_list va;
+  va_start(va, format);
+  const int ret = vfctprintf(out, arg, format, va);
+  va_end(va);
+  return ret;
+}
+
 void _fprintf_putchar(char c, void* arg) {
     fputchar((int)(u64)arg, c);
+}
+
+int vprintf(const char* format, va_list va)
+{
+  return vfctprintf(_fprintf_putchar, (void*)(u64)STDOUT, format, va);
 }
 
 int fprintf(int fd, const char* fmt, ...) {

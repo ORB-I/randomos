@@ -15,4 +15,6 @@ copy_etc: $(FILES)
 		mcopy -voi $(DRIVE) "$$file" "::/etc/$$file"; \
 	done
 
-.PHONY: copy_etc
+clean:
+
+.PHONY: all copy_etc clean
