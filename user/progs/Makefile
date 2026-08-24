@@ -4,7 +4,7 @@ include ../../mk/tools.mk
 # ld.lld, same reason as the kernel makefile: clang would delegate to
 # host gcc and every machine interprets that differently
 CCFLAGS := -nostdlib -fno-builtin -fno-stack-protector \
-    -I../libc/include -ffreestanding \
+    -I../libc/include -ffreestanding -I../libs/libmcrypto \
 	-fno-pie \
 	-g -MMD -MP -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 	-Wall -Wextra
@@ -30,16 +30,21 @@ PROGS := init \
 		 whoami \
 		 serialtest \
 		 environ \
-		 login
+		 random
+
+PROGS_C := login
 
 DRIVE ?= ../../drive.img
 
 DEPLIBS := ../libc/libc.so ../libc/crt0.o
+DEPLIBS_C := ../libs/libmcrypto/libmcrypto.so
+
 DEPS := $(PROGS:=.d)
 
 PROGFILES := $(PROGS:=.elf)
+PROGFILES_C := $(PROGS_C:=.elf)
 
-all: $(DRIVE) $(PROGFILES)
+all: $(DRIVE) $(PROGFILES) $(PROGFILES_C)
 
 $(DRIVE):
 	dd if=/dev/zero of=$@ bs=1M count=16
@@ -48,9 +53,15 @@ $(DRIVE):
 	mmd -i $(DRIVE) ::/etc
 	mmd -i $(DRIVE) ::/lib
 
+
 $(PROGFILES): %.elf: %.c $(DEPLIBS)
 	$(CC) $(CCFLAGS) -c $< -o $(basename $@).o
 	$(LD) $(LDFLAGS) $(basename $@).o $(DEPLIBS) -o $@
+	mcopy -voi $(DRIVE) -s $@ ::/bin/$(basename $@)
+
+$(PROGFILES_C): %.elf: %.c $(DEPLIBS) $(DEPLIBS_C)
+	$(CC) $(CCFLAGS) -c $< -o $(basename $@).o
+	$(LD) $(LDFLAGS) $(basename $@).o $(DEPLIBS) $(DEPLIBS_C) -o $@
 	mcopy -voi $(DRIVE) -s $@ ::/bin/$(basename $@)
 
 clean:

@@ -17,6 +17,5 @@
 ## Design debt
 
 ## No owner yet
-- [ ] RNG driver
-- [ ] encryption (argon2id) support in login (see user/libs/libmcrypto/mcrypto.h)
+- [ ] fix hashed password (argon2id) support in login (see user/libs/libmcrypto/mcrypto.h)
 - [ ] Documentation for randomOS (in near future - not for now.)

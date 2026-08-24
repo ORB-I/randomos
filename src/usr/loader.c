@@ -200,6 +200,8 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
         return LOADLIB_ERR;
     }
 
+    printf("Loading library at %p\n", base);
+
     Elf64_Ehdr ehdr;
     ssize nread = read(fd, &ehdr, sizeof(ehdr));
     if (nread == -1 || (usize)nread < sizeof(ehdr)) {

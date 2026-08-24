@@ -57,6 +57,8 @@
 #define SYS_SERIALWRITE   54
 #define SYS_GETRAWSCTO    55
 #define SYS_EXECVE        56
+#define SYS_RANDOM64      57
+#define SYS_RANDOMBYTES   58
 
 u64 __syscall0(u64 nr);
 u64 __syscall1(u64 nr, u64 arg0);

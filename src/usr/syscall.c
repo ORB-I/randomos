@@ -12,6 +12,7 @@
 #include <drivers/storage/fs.h>
 #include <drivers/hid/mouse.h>
 #include <drivers/display/fb.h>
+#include <drivers/rng/rng.h>
 #include <drivers/time/clock.h>
 #include <drivers/hid/kbd.h>
 #include <drivers/display/serial.h>
@@ -576,6 +577,14 @@ bool syscall_c(struct sysregs* args) {
         }
         case SYS_EXECVE: {
             args->num = sys_execve(uasp, (char*)args->a0, (char**)args->a1, (char**)args->a2);
+            goto ret;
+        }
+        case SYS_RANDOM64: {
+            args->num = random64();
+            goto ret;
+        }
+        case SYS_RANDOMBYTES: {
+            args->num = random_bytes((u8*)args->a0, args->a1);
             goto ret;
         }
         default: args->num = -1;
