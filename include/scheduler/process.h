@@ -61,5 +61,6 @@ typedef struct {
 extern process_state_t proctbl[MAX_PROCESSES];
 extern u8 current_pid;
 int new_process(const char* path, char** argv, char** envp, u8 ppid);
+int kexecve(const char* path, char** argv, char** envp, u8 cpid);
 void wake_waiter(u8 pid);
 void reparent_children(u8 old_ppid);

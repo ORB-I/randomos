@@ -141,7 +141,17 @@ static s64 kill_process(s64 pid) {
     return 0;
 }
 
-static int sys_newproc(page_table_t* uasp, const char* path, char** argv, char** envp, u8 ppid) {
+struct copy_npa_res {
+    int stat;
+    u64 phys;
+    usize npgs;
+    char* kpath;
+    char** kargv;
+    char** kenvp;
+};
+#define COPY_NPA_BAD ((struct copy_npa_res){-1,0,0,NULL,NULL,NULL})
+
+static struct copy_npa_res copy_newprocargs(const char* path, char** argv, char** envp) {
     // we need to copy our args into the kasp and switch
     // cuz if we dont new_process calls load_program
     // which without switching will overwrite the current user program
@@ -165,7 +175,7 @@ static int sys_newproc(page_table_t* uasp, const char* path, char** argv, char**
     usize npgs = (totalsz + 4095) / 4096;
 
     void* phys = pmm_falloc(npgs);
-    if (!phys) return -1;
+    if (!phys) return COPY_NPA_BAD;
 
     void* virt = (void*)((u64)phys + HHDM_START);
     char** kargv = (char**)virt;
@@ -195,13 +205,49 @@ static int sys_newproc(page_table_t* uasp, const char* path, char** argv, char**
     }
     kenvp[nenv] = NULL;
 
+    return (struct copy_npa_res){
+        0,
+        (u64)phys,
+        npgs,
+        kpath,
+        kargv,
+        kenvp
+    };
+}
+
+static int sys_newproc(page_table_t* uasp, const char* path, char** argv, char** envp, u8 ppid) {
+    struct copy_npa_res res = copy_newprocargs(path, argv, envp);
+    if (res.stat < 0) {
+        return -1;
+    }
+
     vmm_skasp();
-    int ret = new_process(kpath, kargv, kenvp, ppid);
+    int ret = new_process(res.kpath, res.kargv, res.kenvp, ppid);
     vmm_sasp(uasp);
 
-    pmm_ffree(phys, npgs);
+    pmm_ffree((void*)res.phys, res.npgs);
 
     return ret;
+}
+
+void proc2ctx(procctx_t* dst, process_state_t* src);
+extern int scheduler_execve;
+static int sys_execve(page_table_t* uasp, const char* path, char** argv, char** envp) {
+    struct copy_npa_res res = copy_newprocargs(path, argv, envp);
+    if (res.stat < 0) return -1;
+
+    vmm_skasp();
+    int ret = kexecve(res.kpath, res.kargv, res.kenvp, current_pid);
+    vmm_sasp(uasp);
+
+    pmm_ffree((void*)res.phys, res.npgs);
+    if (ret < 0) return -1;
+
+    procctx_t ctx;
+    proc2ctx(&ctx, &proctbl[current_pid]);
+    scheduler_execve = 1;
+    scheduler_switch(&ctx);
+    return 0;
 }
 
 [[noreturn]] void sys_exit(int code) {
@@ -526,6 +572,10 @@ bool syscall_c(struct sysregs* args) {
         }
         case SYS_GETRAWSCTO: {
             args->num = kbd_getrawto(args->a0);
+            goto ret;
+        }
+        case SYS_EXECVE: {
+            args->num = sys_execve(uasp, (char*)args->a0, (char**)args->a1, (char**)args->a2);
             goto ret;
         }
         default: args->num = -1;

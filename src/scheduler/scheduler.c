@@ -87,6 +87,7 @@ int nextproc() {
     return -1;
 }
 
+int scheduler_execve = 0;
 void scheduler_switch(procctx_t* proc) {
     int tgtpid = nextproc();
 
@@ -97,7 +98,11 @@ void scheduler_switch(procctx_t* proc) {
     }
 
     if (tgtpid == (int)current_pid && !proctbl[current_pid].is_dead) {
-        return;
+        if (scheduler_execve) {
+            scheduler_execve = 0;
+        } else {
+            return;
+        }
     }
 
     process_state_t* tgtproc = &proctbl[tgtpid];

@@ -23,3 +23,4 @@ int seteuid(uid_t euid);
 
 gid_t getegid(void);
 int setegid(gid_t egid);
+int execve(char* path, char** argv, char** envp);

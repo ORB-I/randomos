@@ -3,14 +3,17 @@
 
 int main() {
     printf("Welcome to RandomOS\n");
-    char* shargv[] = {"/bin/sh", NULL};
+    char* shargv[] = {"/bin/login", NULL};
     char* shenvp[] = {"PATH=/bin:/sbin", NULL};
     int pid = 0;
-    if ((pid = newproc("/bin/sh", shargv, shenvp)) < 0) {
-        printf("failed to start shell\n");
-        for (;;);
+
+    while (1) {
+        if ((pid = newproc("/bin/login", shargv, shenvp)) < 0) {
+            printf("failed to start login\n");
+            for (;;);
+        }
+        int exit;
+        wait(pid, &exit);
     }
-    int exit;
-    wait(pid, &exit);
     for (;;);
 }

@@ -29,7 +29,8 @@ PROGS := init \
 		 id \
 		 whoami \
 		 serialtest \
-		 environ
+		 environ \
+		 login
 
 DRIVE ?= ../../drive.img
 

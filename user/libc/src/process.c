@@ -48,3 +48,7 @@ gid_t getegid(void) {
 int setegid(gid_t egid) {
     return (int)(s64)__syscall1(SYS_SETEGID, (u64)egid);
 }
+
+int execve(char* path, char** argv, char** envp) {
+    return (int)__syscall3(SYS_EXECVE, (u64)path, (u64)argv, (u64)envp);
+}

@@ -1,11 +1,11 @@
 #pragma once
 #include <sys/types.h>
 
-#define O_WRONLY FA_WRITE
-#define O_RDONLY FA_READ
+#define O_WRONLY 0x02
+#define O_RDONLY 0x01
 #define O_RDWR (O_WRONLY | O_RDONLY)
-#define O_CREAT FA_OPEN_ALWAYS
-#define O_APPEND FA_OPEN_APPEND
+#define O_CREAT 0x10
+#define O_APPEND 0x30
 #define O_TRUNC 0x04
 
 #define SEEK_SET 0

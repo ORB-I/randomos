@@ -44,3 +44,4 @@ Newest entries go at the bottom of each section.
 - [x] environment variables
 - [x] switch to PATH
 - [x] refactor disk to use directories for stuff (/bin, /lib, /etc)
+- [x] login support (/etc/passwd)

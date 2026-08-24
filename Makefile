@@ -35,7 +35,7 @@ EXE  := kern.elf
 ISO  := os.iso
 DEPS := $(CC_SRC:.c=.d)
 
-SUBDIRS := user/libc user/progs
+SUBDIRS := user/libc user/progs share/etc
 
 all: subdirs $(ISO)
 

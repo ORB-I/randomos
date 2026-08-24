@@ -55,5 +55,6 @@
 #define SYS_SETEGID       53
 #define SYS_SERIALWRITE   54
 #define SYS_GETRAWSCTO    55
+#define SYS_EXECVE        56
 
 void init_syscalls();
