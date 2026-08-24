@@ -82,6 +82,29 @@ int memcmp(const void* s1, const void* s2, usize n) {
     return 0;
 }
 
+void* memmove(void* dst, const void* src, usize n) {
+    char* d = (char*)dst;
+    const char* s = (const char*)src;
+
+    if (d == s || n == 0) {
+        return dst;
+    }
+
+    if (d < s) {
+        while (n--) {
+            *d++ = *s++;
+        }
+    } else {
+        d += n - 1;
+        s += n - 1;
+        while (n--) {
+            *d-- = *s--;
+        }
+    }
+
+    return dst;
+}
+
 char* strchr(const char* str, char c) {
     while (*str != '\0') {
         if (*str == c) return (char*)str;
@@ -89,4 +112,26 @@ char* strchr(const char* str, char c) {
     }
     if (c == '\0') return (char*)str;
     return NULL;
+}
+
+int strcmp(const char* s1, const char* s2) {
+    while (*s1 && (*s1 == *s2)) {
+        s1++; s2++;
+    }
+
+    return *s1 - *s2;
+}
+
+int strncmp(const char* s1, const char* s2, usize n) {
+    while (n > 0) {
+        if (*s1 != *s2) {
+            return *s1 - *s2;
+        }
+        if (*s1 == '\0') {
+            return 0;
+        }
+        s1++; s2++; n--;
+    }
+
+    return 0;
 }

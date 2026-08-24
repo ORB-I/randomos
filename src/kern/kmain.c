@@ -98,6 +98,7 @@ int try_init(const char* path) {
     return 1;
 }
 
+int init_lwip();
 void kmain_aftergdt() {
     init_fpu();
     if (init_clock(CLOCK_TSC) < 0) {
@@ -169,6 +170,7 @@ void kmain_aftergdt() {
     }
 
     e1000_init();
+    init_lwip();
 
     init_syscalls();
 
@@ -178,12 +180,6 @@ void kmain_aftergdt() {
     init_mouse(mbtype);
 
     if (init_scheduler() < 0) panic("Failed to initialize scheduler\n");
-    /*if (!try_init("/init") &&
-        !try_init("/bin/init") &&
-        !try_init("/sbin/init") &&
-        !try_init("/bin/sh")) {
-        panic("failed to find a working init");
-    }*/
 
     char* argv[] = {"/bin/init", NULL};
     char* envp[] = {NULL};

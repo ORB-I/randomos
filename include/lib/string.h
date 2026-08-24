@@ -10,5 +10,9 @@ s32 atoi(const char* str);
 void* memset(void *dest, int val, usize count);
 void* memcpy(void* dest, const void* src, usize count);
 int memcmp(const void* s1, const void* s2, usize n);
+void* memmove(void* dst, const void* src, usize n);
 
 char* strchr(const char* str, char c);
+
+int strcmp(const char* s1, const char* s2);
+int strncmp(const char* s1, const char* s2, usize n);

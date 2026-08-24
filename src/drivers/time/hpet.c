@@ -2,6 +2,7 @@
 #include <core/mem/vmm.h>
 #include <core/asmh.h>
 #include <drivers/apic.h>
+#include <core/printf.h>
 #include <core/idt.h>
 #include <drivers/time/hpet.h>
 

@@ -9,7 +9,7 @@ ASFLAGS      := -Iinclude -felf64
 LDFLAGS      := -m elf_x86_64 -T share/link.ld --no-pie -O0 -nostdlib -no-pie
 # no -lgcc on purpose: the kernel doesnt need its builtins and pure
 # llvm machines (mac) dont ship it anyway
-LIBS         := -Llib -llai -lff -lflanterm
+LIBS         := -Llib -llai -lff -lflanterm -llwip
 CCFLAGS      := -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 				-m64 -nostdlib -fno-builtin -fno-stack-protector -fno-pie -Iinclude \
 		        -nostartfiles -nodefaultlibs -ffreestanding -Wall -Wextra -g \

@@ -88,8 +88,10 @@ int nextproc() {
 }
 
 int scheduler_execve = 0;
+void krunpolls();
 void scheduler_switch(procctx_t* proc) {
     int tgtpid = nextproc();
+    krunpolls();
 
     while (tgtpid < 0) {
         // If all processes are blocked or sleeping, halt until next timer tick

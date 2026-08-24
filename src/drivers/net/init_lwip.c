@@ -1,0 +1,69 @@
+#include <lwip/netif/ethernet.h>
+#include <lwip/lwip/init.h>
+#include <lwip/lwip/dhcp.h>
+#include <lwip/lwip/ip4.h>
+#include <lwip/lwip/netif.h>
+#include <lwip/lwip/timeouts.h>
+#include <drivers/time/clock.h>
+#include <drivers/time/hpet.h>
+#include <core/printf.h>
+
+err_t e1000_netifinit();
+extern struct netif _e1000_netif;
+
+static void netif_status_cb(struct netif *netif) {
+    if (ip4_netif_get_local_ip(netif)) {
+        const ip_addr_t* ip_addr = ip4_netif_get_local_ip(netif);
+        if (ip_addr->type == IPADDR_TYPE_V4 || ip_addr->type == IPADDR_TYPE_ANY) {
+            ip4_addr_t addr = ip_addr->u_addr.ip4;
+            u8 a = ip4_addr1(&addr);
+            u8 b = ip4_addr2(&addr);
+            u8 c = ip4_addr3(&addr);
+            u8 d = ip4_addr4(&addr);
+            serial_printf("%u.%u.%u.%u\r\n", a, b, c, d);
+        }
+    }
+}
+
+void lwip_hpetcb() {
+    sys_check_timeouts();
+}
+
+int init_lwip() {
+    printf("Initializing LwIP\n");
+    lwip_init();
+
+    ip4_addr_t ipv4;
+    ip4_addr_t nmask;
+    ip4_addr_t gw;
+
+    IP4_ADDR(&ipv4, 0, 0, 0, 0);
+    IP4_ADDR(&nmask, 0, 0, 0, 0);
+    IP4_ADDR(&gw, 0, 0, 0, 0);
+
+    printf("Adding ethernet device Intel(R) E1000\n");
+    struct netif* nf = netif_add(&_e1000_netif, &ipv4, 
+        &nmask, &gw, 
+        NULL, e1000_netifinit, 
+        ethernet_input);
+    
+    printf("Setting default ethernet device Intel(R) E1000\n");
+    netif_set_default(&_e1000_netif);
+    printf("Setting link up for ethernet\n");
+    netif_set_status_callback(nf, netif_status_cb);
+    netif_set_up(nf);
+    netif_set_link_up(nf);
+
+    printf("Starting DHCP\n");
+
+    int ret = dhcp_start(nf);
+    if (ret == ERR_OK) {
+        return dhcp_renew(nf);
+    } else {
+        return ret;
+    }
+}
+
+u32 sys_now() {
+    return getms();
+}
