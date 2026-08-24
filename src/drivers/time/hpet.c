@@ -108,6 +108,8 @@ int hpet_init(u64 (**getms)(void)) {
     hpet_write64(0x100, tm0cfg);
     u64 counter = hpet_read64(0xF0);
     u64 period = 1000000000000ULL / clkperiod;
+    serial_printf("HPET period: %u fs\n", clkperiod);
+serial_printf("HPET ticks/ms: %llu\n", period);
     hpet_write64(0x108, counter + period);
 
     idt_regintr(0x40, hpet_hdlr, 0x8E, 1);
@@ -173,17 +175,21 @@ int hpet_active() {
 }
 
 static int _hpet_pollcnt = 0;
+int _hpet_pollrun = 0;
 void krunpolls();
 
 void c_hpet_hdlr() {
     _hpet_tickcnt++;
     _hpet_pollcnt++;
-    if (_hpet_pollcnt >= 10) {
+    if (_hpet_pollcnt >= 1000) {
+        if (_hpet_pollrun) {
+            _hpet_pollcnt = 0;
+            page_table_t* pt = vmm_cpml4v();
+            vmm_skasp();
+            krunpolls();
+            vmm_sasp(pt);
+        }
         _hpet_pollcnt = 0;
-        page_table_t* pt = vmm_cpml4v();
-        vmm_skasp();
-        krunpolls();
-        vmm_sasp(pt);
     }
     lapic_eoi();
 }

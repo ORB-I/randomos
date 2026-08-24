@@ -65,6 +65,19 @@ static void kill_user_process(struct CpuState* regs, const char* msg, va_list ls
     panic("all processes have exited");
 }
 
+void backtrace(u64 rbp) {
+    if (!rbp) return;
+    for (usize i = 0; i < 10; i++) {
+        u64* fp = (u64*)rbp;
+        rbp = fp[0];
+        struct kern_symbol* sym = locate_symbol(fp[1]);
+        const char* syms = (sym) ? sym->name : "unknown";
+        printf("%d: %s (%p)\n", i, syms, fp[1]);
+        serial_printf("%d: %s (%p)\n", i, syms, fp[1]);
+        if (!rbp) break;
+    }
+}
+
 void except_panic(struct CpuState* regs, const char* msg, ...) {
     asm("cli");
     // one pass to the framebuffer terminal, one to serial for headless
@@ -103,9 +116,11 @@ void except_panic(struct CpuState* regs, const char* msg, ...) {
     serial_printf("RSI: %016lx  RDI: %016lx  RBP: %016lx  RSP: %016lx\n", regs->rsi, regs->rdi, regs->rbp, regs->rsp);
     serial_printf("RIP: %016lx  RFLAGS: %016lx\n", regs->rip, regs->rflags);
     serial_printf("ERR: %016lx  INTR: %016lx\n", regs->error_code, regs->intr_no);
-    serial_printf("CS:  %016lx  SS: %016lx\n\n", regs->cs, regs->ss);
+    serial_printf("CS:  %016lx  SS: %016lx\n", regs->cs, regs->ss);
+    backtrace(regs->rbp);
 
-    serial_puts("*** HALTING NOW ***\n");
+    serial_puts("\n*** HALTING NOW ***\n");
+    printf("\n*** HALTING NOW ***\n");
 
     va_end(lst);
     va_end(slst);

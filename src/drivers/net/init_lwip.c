@@ -29,6 +29,19 @@ void lwip_hpetcb() {
     sys_check_timeouts();
 }
 
+static inline bool inten(void) {
+    u64 rflags;
+
+    __asm__ volatile (
+        "pushfq\n\t"
+        "pop %0"
+        : "=r"(rflags)
+    );
+
+    return rflags & (1ULL << 9);
+}
+
+extern int _hpet_pollrun;
 int init_lwip() {
     printf("Initializing LwIP\n");
     lwip_init();
@@ -54,9 +67,6 @@ int init_lwip() {
 
     serial_printf("_e1000_netif=%p,netif=%p\n", &_e1000_netif, nf);
     
-    printf("Setting default ethernet device Intel(R) E1000\n");
-    netif_set_default(nf);
-    serial_printf("Set default NetIF\n");
     printf("Setting link up for ethernet\n");
     netif_set_status_callback(nf, netif_status_cb);
     serial_printf("Set status callback\n");
@@ -64,10 +74,14 @@ int init_lwip() {
     serial_printf("Set up interface\n");
     netif_set_link_up(nf);
     serial_printf("Set link up interface\n");
-
+    printf("Setting default ethernet device Intel(R) E1000\n");
+    netif_set_default(nf);
+    serial_printf("Set default NetIF\n");
     printf("Starting DHCP\n");
 
-    return dhcp_start(nf);
+    dhcp_start(nf);
+    _hpet_pollrun = 1;
+    return ERR_OK;
 }
 
 u32 sys_now() {
