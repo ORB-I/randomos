@@ -51,6 +51,7 @@ int open(const char* path, int flags) {
             return -1;
         }
     }
+    fd->data.file = fp;
     return fd->fd;
 }
 

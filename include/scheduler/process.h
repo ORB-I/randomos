@@ -39,6 +39,7 @@ typedef struct {
     uid_t euid;
     gid_t egid;
 
+    int currfb;
     struct fdinfo* fds;
     usize nfds;
 

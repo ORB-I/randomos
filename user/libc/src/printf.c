@@ -906,9 +906,15 @@ void _fprintf_putchar(char c, void* arg) {
     fputchar((int)(u64)arg, c);
 }
 
-int vprintf(const char* format, va_list va)
-{
-  return vfctprintf(_fprintf_putchar, (void*)(u64)STDOUT, format, va);
+int vprintf(const char* format, va_list va) {
+    int flush = termctl(TCTL_GAFLH, 0);
+    if (flush) termctl(TCTL_AFLSH, 0);
+    int ret = vfctprintf(_fprintf_putchar, (void*)(u64)STDOUT, format, va);
+    if (flush) {
+        termctl(TCTL_AFLSH, 1);
+        termctl(TCTL_FLUSH, 0);
+    }
+    return ret;
 }
 
 int fprintf(int fd, const char* fmt, ...) {

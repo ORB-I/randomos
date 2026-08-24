@@ -25,7 +25,6 @@ typedef struct {
 #define MAX_FBS 10
 typedef struct FrameBufferDriverCtx {
     struct limine_framebuffer* backend;
-    int cfb;
 } fbdrv_ctx_t;
 
 int init_fbdrv(struct limine_framebuffer* lmfb);

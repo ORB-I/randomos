@@ -81,6 +81,7 @@ static ssize _stdout_write(void* buf, usize sz) {
     return sz;
 }
 
+extern framebuf_t _term_fb;
 int new_process(const char* path, char** argv, char** envp, u8 ppid) {
     process_state_t* proc = NULL;
     u8 pid = 0;
@@ -97,35 +98,48 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
     if (res.status < 0) return -1;
 
     if (pid == 0) {
-        struct fdinfo* new_fds = malloc(sizeof(struct fdinfo) * 3);
+        struct fdinfo* new_fds = malloc(sizeof(struct fdinfo) * 4);
         if (!new_fds) {
             return -1;
         }
 
         new_fds[0] = (struct fdinfo){
             0, 1, FDTYPE_IO, 
-            .data = {
-                .io = {1, 0, NULL, _stdin_read}
-            }
+            .data = {.io = {1, 0, NULL, _stdin_read}}
         };
 
         new_fds[1] = (struct fdinfo){
             1, 1, FDTYPE_IO, 
-            .data = {
-                .io = {0, 1, _stdout_write, NULL}
-            }
+            .data = {.io = {0, 1, _stdout_write, NULL}}
         };
 
         new_fds[2] = (struct fdinfo){
             2, 1, FDTYPE_IO,
-            .data = {
-                .io = {0, 1, _stdout_write, NULL}
-            }
+            .data = {.io = {0, 1, _stdout_write, NULL}}
         };
+
+        int cfb = get_currfb();
+        struct fdinfo* info;
+        if (getfd(cfb, &info) < 0) {
+            return -1;
+        }
+
+        new_fds[3] = (struct fdinfo){
+            3, 1, FDTYPE_FB,
+            .data = {.fb = &_term_fb }
+        };
+        switch_fb(3); // we need to switch to 3 right away
+                          // because for some reason kernel shares
+                          // a state with pid1 and the same framebuffer
+
+        proc->fds = new_fds;
+        proc->nfds = 4;
+        proc->currfb = 3;
     } else {
         if (copy_fds(pid, ppid) < 0) {
             return -1;
         }
+        proc->currfb = get_currfb();
     }
 
     proc->rip = res.entry;

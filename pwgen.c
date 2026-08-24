@@ -38,6 +38,10 @@ int main(int ac, char** av) {
 
     crypto_argon2(hash, 32, wb, a2cfg, a2is, a2ex);
 
+    printf("$argon2id$%d,%d,%d$",
+           a2cfg.nb_blocks,
+           a2cfg.nb_passes,
+           a2cfg.nb_lanes);
     for (int i = 0; i < 16; i++) {
         printf("%02x", salt[i]);
     }

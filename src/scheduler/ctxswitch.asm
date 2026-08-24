@@ -69,5 +69,4 @@ switch_ctx:
     mov r13, [r15 + CTX_R13]
     mov r14, [r15 + CTX_R14]
     mov r15, [r15 + CTX_R15]
-
     iretq

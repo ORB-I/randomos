@@ -69,6 +69,7 @@ void backtrace(u64 rbp) {
     if (!rbp) return;
     for (usize i = 0; i < 10; i++) {
         u64* fp = (u64*)rbp;
+        if (!vmm_get_phys(vmm_cpml4v(), rbp)) break;
         rbp = fp[0];
         struct kern_symbol* sym = locate_symbol(fp[1]);
         const char* syms = (sym) ? sym->name : "unknown";
@@ -91,11 +92,6 @@ void except_panic(struct CpuState* regs, const char* msg, ...) {
         kill_user_process(regs, msg, lst);
         // never reached unless all processes are dead (panic above)
         return;
-    }
-
-    int tfb = get_termfb();
-    if (tfb >= 0) {
-        switch_fb(tfb);
     }
 
     printf("*** KERNEL EXCEPTION ***\n");

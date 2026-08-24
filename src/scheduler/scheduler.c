@@ -5,6 +5,7 @@
 #include <core/asmh.h>
 #include <drivers/time/clock.h>
 #include <core/printf.h>
+#include <drivers/display/fb.h>
 
 // these arent defined
 // in a header because theyre only
@@ -60,10 +61,13 @@ void ctx2proc(process_state_t* dst, procctx_t* src) {
     process_state_t* proc = &proctbl[current_pid];
     procctx_t ctx;
     proc2ctx(&ctx, proc);
+    serial_printf("Switching to %d\n", current_pid);
 
     hpet_start_preemptive(&_schdlr_timer);
     reset_kgsb();
     vmm_sasp((page_table_t*)proc->cr3);
+    
+    switch_fb(proc->currfb);
     switch_ctx(&ctx);
 }
 
@@ -98,7 +102,11 @@ void scheduler_switch(procctx_t* proc) {
     int tgtpid = nextproc();
     while (tgtpid < 0) {
         // If all processes are blocked or sleeping, halt until next timer tick
-        asm volatile("sti; hlt; cli");
+        asm volatile(
+            "sti\n\t"
+            "hlt\n\t"
+            "cli\n\t"
+        );
         tgtpid = nextproc();
     }
 
@@ -109,6 +117,8 @@ void scheduler_switch(procctx_t* proc) {
             return;
         }
     }
+
+    serial_printf("Switching to %d\n", tgtpid);
 
     process_state_t* tgtproc = &proctbl[tgtpid];
     process_state_t* currproc = &proctbl[current_pid];
@@ -130,5 +140,6 @@ void scheduler_switch(procctx_t* proc) {
         vmm_dasp((page_table_t*)curcr3);
     }
     
+    switch_fb(tgtproc->currfb);
     switch_ctx(&ctx);
 }

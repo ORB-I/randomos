@@ -3,6 +3,7 @@
 #include <lib/string.h>
 #include <core/fd.h>
 #include <core/liballoc.h>
+#include <scheduler/process.h>
 
 fbdrv_ctx_t* fbctx = NULL;
 
@@ -13,7 +14,6 @@ int init_fbdrv(struct limine_framebuffer* lmfb) {
     if (!fbctx) return -1;
 
     fbctx->backend = lmfb;
-    fbctx->cfb = -1;
 
     return 0;
 }
@@ -23,38 +23,65 @@ void deinit_fbdrv() {
     free(fbctx);
 }
 
+framebuf_t _term_fb;
+static int created_term = 0;
 int create_fb(int type) {
-    if (!fbctx) return -1;
-    struct fdinfo info = {
-        .fd = -1,
-        .inuse = 0,
-        .type = FDTYPE_FB
-    };
-    struct fdinfo* fd = getnewfd(&info);
-    if (!fd) {
-        return -1;
+    if (type == FBTYPE_TERM && created_term) {
+        if (!fbctx) return -1;
+        struct fdinfo info = {
+            .fd = -1,
+            .inuse = 0,
+            .type = FDTYPE_FB
+        };
+        struct fdinfo* fd = getnewfd(&info);
+        if (!fd) {
+            return -1;
+        }
+
+        fd->data.fb = &_term_fb;
+        return fd->fd;
+    } else {
+        if (!fbctx) return -1;
+        struct fdinfo info = {
+            .fd = -1,
+            .inuse = 0,
+            .type = FDTYPE_FB
+        };
+        struct fdinfo* fd = getnewfd(&info);
+        if (!fd) {
+            return -1;
+        }
+
+        fd->data.fb = malloc(sizeof(framebuf_t));
+        if (!fd->data.fb) {
+            closefd(fd->fd);
+            return -1;
+        }
+
+        fd->data.fb->height = fbctx->backend->height;
+        fd->data.fb->width  = fbctx->backend->width;
+        fd->data.fb->pitch  = fbctx->backend->pitch;
+        fd->data.fb->type   = type;
+        fd->data.fb->ptrsz = fd->data.fb->pitch * fd->data.fb->height;
+        fd->data.fb->ptr    = malloc(fd->data.fb->ptrsz);
+
+        if (!fd->data.fb->ptr) {
+            free(fd->data.fb);
+            closefd(fd->fd);
+            return -1;
+        }
+
+        if (type == FBTYPE_TERM) {
+            _term_fb.height = fbctx->backend->height;
+            _term_fb.pitch = fbctx->backend->pitch;
+            _term_fb.ptr = fd->data.fb->ptr;
+            _term_fb.ptrsz = fd->data.fb->pitch * fd->data.fb->height;
+            _term_fb.type = FBTYPE_TERM;
+            _term_fb.width = fbctx->backend->width;
+            created_term = 1;
+        }
+        return fd->fd;
     }
-
-    fd->data.fb = malloc(sizeof(framebuf_t));
-    if (!fd->data.fb) {
-        closefd(fd->fd);
-        return -1;
-    }
-
-    fd->data.fb->height = fbctx->backend->height;
-    fd->data.fb->width  = fbctx->backend->width;
-    fd->data.fb->pitch  = fbctx->backend->pitch;
-    fd->data.fb->type   = type;
-    fd->data.fb->ptrsz = fd->data.fb->pitch * fd->data.fb->height;
-    fd->data.fb->ptr    = malloc(fd->data.fb->ptrsz);
-
-    if (!fd->data.fb->ptr) {
-        free(fd->data.fb);
-        closefd(fd->fd);
-        return -1;
-    }
-
-    return fd->fd;
 }
 
 usize create_fb_withmem(int type, void* ptr, usize sz, int* fbdes) {
@@ -116,10 +143,12 @@ int free_fb(int fb) {
     if (getfd(fb, &info) < 0) {
         return -1;
     }
-    
-    if (!info->data.fb) return -1;
-    free(info->data.fb->ptr);
-    free(info->data.fb);
+
+    if (info->data.fb->type != FBTYPE_TERM) {
+        if (!info->data.fb) return -1;
+        free(info->data.fb);
+        free(info->data.fb->ptr);
+    }
     return closefd(fb);
 }
 
@@ -131,7 +160,7 @@ int switch_fb(int fb) {
 
     if (!fbctx) return -1;
     if (!info->data.fb) return -1;
-    fbctx->cfb = fb;
+    proctbl[current_pid].currfb = fb;
     return 0;
 }
 
@@ -146,7 +175,7 @@ void clear_fb(int fb) {
 
 void flush_scr() {
     struct fdinfo* info;
-    if (getfd(fbctx->cfb, &info) < 0) {
+    if (getfd(proctbl[current_pid].currfb, &info) < 0) {
         return;
     }
     memcpy(fbctx->backend->address, info->data.fb->ptr, info->data.fb->ptrsz);
@@ -183,5 +212,5 @@ int get_fbinfo(int fb, framebuf_info_t *info) {
 }
 
 int get_currfb() {
-    return fbctx->cfb;
+    return proctbl[current_pid].currfb;
 }

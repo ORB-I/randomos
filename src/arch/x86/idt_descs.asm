@@ -1,5 +1,4 @@
 [BITS 64]
-
 extern c_int_hdlr
 
 %macro no_ec_int_hdlr 1
@@ -13,6 +12,7 @@ int_hdlr_%1:
 %macro ec_int_hdlr 1
 global int_hdlr_%1
 int_hdlr_%1:
+
     push qword %1
     jmp common_int_hdlr
 %endmacro

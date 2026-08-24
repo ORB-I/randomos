@@ -74,10 +74,6 @@ void init_allterm() {
         for (;;) asm("hlt");
     }
 
-    if (create_fb(FBTYPE_GUI) < 0) {
-        for (;;) asm("hlt");
-    }
-
     if (init_term(termfb) < 0) {
         for (;;) asm("hlt");
     }

@@ -153,6 +153,7 @@ int _ps_hx2bin(const char* str, u8* out, usize nbytes) {
 // returns 0 on match, 1 on mismatch, <0 on malformed entry (-1) or
 // out of memory (-2)
 int verify_passwd(const char* entered, const char* stored) {
+    serial_printf("Begin verify password\n");
     static const char prefix[] = "$argon2id$";
     const usize plen = sizeof(prefix) - 1;
     if (strneq(stored, prefix, plen) == 0) return -1;
@@ -168,6 +169,8 @@ int verify_passwd(const char* entered, const char* stored) {
     if (stored[i] != '$') return -1;
     pbuf[pi] = '\0';
     i++; // past '$'
+
+    serial_printf("vfpwd: 1\n");
 
     char* eptr;
     int blocks = strtoi(pbuf, &eptr);
@@ -185,6 +188,8 @@ int verify_passwd(const char* entered, const char* stored) {
     usize salt_size = salt_hexlen / 2;
     if (salt_size < 8 || salt_size > 64) return -1;
 
+    serial_printf("vfpwd: 2\n");
+
     // hash: exactly ARGON2_HASH_SIZE bytes of hex to end of field
     const char* hash_hex = &stored[i + salt_hexlen + 1];
     usize hash_hexlen = strlen(hash_hex);
@@ -194,6 +199,8 @@ int verify_passwd(const char* entered, const char* stored) {
     u8 want[ARGON2_HASH_SIZE];
     if (_ps_hx2bin(&stored[i], salt, salt_size) < 0) return -1;
     if (_ps_hx2bin(hash_hex, want, ARGON2_HASH_SIZE) < 0) return -1;
+
+    serial_printf("vfpwd: 3\n");
 
     u64 work_size = (u64)blocks * 1024;
     void* work = malloc(work_size);
@@ -212,9 +219,11 @@ int verify_passwd(const char* entered, const char* stored) {
         .salt_size = (u32)salt_size,
     };
 
+    serial_printf("vfpwd: 4\n");
+
     u8 got[ARGON2_HASH_SIZE];
     crypto_argon2(got, ARGON2_HASH_SIZE, work, cfg, in, crypto_argon2_no_extras);
-
+    
     int mismatch = crypto_verify32(got, want);
     crypto_wipe(got, sizeof(got));
     crypto_wipe(want, sizeof(want));
@@ -279,6 +288,7 @@ int main() {
         setegid(pass.gid);
         char* argv[] = {pass.shell, NULL};
         free(uname); free(pwd);
+        printf("starting %s\n", pass.shell);
         int exv = execve(pass.shell, argv, environ);
         printf("execve failed (%d)\n", exv);
         return 1;

@@ -3,18 +3,18 @@
 #include <flanterm/flanterm_backends/fb.h>
 #include <core/limreqs.h>
 #include <lib/printf.h>
+#include <lib/string.h>
 #include <drivers/hid/kbd.h>
 #include <drivers/display/fb.h>
+#include <scheduler/process.h>
 
 struct flanterm_context* _term_ctx;
 int _term_flush = 1;
-int _term_cfb = -1;
 
 int init_term(int fb) {
     framebuf_info_t fbinfo;
     if (get_fbinfo(fb, &fbinfo) < 0) return -1;
 
-    _term_cfb = fb;
     _term_ctx = flanterm_fb_init(
         NULL, NULL,
         fbinfo.ptr,
@@ -32,10 +32,6 @@ int init_term(int fb) {
 
     flanterm_set_autoflush(_term_ctx, false);
     return 0;
-}
-
-int get_termfb() {
-    return _term_cfb;
 }
 
 void _term_flushscr() {
