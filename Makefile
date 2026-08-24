@@ -34,7 +34,9 @@ CC_SRC := $(shell find src -name '*.c')
 # netif. NO_SYS=1 in lwipopts.h so api/ and apps/ are not compiled.
 LWIP_DIR  := vendor/lwip-2.2.1
 LWIP_SRC  := $(shell find $(LWIP_DIR)/src/core -name '*.c') \
-             $(LWIP_DIR)/src/netif/ethernet.c
+             $(shell find $(LWIP_DIR)/src/api -name '*.c') \
+			 $(shell find $(LWIP_DIR)/src/netif -name '*.c')
+
 LWIP_OBJ  := $(LWIP_SRC:.c=.o)
 LWIP_DEPS := $(LWIP_SRC:.c=.d)
 

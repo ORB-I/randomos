@@ -7,7 +7,12 @@ int serial_isempty() {
 
 void serial_putchar(char c) {
     while (serial_isempty() == 0);
-    outb(SERIAL_PORT, c);
+    if (c == '\n') {
+        outb(SERIAL_PORT, '\r');
+        outb(SERIAL_PORT, '\n');
+    } else {
+        outb(SERIAL_PORT, c);
+    }
 }
 
 void serial_puts(const char *str) {

@@ -46,13 +46,24 @@ int init_lwip() {
         &nmask, &gw, 
         NULL, e1000_netifinit, 
         ethernet_input);
+
+    if (!nf) {
+        printf("Failed to add interface\n");
+        return -1;
+    }
+
+    serial_printf("_e1000_netif=%p,netif=%p\n", &_e1000_netif, nf);
     
     printf("Setting default ethernet device Intel(R) E1000\n");
-    netif_set_default(&_e1000_netif);
+    netif_set_default(nf);
+    serial_printf("Set default NetIF\n");
     printf("Setting link up for ethernet\n");
     netif_set_status_callback(nf, netif_status_cb);
+    serial_printf("Set status callback\n");
     netif_set_up(nf);
+    serial_printf("Set up interface\n");
     netif_set_link_up(nf);
+    serial_printf("Set link up interface\n");
 
     printf("Starting DHCP\n");
 

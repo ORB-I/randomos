@@ -444,7 +444,7 @@ bool e1000_link_up(void) {
 
 void e1000_set_rx_callback(e1000_rx_callback_t cb) { rx_callback = cb; }
 
-struct netif _e1000_netif;
+struct netif _e1000_netif = {0};
 
 err_t _e1000_netif_linkout(struct netif *netif, struct pbuf *p) {
     (void)netif;
@@ -481,6 +481,7 @@ void _e1000_netif_rxcb(const void* packet, u16 len) {
 }
 
 err_t e1000_netifinit(struct netif* nf) {
+    serial_printf("Initializing E1000 NetIF\n");
     nf->name[0] = 'e';
     nf->name[1] = 'n';
 

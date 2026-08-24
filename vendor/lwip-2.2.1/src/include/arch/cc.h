@@ -23,7 +23,11 @@ typedef uint64_t u64_t;
 #define X8_F   "02x"
 #define X16_F  "04x"
 #define X32_F  "08x"
-#define X64_F  "016llx"
+#define U16_F "%u"
+#define S16_F "%d"
+#define U32_F "%u"
+#define S32_F "%d"
+#define SZT_F "%p"
 
 /* Compiler */
 
@@ -34,8 +38,7 @@ typedef uint64_t u64_t;
     } while (0)
 
 #include <core/printf.h>
-#define LWIP_PLATFORM_DIAG(x) \
-    do {} while (0)
+#define LWIP_PLATFORM_DIAG(args) serial_printf args;
 
 /* Packed structures */
 

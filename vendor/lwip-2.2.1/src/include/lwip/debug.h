@@ -144,12 +144,12 @@
                                    ((s16_t)((debug) & LWIP_DBG_MASK_LEVEL) >= LWIP_DBG_MIN_LEVEL))
 
 #define LWIP_DEBUGF(debug, message) do { \
-                               if (LWIP_DEBUG_ENABLED(debug)) { \
+                               /*if (LWIP_DEBUG_ENABLED(debug)) { */ \
                                  LWIP_PLATFORM_DIAG(message); \
                                  if ((debug) & LWIP_DBG_HALT) { \
                                    while(1); \
                                  } \
-                               } \
+                               /*}*/ \
                              } while(0)
 
 #else  /* LWIP_DEBUG */

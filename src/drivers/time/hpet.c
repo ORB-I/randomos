@@ -179,13 +179,11 @@ void c_hpet_hdlr() {
     _hpet_tickcnt++;
     _hpet_pollcnt++;
     if (_hpet_pollcnt >= 10) {
-        asm("cli");
         _hpet_pollcnt = 0;
         page_table_t* pt = vmm_cpml4v();
         vmm_skasp();
         krunpolls();
         vmm_sasp(pt);
-        asm("sti");
     }
     lapic_eoi();
 }
