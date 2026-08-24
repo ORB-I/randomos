@@ -115,14 +115,14 @@ preempt_hdlr:
     or rax, rdx
     mov [rdi + CTX_GSB], rax
 
-    mov rbx, rdi
+    mov r12, rdi
     and rsp, ~0xF
     call lapic_eoi
-    mov rdi, rbx
+    mov rdi, r12
 
     ; still in the kernel (syscall, nested irq, loader, …): just mark
     ; it and let syscall_s switch using the *user* return state
-    test byte [rdi + CTX_CS], 3
+    test byte [r12 + CTX_CS], 3
     jz .defer_preempt
 
     call scheduler_switch
@@ -134,6 +134,6 @@ preempt_hdlr:
     mov byte [rel preempt_pending], 1
 
 .leave:
-    lea rsp, [rdi + CTX_SIZE]
+    lea rsp, [r12 + CTX_SIZE]
     popaq
     iretq
