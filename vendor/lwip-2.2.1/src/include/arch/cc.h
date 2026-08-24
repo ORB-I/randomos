@@ -40,7 +40,9 @@ typedef uint64_t u64_t;
     } while (0)
 
 #include <core/printf.h>
-#define LWIP_PLATFORM_DIAG(args) serial_printf args;
+#define LWIP_PLATFORM_DIAG(args) do { \
+        serial_printf args; \
+    } while (0)
 
 /* Packed structures */
 

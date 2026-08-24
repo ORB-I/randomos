@@ -29,18 +29,6 @@ void lwip_hpetcb() {
     sys_check_timeouts();
 }
 
-static inline bool inten(void) {
-    u64 rflags;
-
-    __asm__ volatile (
-        "pushfq\n\t"
-        "pop %0"
-        : "=r"(rflags)
-    );
-
-    return rflags & (1ULL << 9);
-}
-
 extern int _hpet_pollrun;
 int init_lwip() {
     printf("Initializing LwIP\n");

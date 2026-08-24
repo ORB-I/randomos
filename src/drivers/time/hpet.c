@@ -174,13 +174,13 @@ int hpet_active() {
     return (hpet_acpitbl != NULL);
 }
 
-static int _hpet_pollcnt = 0;
+//static int _hpet_pollcnt = 0;
 int _hpet_pollrun = 0;
 void krunpolls();
 
 void c_hpet_hdlr() {
     _hpet_tickcnt++;
-    _hpet_pollcnt++;
+    /*_hpet_pollcnt++;
     if (_hpet_pollcnt >= 1000) {
         if (_hpet_pollrun) {
             _hpet_pollcnt = 0;
@@ -190,6 +190,6 @@ void c_hpet_hdlr() {
             vmm_sasp(pt);
         }
         _hpet_pollcnt = 0;
-    }
+    }*/
     lapic_eoi();
 }

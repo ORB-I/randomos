@@ -186,5 +186,6 @@ void kmain_aftergdt() {
     if (new_process("/bin/init", argv, envp, 0) < 0) {
         panic("init failed");
     }
+
     start_scheduler();
 }

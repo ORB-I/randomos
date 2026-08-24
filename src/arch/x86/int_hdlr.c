@@ -132,6 +132,13 @@ void c_int_hdlr(struct CpuState* regs) {
     struct kern_symbol* sym = locate_symbol(regs->rip);
     const char* syms = (sym) ? sym->name : "unknown";
     switch (regs->intr_no) {
+        case 0:  except_panic(regs, "Division Error (at %s)", syms); break;
+        case 1:  except_panic(regs, "Debug Excepttion (at %s)", syms); break;
+        case 3:  except_panic(regs, "Breakpoint reached (at %s)", syms); break;
+        case 4:  except_panic(regs, "Overflow Exception (at %s)", syms); break;
+        case 5:  except_panic(regs, "BOUND range exceeded (at %s)", syms); break;
+        case 6:  except_panic(regs, "Invalid Opcode (at %s)", syms); break;
+        case 7:  except_panic(regs, "Device not available (at %s)", syms); break;
         case 8:  except_panic(regs, "Double fault (at %s)", syms); break;
         case 10: except_panic(regs, "Invalid TSS (at %s)", syms); break;
         case 11: except_panic(regs, "Segment doesn't exist (at %s)", syms); break;

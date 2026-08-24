@@ -91,8 +91,9 @@ int nextproc() {
 int scheduler_execve = 0;
 void krunpolls();
 void scheduler_switch(procctx_t* proc) {
+    krunpolls();
+    
     int tgtpid = nextproc();
-
     while (tgtpid < 0) {
         // If all processes are blocked or sleeping, halt until next timer tick
         asm volatile("sti; hlt; cli");
