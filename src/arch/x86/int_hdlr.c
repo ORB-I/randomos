@@ -26,8 +26,8 @@ static void kill_user_process(struct CpuState* regs, const char* msg, va_list ls
 
     printf("user fault (pid %d): ", current_pid, msg);
     vprintf(msg, lst);
-    printf("\nRIP=%016lx  RSP=%016lx  CS=%04lx\n",
-           regs->rip, regs->rsp, regs->cs);
+    printf("\nRIP=%016lx  RBP=%016lx RSP=%016lx  CS=%04lx\n",
+           regs->rip, regs->rbp, regs->rsp, regs->cs);
     va_end(lst);
 
     page_table_t* uasp = vmm_cpml4v();
@@ -36,6 +36,10 @@ static void kill_user_process(struct CpuState* regs, const char* msg, va_list ls
     proctbl[current_pid].is_dead = 1;
     reparent_children(current_pid);
     wake_waiter(current_pid);
+
+    if (current_pid == 0) {
+        panic("pid0 exited");
+    }
 
     // context is garbage — process is dead, so what we save doesn't matter
     asm volatile("cli");

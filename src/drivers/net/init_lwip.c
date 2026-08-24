@@ -56,12 +56,7 @@ int init_lwip() {
 
     printf("Starting DHCP\n");
 
-    int ret = dhcp_start(nf);
-    if (ret == ERR_OK) {
-        return dhcp_renew(nf);
-    } else {
-        return ret;
-    }
+    return dhcp_start(nf);
 }
 
 u32 sys_now() {

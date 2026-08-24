@@ -273,13 +273,14 @@ static struct boundary_tag* allocate_new_tag( unsigned int size )
 }
 
 
-
+#include <io.h>
 void *malloc(size_t size)
 {
 	int index;
 	void *ptr;
 	struct boundary_tag *tag = NULL;
 
+    printf("1\n");
 	liballoc_lock();
 
 		if ( l_initialized == 0 )
@@ -294,7 +295,7 @@ void *malloc(size_t size)
 			}
 			l_initialized = 1;
 		}
-
+    printf("2\n");
 		index = getexp( size ) + MODE;
 		if ( index < MINEXP ) index = MINEXP;
 		
@@ -315,7 +316,7 @@ void *malloc(size_t size)
 
 				tag = tag->next;
 			}
-
+    printf("3\n");
 		
 			// No page found. Make one.
 			if ( tag == NULL )
@@ -335,7 +336,7 @@ void *malloc(size_t size)
 				if ( (tag->split_left == NULL) && (tag->split_right == NULL) )
 					l_completePages[ index ] -= 1;
 			}
-		
+	printf("5\n");
 		// We have a free page.  Remove it from the free pages list.
 	
 		tag->size = size;
@@ -347,7 +348,7 @@ void *malloc(size_t size)
 		#endif
 		
 		unsigned int remainder = tag->real_size - size - sizeof( struct boundary_tag ) * 2; // Support a new tag + remainder
-
+    printf("6\n");
 		if ( ((int)(remainder) > 0) /*&& ( (tag->real_size - remainder) >= (1<<MINEXP))*/ )
 		{
 			int childIndex = getexp( remainder );
@@ -357,7 +358,7 @@ void *malloc(size_t size)
 				#ifdef DEBUG
 				printf("Seems to be splittable: %i >= 2^%i .. %i\n", remainder, childIndex, (1<<childIndex) );
 				#endif
-
+            
 				struct boundary_tag *new_tag = split_tag( tag ); 
 
 				(void)new_tag;	// Get around the compiler warning about unused variables.
@@ -369,7 +370,7 @@ void *malloc(size_t size)
 		}
 		
 		
-
+    printf("7\n");
 	ptr = (void*)((unsigned long)tag + sizeof( struct boundary_tag ) );
 
 

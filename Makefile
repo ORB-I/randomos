@@ -12,7 +12,7 @@ LDFLAGS      := -m elf_x86_64 -T share/link.ld --no-pie -O0 -nostdlib -no-pie
 LIBS         := -Llib -llai -lff -lflanterm -llwip
 CCFLAGS      := -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 				-m64 -nostdlib -fno-builtin -fno-stack-protector -fno-pie -Iinclude \
-		        -nostartfiles -nodefaultlibs -ffreestanding -Wall -Wextra -g \
+		        -nodefaultlibs -ffreestanding -Wall -Wextra -g \
 		        -MMD -MP -O0
 XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
         		-no-emul-boot -boot-load-size 4 -boot-info-table -hfsplus \

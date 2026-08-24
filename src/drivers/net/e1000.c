@@ -9,6 +9,8 @@
 #include <drivers/pci.h>
 #include <lib/string.h>
 #include <lwip/lwip/netif.h>
+#include <lwip/lwip/etharp.h>
+#include <lwip/netif/ethernet.h>
 
 #define PCI_CLASS_NETWORK 0x02
 #define PCI_SUBCLASS_ETHERNET 0x00
@@ -445,21 +447,26 @@ void e1000_set_rx_callback(e1000_rx_callback_t cb) { rx_callback = cb; }
 struct netif _e1000_netif;
 
 err_t _e1000_netif_linkout(struct netif *netif, struct pbuf *p) {
+    (void)netif;
     u8 frame[1518];
-    u16 len = sizeof(frame);
+    u16 len = 0;
 
     for (struct pbuf *q = p; q != NULL; q = q->next) {
+        if (len + q->len > sizeof(frame))
+            return ERR_BUF;
         memcpy(frame + len, q->payload, q->len);
         len += q->len;
     }
 
-    if (e1000_send(frame, len) < 0)
+    if (e1000_send(frame, len) < 0) {
         return ERR_IF;
+    }
 
     return ERR_OK;
 }
 
 void _e1000_netif_rxcb(const void* packet, u16 len) {
+    serial_printf("RX %u bytes\r\n", len);
     struct pbuf* pb = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
     if (!pb) return;
 
@@ -474,16 +481,18 @@ void _e1000_netif_rxcb(const void* packet, u16 len) {
     }
 }
 
-err_t e1000_netifinit() {
-    _e1000_netif.name[0] = 'e';
-    _e1000_netif.name[1] = 'n';
+err_t e1000_netifinit(struct netif* nf) {
+    nf->name[0] = 'e';
+    nf->name[1] = 'n';
 
-    _e1000_netif.hwaddr_len = 6;
+    nf->hwaddr_len = 6;
     memcpy(_e1000_netif.hwaddr, e1000_mac, 6);
     
-    _e1000_netif.mtu = 1500;
-    _e1000_netif.flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
-    _e1000_netif.linkoutput = _e1000_netif_linkout;
-    e1000_init();
+    nf->mtu = 1500;
+    nf->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_ETHERNET;
+    nf->output = etharp_output;
+    nf->linkoutput = _e1000_netif_linkout;
+    nf->input = ethernet_input;
+    e1000_set_rx_callback(_e1000_netif_rxcb);
     return ERR_OK;
 }
