@@ -166,6 +166,9 @@ void vmm_map_page(page_table_t* pml4v, u64 virt, u64 phys, u64 flg) {
     if (!(pml4e & PAGE_PRESENT)) {
         pdpt_virt = alloctblpg();
         pml4v[PML4_IDX(virt)] = ((u64)pdpt_virt - hhdm_offset) | PAGE_PRESENT | PAGE_WRITE | PAGE_USER;
+        if (pml4 && pml4 != pml4v && PML4_IDX(virt) >= 256) {
+            pml4[PML4_IDX(virt)] = pml4v[PML4_IDX(virt)];
+        }
     } else {
         pdpt_virt = (page_table_t*)(hhdm_offset + (pml4e & ~0xFFFULL));
     }
@@ -240,6 +243,16 @@ void vmm_init() {
         }
     }
 
+    // Pre-populate PDPTs for the kernel higher-half regions (HEAP, MMIO)
+    // so all child page tables (vmm_casp) copy the shared PDPT table pointers
+    for (u64 v = HEAP_START; v < HEAP_END; v += 0x8000000000ULL) {
+        u64 pml4idx = PML4_IDX(v);
+        if (!(pml4[pml4idx] & PAGE_PRESENT)) {
+            page_table_t* pdpt_virt = alloctblpg();
+            pml4[pml4idx] = ((u64)pdpt_virt - hhdm_offset) | PAGE_PRESENT | PAGE_WRITE | PAGE_USER;
+        }
+    }
+
     u64 pml4p = (u64)pml4 - hhdm_offset;
     asm volatile("mov %0, %%cr3" :: "r"(pml4p) : "memory");
 
@@ -303,6 +316,13 @@ void vmm_unmap_page(page_table_t* pml4v, u64 virt, u64 flags) {
     if ((flags & UNMAP_KEEPPHYS) != UNMAP_KEEPPHYS) {
         pmm_ffree((void*)pframe, 1);
     }
+
+    // higher-half tables (kernel text, HHDM, HEAP, MMIO) are aliased by
+    // value into every address space (vmm_casp copies PML4[256..511]),
+    // so their PT/PD/PDPT frames are shared kernel-lifetime structures:
+    // reclaiming them here would leave stale PRESENT pointers in all
+    // the other PML4s
+    if (pml4idx >= 256) return;
 
     if (is_table_empty(ptv)) {
         pmm_ffree((void*)ptp, 1);

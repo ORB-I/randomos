@@ -2,6 +2,7 @@
 
 typedef struct {
     volatile int __lkst;
+    unsigned long long __flags;
 } spinlock_t;
 
 void spl_init(spinlock_t* spl);

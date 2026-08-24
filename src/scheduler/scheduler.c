@@ -61,6 +61,7 @@ void ctx2proc(process_state_t* dst, procctx_t* src) {
     procctx_t ctx;
     proc2ctx(&ctx, proc);
 
+    hpet_start_preemptive(&_schdlr_timer);
     reset_kgsb();
     vmm_sasp((page_table_t*)proc->cr3);
     switch_ctx(&ctx);
@@ -69,18 +70,19 @@ void ctx2proc(process_state_t* dst, procctx_t* src) {
 // next runnable process after current_pid (dead and blocked ones dont
 // count), or -1 when there is nobody left to run
 int nextproc() {
-    u64 now = getms ? getms() : 0;
-    u8 start = current_pid;
-    u8 pid = current_pid;
-
+    int start = (int)current_pid;
+    int pid = start;
     do {
         pid = (pid + 1) % MAX_PROCESSES;
         if (proctbl[pid].used && !proctbl[pid].is_dead) {
-            if (proctbl[pid].is_blocked && proctbl[pid].wake_ms > 0 && now >= proctbl[pid].wake_ms) {
-                proctbl[pid].is_blocked = 0;
-                proctbl[pid].wake_ms = 0;
-            }
-            if (!proctbl[pid].is_blocked) {
+            if (proctbl[pid].is_blocked) {
+                // If it's a sleep timer, check if it expired
+                if (proctbl[pid].wake_ms != 0 && getms && getms() >= proctbl[pid].wake_ms) {
+                    proctbl[pid].is_blocked = 0;
+                    proctbl[pid].wake_ms = 0;
+                    return pid;
+                }
+            } else {
                 return pid;
             }
         }
@@ -91,10 +93,7 @@ int nextproc() {
 int scheduler_execve = 0;
 void krunpolls();
 void scheduler_switch(procctx_t* proc) {
-    asm volatile("sti");
-    serial_printf("running polls\n");
     krunpolls();
-    serial_printf("ran polls\n");
 
     int tgtpid = nextproc();
     while (tgtpid < 0) {
@@ -121,8 +120,8 @@ void scheduler_switch(procctx_t* proc) {
     hpet_start_preemptive(&_schdlr_timer);
     reset_kgsb();
     procctx_t ctx;
-    serial_printf("jumping to %p\n", ctx.rip);
     proc2ctx(&ctx, tgtproc);
+    serial_printf("jumping to %p\n", ctx.rip);
     vmm_sasp((page_table_t*)tgtproc->cr3);
 
     // whoever exited before the switch doesn't need
