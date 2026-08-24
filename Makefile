@@ -25,7 +25,8 @@ QFLAGS       := -M pc -cpu qemu64,+rdrand -boot d -m 1G -serial stdio \
 				-device piix3-usb-uhci,id=uhci \
 				-device usb-kbd,bus=uhci.0,port=1 \
 				-device usb-mouse,bus=uhci.0,port=2 \
-				-netdev user,id=net0 -device e1000,netdev=net0
+				-netdev user,id=net0 -device e1000,netdev=net0 \
+				-monitor unix:/tmp/qemu-monitor.sock,server=on,wait=off
 
 AS_SRC := $(shell find src -name '*.asm')
 CC_SRC := $(shell find src -name '*.c')

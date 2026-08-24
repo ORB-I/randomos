@@ -180,16 +180,5 @@ void krunpolls();
 
 void c_hpet_hdlr() {
     _hpet_tickcnt++;
-    /*_hpet_pollcnt++;
-    if (_hpet_pollcnt >= 1000) {
-        if (_hpet_pollrun) {
-            _hpet_pollcnt = 0;
-            page_table_t* pt = vmm_cpml4v();
-            vmm_skasp();
-            krunpolls();
-            vmm_sasp(pt);
-        }
-        _hpet_pollcnt = 0;
-    }*/
     lapic_eoi();
 }

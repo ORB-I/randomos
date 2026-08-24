@@ -41,9 +41,13 @@
 %%kernint_enter:
     pushaq
     cld
+    mov rax, rsp
+    and rsp, -16
+    push rax
 %endmacro
 
 %macro IRQ_EXIT 0
+    pop rsp
     popaq
     test byte [rsp + 8], 3
     jz %%kernint_exit

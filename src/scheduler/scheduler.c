@@ -91,8 +91,11 @@ int nextproc() {
 int scheduler_execve = 0;
 void krunpolls();
 void scheduler_switch(procctx_t* proc) {
+    asm volatile("sti");
+    serial_printf("running polls\n");
     krunpolls();
-    
+    serial_printf("ran polls\n");
+
     int tgtpid = nextproc();
     while (tgtpid < 0) {
         // If all processes are blocked or sleeping, halt until next timer tick
@@ -118,6 +121,7 @@ void scheduler_switch(procctx_t* proc) {
     hpet_start_preemptive(&_schdlr_timer);
     reset_kgsb();
     procctx_t ctx;
+    serial_printf("jumping to %p\n", ctx.rip);
     proc2ctx(&ctx, tgtproc);
     vmm_sasp((page_table_t*)tgtproc->cr3);
 
