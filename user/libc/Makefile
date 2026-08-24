@@ -34,7 +34,7 @@ CRTSRC := src/crt.asm
 
 DRIVE ?= ../../drive.img
 
-all: $(DRIVE) $(LIBC) $(CRT) $(LIBC_SO)
+all: $(DRIVE) $(LIBC) $(CRT) $(LIBC_SO) copy
 
 $(DRIVE):
 	dd if=/dev/zero of=$@ bs=1M count=16
@@ -47,7 +47,10 @@ $(LIBC): $(ALL_LIB_OBJS)
 	$(AR) rcs $@ $^
 $(LIBC_SO): $(ALL_SOFILE_OBJS)
 	$(CC) $(LDFLAGS_SO) $^ -o $@
-	mcopy -voi $(DRIVE) -s $@ ::/lib/$@
+# same as user/progs: copy is a separate pass so a recreated drive.img
+# still gets libc even when libc.so itself is already built
+copy: $(LIBC_SO)
+	mcopy -voi $(DRIVE) -s $(LIBC_SO) ::/lib/$(LIBC_SO)
 $(CRT): $(CRTSRC)
 	$(AS) $(ASFLAGS) $< -o $@
 %.so.o: %.c
@@ -61,7 +64,7 @@ $(CRT): $(CRTSRC)
 clean:
 	rm -f $(LIBC) $(CRT) $(LIBOBJ) $(ASMOBJ) $(DEPS) $(LIBC_SO) $(ALL_SOFILE_OBJS)
 
-.PHONY: all clean
+.PHONY: all copy clean
 .SECONDARY: $(ALL_SOFILE_OBJS) $(ALL_LIB_OBJS)
 
 -include $(DEPS)

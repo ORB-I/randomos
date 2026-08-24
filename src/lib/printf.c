@@ -940,8 +940,12 @@ void _serial_out(char c, void* _) {
 int serial_printf(const char* fmt, ...) {
     va_list lst;
     va_start(lst, fmt);
-    const out_fct_wrap_type serial_fct = { _serial_out, NULL };
-    const int ret = _vsnprintf(_out_fct, (char*)(uintptr_t)&serial_fct, (usize)-1, fmt, lst);
+    const int ret = serial_vprintf(fmt, lst);
     va_end(lst);
     return ret;
+}
+
+int serial_vprintf(const char* fmt, va_list lst) {
+    const out_fct_wrap_type serial_fct = { _serial_out, NULL };
+    return _vsnprintf(_out_fct, (char*)(uintptr_t)&serial_fct, (usize)-1, fmt, lst);
 }

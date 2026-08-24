@@ -92,28 +92,20 @@ int scheduler_execve = 0;
 void krunpolls();
 void scheduler_switch(procctx_t* proc) {
     int tgtpid = nextproc();
-    serial_printf("Maybe switching to %d\r\n", tgtpid);
-    if (tgtpid < 0) {
-        serial_printf("No PID found to switch to\r\n");
-    }
 
     while (tgtpid < 0) {
         // If all processes are blocked or sleeping, halt until next timer tick
         asm volatile("sti; hlt; cli");
         tgtpid = nextproc();
-        serial_printf("Waiting for process\r\n");
     }
 
     if (tgtpid == (int)current_pid && !proctbl[current_pid].is_dead) {
         if (scheduler_execve) {
             scheduler_execve = 0;
         } else {
-            serial_printf("Will not switch process\r\n");
             return;
         }
     }
-
-    serial_printf("We are switching process\r\n");
 
     process_state_t* tgtproc = &proctbl[tgtpid];
     process_state_t* currproc = &proctbl[current_pid];

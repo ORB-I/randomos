@@ -30,6 +30,14 @@ QFLAGS       := -M pc -cpu qemu64,+rdrand -boot d -m 1G -monitor stdio \
 AS_SRC := $(shell find src -name '*.asm')
 CC_SRC := $(shell find src -name '*.c')
 
+# lwip is built as a plain static lib: core + ipv4/ipv6 + the ethernet
+# netif. NO_SYS=1 in lwipopts.h so api/ and apps/ are not compiled.
+LWIP_DIR  := vendor/lwip-2.2.1
+LWIP_SRC  := $(shell find $(LWIP_DIR)/src/core -name '*.c') \
+             $(LWIP_DIR)/src/netif/ethernet.c
+LWIP_OBJ  := $(LWIP_SRC:.c=.o)
+LWIP_DEPS := $(LWIP_SRC:.c=.d)
+
 OBJ  := $(AS_SRC:.asm=.o) $(CC_SRC:.c=.o)
 EXE  := kern.elf
 ISO  := os.iso
@@ -63,13 +71,24 @@ $(ISO): $(EXE)
 # link twice: first pass gets nm a final image to read symbol
 # addresses from, second pass links those back in as .ksyms so panics
 # can name functions. awk does the wrapping, no python involved.
-$(EXE): $(OBJ)
+$(EXE): $(OBJ) lib/liblwip.a
 	@echo "[LD] $@"
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 	python3 mkksyms.py $(NM) $@
 	$(CC) $(CCFLAGS) -c ksyms.c -o ksyms.o
-	$(LD) $(LDFLAGS) ksyms.o $^ -o $@ $(LIBS)
+	$(LD) $(LDFLAGS) ksyms.o $(OBJ) lib/liblwip.a -o $@ $(LIBS)
 	@rm -f ksyms.o ksyms.d
+
+lib/liblwip.a: $(LWIP_OBJ)
+	@echo "[AR] $@"
+	$(AR) rcs $@ $^
+
+# lwip headers live in vendor/lwip-2.2.1/src/include; the mirror under
+# include/lwip is only for kernel-side <lwip/...> lookups. -w because
+# upstream code does not care about our -Wall -Wextra.
+$(LWIP_OBJ): $(LWIP_DIR)/%.o: $(LWIP_DIR)/%.c
+	@echo "[CC] $<"
+	$(CC) $(CCFLAGS) -I$(LWIP_DIR)/src/include -w -c $< -o $@
 
 
 %.o: %.c
@@ -85,7 +104,7 @@ run: all
 
 clean:
 	@echo "[CLEAN]"
-	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS) ksyms.c ksyms.o ksyms.d
+	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS) ksyms.c ksyms.o ksyms.d lib/liblwip.a $(LWIP_OBJ) $(LWIP_DEPS)
 	@for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)' $@; \
 	done
@@ -103,3 +122,4 @@ compile_commands.json: clean
 
 .PHONY: run clean all subdirs
 -include $(DEPS)
+-include $(LWIP_DEPS)

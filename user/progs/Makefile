@@ -44,7 +44,7 @@ DEPS := $(PROGS:=.d)
 PROGFILES := $(PROGS:=.elf)
 PROGFILES_C := $(PROGS_C:=.elf)
 
-all: $(DRIVE) $(PROGFILES) $(PROGFILES_C)
+all: $(DRIVE) $(PROGFILES) $(PROGFILES_C) copy
 
 $(DRIVE):
 	dd if=/dev/zero of=$@ bs=1M count=16
@@ -57,14 +57,20 @@ $(DRIVE):
 $(PROGFILES): %.elf: %.c $(DEPLIBS)
 	$(CC) $(CCFLAGS) -c $< -o $(basename $@).o
 	$(LD) $(LDFLAGS) $(basename $@).o $(DEPLIBS) -o $@
-	mcopy -voi $(DRIVE) -s $@ ::/bin/$(basename $@)
 
 $(PROGFILES_C): %.elf: %.c $(DEPLIBS) $(DEPLIBS_C)
 	$(CC) $(CCFLAGS) -c $< -o $(basename $@).o
 	$(LD) $(LDFLAGS) $(basename $@).o $(DEPLIBS) $(DEPLIBS_C) -o $@
-	mcopy -voi $(DRIVE) -s $@ ::/bin/$(basename $@)
+
+# copy is its own pass so a freshly created drive.img gets populated
+# even when every .elf is already built - mcopy used to live inside the
+# link rules and up-to-date targets skipped it, leaving /bin half empty
+copy: $(PROGFILES) $(PROGFILES_C)
+	for f in $(PROGFILES) $(PROGFILES_C); do \
+		mcopy -voi $(DRIVE) $$f "::/bin/$$(basename $$f .elf)"; \
+	done
 
 clean:
 	rm -f $(PROGFILES) $(PROGS:=.o) $(DEPS) $(DRIVE)
-.PHONY: all clean
+.PHONY: all copy clean
 -include $(DEPS)

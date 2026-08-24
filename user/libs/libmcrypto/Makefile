@@ -14,7 +14,9 @@ LIBOBJ := $(LIBSRC:.c=.o)
 
 DEPS := $(LIBSRC:.c=.d)
 
-all: $(DRIVE) $(LIB)
+DRIVE ?= ../../../drive.img
+
+all: $(DRIVE) $(LIB) copy
 
 $(DRIVE):
 	dd if=/dev/zero of=$@ bs=1M count=16
@@ -25,11 +27,13 @@ $(DRIVE):
 
 $(LIB): $(LIBOBJ)
 	$(CC) $(LDFLAGS) $^ -o $@
-	mcopy -voi $(DRIVE) -s $@ ::/lib/$@
+
+copy: $(LIB)
+	mcopy -voi $(DRIVE) -s $(LIB) ::/lib/$(LIB)
 %.o: %.c
 	$(CC) $(CCFLAGS) -c $< -o $@
 clean:
 	rm -f $(LIB) $(LIBOBJ) $(DEPS)
 
-.PHONY: all clean
+.PHONY: all copy clean
 -include $(DEPS)

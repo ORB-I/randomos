@@ -6,6 +6,7 @@
 #include <core/idt.h>
 #include <drivers/display/term.h>
 #include <drivers/display/fb.h>
+#include <drivers/display/serial.h>
 #include <scheduler/process.h>
 #include <scheduler/scheduler.h>
 #include <lib/loader.h>
@@ -24,11 +25,23 @@ struct CpuState {
 static void kill_user_process(struct CpuState* regs, const char* msg, va_list lst) {
     asm volatile("swapgs" ::: "memory");
 
-    printf("user fault (pid %d): ", current_pid, msg);
-    vprintf(msg, lst);
+    // one pass to the framebuffer terminal, one to serial; copies because
+    // each vprintf() burns its own va_list
+    va_list flst, slst;
+    va_copy(flst, lst);
+    va_copy(slst, lst);
+
+    printf("user fault (pid %d): ", current_pid);
+    vprintf(msg, flst);
     printf("\nRIP=%016lx  RBP=%016lx RSP=%016lx  CS=%04lx\n",
            regs->rip, regs->rbp, regs->rsp, regs->cs);
-    va_end(lst);
+    va_end(flst);
+
+    serial_printf("user fault (pid %d): ", current_pid);
+    serial_vprintf(msg, slst);
+    serial_printf("\nRIP=%016lx  RBP=%016lx RSP=%016lx  CS=%04lx\n",
+                  regs->rip, regs->rbp, regs->rsp, regs->cs);
+    va_end(slst);
 
     page_table_t* uasp = vmm_cpml4v();
     vmm_skasp();
@@ -54,8 +67,11 @@ static void kill_user_process(struct CpuState* regs, const char* msg, va_list ls
 
 void except_panic(struct CpuState* regs, const char* msg, ...) {
     asm("cli");
-    va_list lst;
+    // one pass to the framebuffer terminal, one to serial for headless
+    // debugging; va_copy keeps the second vprintf() legal
+    va_list lst, slst;
     va_start(lst, msg);
+    va_copy(slst, lst);
 
     // user-mode fault: kill the process, don't take down the kernel
     if ((regs->cs & 0x3) == 3) {
@@ -79,9 +95,20 @@ void except_panic(struct CpuState* regs, const char* msg, ...) {
     printf("ERR: %016lx  INTR: %016lx\n", regs->error_code, regs->intr_no);
     printf("CS:  %016lx  SS: %016lx\n\n", regs->cs, regs->ss);
 
-    printf("*** HALTING NOW ***");
+    serial_puts("*** KERNEL EXCEPTION ***\n");
+    serial_vprintf(msg, slst);
+    serial_puts("\n\n");
+
+    serial_printf("RAX: %016lx  RBX: %016lx  RCX: %016lx  RDX: %016lx\n", regs->rax, regs->rbx, regs->rcx, regs->rdx);
+    serial_printf("RSI: %016lx  RDI: %016lx  RBP: %016lx  RSP: %016lx\n", regs->rsi, regs->rdi, regs->rbp, regs->rsp);
+    serial_printf("RIP: %016lx  RFLAGS: %016lx\n", regs->rip, regs->rflags);
+    serial_printf("ERR: %016lx  INTR: %016lx\n", regs->error_code, regs->intr_no);
+    serial_printf("CS:  %016lx  SS: %016lx\n\n", regs->cs, regs->ss);
+
+    serial_puts("*** HALTING NOW ***\n");
 
     va_end(lst);
+    va_end(slst);
     asm volatile("cli");
     while (1) asm volatile("hlt");
 }
