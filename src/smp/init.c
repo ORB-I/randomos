@@ -61,7 +61,38 @@ static int init_smpcode(usize ncores) {
     return 0;
 }
 
+#define IPI_TRIGGER_EDGE 0x0
+#define IPI_TRIGGER_LVL  0x1
+
+#define IPI_LEVEL_DEASSERT 0x0
+#define IPI_LEVEL_ASSERT   0x1
+
+#define IPI_DSTMODE_PHYS 0x0
+#define IPI_DSTMODE_LOG  0x1
+
+#define IPI_DELMODE_FIXED 0x00
+#define IPI_DELMODE_LOWP  0x01
+#define IPI_DELMODE_SMI   0x02
+#define IPI_DELMODE_RESV1 0x03
+#define IPI_DELMODE_NMI   0x04
+#define IPI_DELMODE_INIT  0x05
+#define IPI_DELMODE_STUP  0x06
+#define IPI_DELMODE_RESV2 0x07
+
 #define LAPIC_REG(offset) ((volatile uint32_t*)((uintptr_t)lapic_virt_addr + (offset)))
+void ipi_send(u8 dest, u8 trigger, u8 level, u8 dstmode, u8 delmode, u8 vec) {
+    *LAPIC_REG(0x310) = dest << 24;
+    u32 icr = ((u32)vec << 0) |
+              ((u32)delmode << 8) |
+              ((u32)dstmode << 11) |
+              ((u32)level << 14) |
+              ((u32)trigger << 15);
+    *LAPIC_REG(0x300) = icr;
+    do {
+        asm volatile("pause" ::: "memory");
+    } while (*LAPIC_REG(0x300) & (1 << 12));
+}
+
 int init_cores() {
     void* madt = NULL;
     if (acpi_hdl && acpi_hdl->xsdt) {
@@ -108,23 +139,15 @@ int init_cores() {
     for (usize i = 0; i < numcores; i++) {
         u32 apicid = smp_info[i].acpiid;
         if (apicid == bsp_lapic_id) continue;
-        *LAPIC_REG(0x310) = apicid << 24;
-        *LAPIC_REG(0x300) = 0x00004500;
-
-        do {
-            asm volatile("pause" ::: "memory");
-        } while (*LAPIC_REG(0x300) & (1 << 12));
+        ipi_send(apicid, IPI_TRIGGER_LVL, IPI_LEVEL_ASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_INIT, 0);
         sleepms(10);
+        ipi_send(apicid, IPI_TRIGGER_LVL, IPI_LEVEL_DEASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_INIT, 0);
+        sleepms(1);
 
         for (int j = 0; j < 2; j++) {
             *LAPIC_REG(0x280) = 0;
-            *LAPIC_REG(0x310) = apicid << 24;
-            *LAPIC_REG(0x300) = 0x00046608;
+            ipi_send(apicid, IPI_TRIGGER_EDGE, 0, IPI_DSTMODE_PHYS, IPI_DELMODE_STUP, 0x80);
             sleepms(1);
-
-            do {
-                asm volatile("pause" ::: "memory");
-            } while (*LAPIC_REG(0x300) & (1 << 12));
         }
     }
 
@@ -135,7 +158,7 @@ int smp_getactive() {
     int n = 0;
     for (usize i = 0; i < ncores; i++) {
         if (smp_info[i].acpi_ent->flags & 1) {
-            serial_printf("CPU%d actie\n", i);
+            serial_printf("CPU%d active\n", i);
             n++;
         }
     }

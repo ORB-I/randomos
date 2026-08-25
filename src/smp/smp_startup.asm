@@ -10,7 +10,7 @@ smp_entry16:
     mov bx, (0x8000 + (.temp_gdtr16 - smp_entry16))
     lgdt [bx]
     mov eax, cr0
-    or al, 1
+    or eax, 1
     mov cr0, eax
 
     jmp dword 0x08:(0x8000 + (.smp_entry32 - smp_entry16))
@@ -53,15 +53,14 @@ align 16
     dw 0xFFFF, 0x0000, 0x0092, 0xCF00
     dq 0x00209A0000000000
 .temp_gdt16_end:
-
 .temp_gdtr16:
     dw (.temp_gdt16_end - .temp_gdt16) - 1
     dd (0x8000 + (.temp_gdt16 - smp_entry16))
 
 align 8
-.local_cr3:         dd 0       
-.local_stacks_lst:  dq 0       
-.local_stacks_cnt:  dq 0    
+.local_cr3:         dq 0
+.local_stacks_lst:  dq 0
+.local_stacks_cnt:  dq 0
 
 [bits 64]
 extern smp_main
