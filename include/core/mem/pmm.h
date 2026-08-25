@@ -15,6 +15,7 @@ struct pmm_state {
 
 void* pmm_falloc(size_t cnt);
 void pmm_ffree(void* ptr, size_t cnt);
+u32 pmm_try_resv(u32 stidx, u32 cnt);
 void pmm_init();
 struct pmm_state* get_pmm_state();
 

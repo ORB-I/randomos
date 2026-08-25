@@ -34,6 +34,7 @@ extern u32 __smp_startup_cr3;
 extern u64 __smp_stacks_lst;
 extern u64 __smp_stacks_lstn;
 static int init_smpcode(usize ncores) {
+    /* trampoline page is reserved in pmm_init so this copy stays put */
     smp_stacks = malloc(sizeof(smp_stack_t) * ncores);
     if (!smp_stacks) {
         panic("Failed to allocate SMP stacks");
@@ -136,6 +137,13 @@ int init_cores() {
         ptr += ent->len;
     }
 
+    /* the trampoline matches its cpuid APIC id against these acpiid
+       fields to locate its own stack, so they need real values before
+       any SIPI goes out */
+    for (usize i = 0; i < ncores; i++) {
+        smp_stacks[i].acpiid = smp_info[i].acpiid;
+    }
+
     for (usize i = 0; i < numcores; i++) {
         u32 apicid = smp_info[i].acpiid;
         if (apicid == bsp_lapic_id) continue;
@@ -146,7 +154,7 @@ int init_cores() {
 
         for (int j = 0; j < 2; j++) {
             *LAPIC_REG(0x280) = 0;
-            ipi_send(apicid, IPI_TRIGGER_EDGE, 0, IPI_DSTMODE_PHYS, IPI_DELMODE_STUP, 0x80);
+            ipi_send(apicid, IPI_TRIGGER_EDGE, 0, IPI_DSTMODE_PHYS, IPI_DELMODE_STUP, 0x08);
             sleepms(1);
         }
     }

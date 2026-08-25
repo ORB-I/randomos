@@ -43,14 +43,18 @@ smp_entry16:
 
 [bits 64]
 .smp_entry64_lm:
-    mov rax, smp_entry64
-    jmp rax
+    ; stay on the low identity-mapped copy because only it holds the
+    ; patched cr3 and stack list, relative addressing keeps every load
+    ; pointed at the blob being executed
+    jmp smp_entry64
 
 align 16
 .temp_gdt16:
     dq 0
-    dw 0xFFFF, 0x0000, 0x009A, 0xCF00
-    dw 0xFFFF, 0x0000, 0x0092, 0xCF00
+    ; nasm emits dw values little-endian so these look byte swapped on
+    ; purpose, the access byte has to land on byte 5 of each entry
+    dw 0xFFFF, 0x0000, 0x9A00, 0x00CF
+    dw 0xFFFF, 0x0000, 0x9200, 0x00CF
     dq 0x00209A0000000000
 .temp_gdt16_end:
 .temp_gdtr16:
@@ -99,7 +103,10 @@ smp_entry64:
 
     and rsp, -16
     mov rdi, rbx
-    call smp_main
+    ; indirect through a register because a direct call encodes its
+    ; target relative to the link address and we run from the copy
+    mov rax, smp_main
+    call rax
 .stk_not_found:
     cli
 .hlt_loop:
