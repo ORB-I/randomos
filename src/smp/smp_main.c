@@ -139,7 +139,7 @@ void smp_request_hdlr_c(intctx_t* ctx) {
     usize i = 0;
     for (; i < ncores; i++) {
         if (apreqvec[i].apicid == apicid) {
-            break;
+            req = &apreqvec[i];
         }
     }
 
@@ -160,7 +160,6 @@ void smp_request_hdlr_c(intctx_t* ctx) {
             atomic_store(&apreqvec[i].done, 1);
             atomic_store(&apstates[i].lock, 0);
             smp_contloop(i);
-            break;
         }
         case AP_REQ_PAUSE: {
             apstates[i].state = AP_PAUSED;
@@ -168,13 +167,11 @@ void smp_request_hdlr_c(intctx_t* ctx) {
             atomic_store(&apreqvec[i].done, 1);
             atomic_store(&apstates[i].lock, 0);
             smp_contloop(i);
-            break;
         }
         case AP_REQ_CONT: {
             apstates[i].state = AP_RUNNING;
             atomic_store(&apreqvec[i].done, 1);
             atomic_store(&apstates[i].lock, 0);
-            break;
         }
         case AP_REQ_STOP: {
             apstates[i].state = AP_WAITING;
@@ -182,7 +179,6 @@ void smp_request_hdlr_c(intctx_t* ctx) {
             atomic_store(&apreqvec[i].done, 1);
             atomic_store(&apstates[i].lock, 0);
             smp_contloop(i);
-            break;
         }
     }
 }
@@ -193,6 +189,7 @@ void smp_main_finish(u64 apic_id, ssize i) {
     apic_enable_current();
     asm volatile("lidt %0" :: "m"(tidts[i].idtr));
     send_bsp_request(apic_id, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
+    smp_mainloop(apic_id, i);
 }
 
 void smp_mainloop(u64 apic_id, ssize i) {
