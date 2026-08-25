@@ -18,7 +18,7 @@ u8 get_apicid() {
     return (*((volatile u32*)(lapic_virt_addr + 20))) >> 24;
 }
 
-void smp_main_finish(u64 apic_id, ssize i);
+void smp_main_finish(ssize i);
 void smp_main(u64 apic_id) {
     ssize i = -1;
     for (i = 0; i < (ssize)ncores; i++) {
@@ -50,7 +50,7 @@ void smp_main(u64 apic_id) {
         "mov %1, %%rsp\n\t"
 
         "call *%2\n\t"
-        :: "m"(tgdts[i].gdtr), "r"(smp_stacks[i].stack + sizeof(smp_stacks[i].stack)), "c"(smp_main_finish), "D"(apic_id), "S"(i)
+        :: "m"(tgdts[i].gdtr), "r"(smp_stacks[i].stack + sizeof(smp_stacks[i].stack)), "c"(smp_main_finish), "D"(i)
         : "rax", "memory"
     );
 
@@ -106,7 +106,7 @@ void store_ctx(intctx_t* ctx, ssize i) {
     apstates[i].ss  = ctx->ss;
 }
 
-void smp_mainloop(u64 apic_id, ssize i);
+void smp_mainloop(ssize i);
 void clear_ctx(ssize i) {
     apstates[i].rreq.arg = NULL;
     apstates[i].rreq.fn = NULL;
@@ -136,6 +136,8 @@ void smp_contloop(ssize i);
 void smp_request_hdlr_c(intctx_t* ctx) {
     ap_req_t* req = NULL;
     u8 apicid = get_apicid();
+    serial_printf("SMP %d received interrupted\n", apicid);
+    
     usize i = 0;
     for (; i < ncores; i++) {
         if (apreqvec[i].apicid == apicid) {
@@ -143,14 +145,16 @@ void smp_request_hdlr_c(intctx_t* ctx) {
         }
     }
 
-    while (atomic_load(&apstates[i].lock));
+    //while (atomic_load(&apstates[i].lock));
     atomic_store(&apstates[i].lock, 1);
 
     switch (req->type) {
         case AP_REQ_RUN: {
             // if we arent in AP_WAITING we dont want to
             // do anything since it will really mess up our state
+            serial_printf("AP %d received RUN request\n", apicid);
             if (apstates[i].state != AP_WAITING) {
+                serial_printf("AP %d will not RUN\n", apicid);
                 atomic_store(&apstates[i].lock, 0);
                 smp_contloop(i);
             }
@@ -162,6 +166,7 @@ void smp_request_hdlr_c(intctx_t* ctx) {
             smp_contloop(i);
         }
         case AP_REQ_PAUSE: {
+            serial_printf("AP %d received PAUSE request\n", apicid);
             apstates[i].state = AP_PAUSED;
             store_ctx(ctx, i);
             atomic_store(&apreqvec[i].done, 1);
@@ -169,11 +174,13 @@ void smp_request_hdlr_c(intctx_t* ctx) {
             smp_contloop(i);
         }
         case AP_REQ_CONT: {
+            serial_printf("AP %d received CONT request\n", apicid);
             apstates[i].state = AP_RUNNING;
             atomic_store(&apreqvec[i].done, 1);
             atomic_store(&apstates[i].lock, 0);
         }
         case AP_REQ_STOP: {
+            serial_printf("AP %d received STOP request\n", apicid);
             apstates[i].state = AP_WAITING;
             send_bsp_request(apicid, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
             atomic_store(&apreqvec[i].done, 1);
@@ -183,16 +190,21 @@ void smp_request_hdlr_c(intctx_t* ctx) {
     }
 }
 
-void smp_main_finish(u64 apic_id, ssize i) {
+void smp_main_finish(ssize i) {
     /* INIT leaves this core's lapic software-disabled, without enabling
        it the bsp request IPI below is silently dropped */
     apic_enable_current();
-    asm volatile("lidt %0" :: "m"(tidts[i].idtr));
-    send_bsp_request(apic_id, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
-    smp_mainloop(apic_id, i);
+    asm volatile(
+        "lidt %0\n\t"
+        "sti" 
+        :: "m"(tidts[i].idtr)
+    );
+    send_bsp_request(get_apicid(), BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
+    smp_mainloop(i);
 }
 
-void smp_mainloop(u64 apic_id, ssize i) {
+void smp_mainloop(ssize i) {
+    u64 apic_id = get_apicid();
     for (;;) {
         while (atomic_load(&apstates[i].lock));
         atomic_store(&apstates[i].lock, 1);
@@ -200,7 +212,6 @@ void smp_mainloop(u64 apic_id, ssize i) {
             case AP_WAITING:
             case AP_PAUSED: {
                 atomic_store(&apstates[i].lock, 0);
-                asm volatile("hlt");
                 break;
             }
             case AP_RUNNING: {
@@ -234,6 +245,7 @@ void smp_mainloop(u64 apic_id, ssize i) {
                 );
             }
             case AP_START: {
+                serial_printf("AP %d START\n");
                 asm("cli");
 
                 void(*fn)(void*) = apstates[i].rreq.fn;
