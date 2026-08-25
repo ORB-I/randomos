@@ -9,11 +9,14 @@ smp_request_hdlr:
     jz .smp_reqhdlr_enter
     swapgs
 .smp_reqhdlr_enter:
-    mov rdi, rsp
     pushaq
+    ; rdi goes in after pushaq so the c side sees the gp save area with
+    ; the iret frame sitting right above it, that ordering is what
+    ; intctx_t describes. eoi lives in the c handler because most
+    ; request paths leave through smp_contloop and never reach IRQ_EXIT
+    mov rdi, rsp
     cld
     call smp_request_hdlr_c
-    call lapic_eoi
     IRQ_EXIT
 
 global bsp_request_hdlr

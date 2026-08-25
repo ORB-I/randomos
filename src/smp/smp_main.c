@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <core/std.h>
 #include <drivers/display/serial.h>
 #include <core/printf.h>
@@ -14,19 +15,54 @@ extern thread_idt_t* tidts;
 extern thread_gdt_t* tgdts;
 extern smp_stack_t* smp_stacks;
 
-u8 get_apicid() {
-    return (*((volatile u32*)(lapic_virt_addr + 20))) >> 24;
+static void smp_mainloop(ssize i);
+[[noreturn]] static void smp_contloop(ssize i);
+static void smp_main_finish(ssize i);
+
+/* what the request handler gets handed from asm: pushaq stashes the gp
+   regs right below the hardware iret frame, so one struct laid out in
+   push order covers the whole thing */
+typedef struct {
+    u64 r15;
+    u64 r14;
+    u64 r13;
+    u64 r12;
+    u64 r11;
+    u64 r10;
+    u64 r9;
+    u64 r8;
+    u64 rbp;
+    u64 rdi;
+    u64 rsi;
+    u64 rdx;
+    u64 rcx;
+    u64 rbx;
+    u64 rax;
+
+    u64 rip;
+    u64 cs;
+    u64 rflags;
+    u64 rsp;
+    u64 ss;
+} intctx_t;
+
+static ssize smp_find_core(u8 apicid) {
+    for (ssize i = 0; i < (ssize)ncores; i++) {
+        if (smp_info[i].apicid == apicid) return i;
+    }
+    return -1;
 }
 
-void smp_main_finish(ssize i);
 void smp_main(u64 apic_id) {
-    ssize i = -1;
-    for (i = 0; i < (ssize)ncores; i++) {
-        if (smp_info[i].apicid == apic_id) {
-            break;
-        }
+    ssize i = smp_find_core((u8)apic_id);
+    if (i < 0) {
+        // a core the madt never told us about has no stack or gdt to go back to
+        serial_printf("SMP: apicid %lld is not ours, halting\n", apic_id);
+        for (;;) asm volatile("cli\n\thlt");
     }
 
+    // far-return through the new gdt so cs actually reloads before we
+    // touch any data segments
     asm volatile(
         "cli\n\t"
         "lgdt %0\n\t"
@@ -59,72 +95,24 @@ void smp_main(u64 apic_id) {
     }
 }
 
-typedef struct {
-    u64 r15;
-    u64 r14;
-    u64 r13;
-    u64 r12;
-    u64 r11;
-    u64 r10;
-    u64 r9;
-    u64 r8;
-    u64 rbp;
-    u64 rdi;
-    u64 rsi;
-    u64 rdx;
-    u64 rcx;
-    u64 rbx;
-    u64 rax;
-       
-    u64 rip;
-    u64 cs;
-    u64 rflags;
-    u64 rsp;
-    u64 ss;
-} intctx_t;
+/* r15..ss sit contiguous and identically ordered in both structs, so a
+   saved frame moves as one flat block */
+_Static_assert(sizeof(intctx_t) == offsetof(intctx_t, ss) + sizeof(u64),
+               "intctx_t grew padding");
+_Static_assert(offsetof(ap_state, r15) + sizeof(intctx_t)
+               == offsetof(ap_state, ss) + sizeof(u64),
+               "ap_state reg block drifted");
 
-void store_ctx(intctx_t* ctx, ssize i) {
-    apstates[i].r15 = ctx->r15;
-    apstates[i].r14 = ctx->r14;
-    apstates[i].r13 = ctx->r13;
-    apstates[i].r12 = ctx->r12;
-    apstates[i].r11 = ctx->r11;
-    apstates[i].r10 = ctx->r10;
-    apstates[i].r9  = ctx->r9;
-    apstates[i].r8  = ctx->r8;
-    apstates[i].rbp = ctx->rbp;
-    apstates[i].rdi = ctx->rdi;
-    apstates[i].rsi = ctx->rsi;
-    apstates[i].rdx = ctx->rdx;
-    apstates[i].rcx = ctx->rcx;
-    apstates[i].rbx = ctx->rbx;
-    apstates[i].rax = ctx->rax;
-    apstates[i].rip = ctx->rip;
-    apstates[i].cs  = ctx->cs;
-    apstates[i].rflags = ctx->rflags;
-    apstates[i].rsp = ctx->rsp;
-    apstates[i].ss  = ctx->ss;
+static void store_ctx(intctx_t* ctx, ssize i) {
+    memcpy(&apstates[i].r15, &ctx->r15, sizeof(intctx_t));
 }
 
-void smp_mainloop(ssize i);
-void clear_ctx(ssize i) {
-    apstates[i].rreq.arg = NULL;
+static void clear_ctx(ssize i) {
+    memset(&apstates[i].r15, 0, sizeof(intctx_t));
     apstates[i].rreq.fn = NULL;
-    apstates[i].r15 = 0;
-    apstates[i].r14 = 0;
-    apstates[i].r13 = 0;
-    apstates[i].r12 = 0;
-    apstates[i].r11 = 0;
-    apstates[i].r10 = 0;
-    apstates[i].r9 = 0;
-    apstates[i].r8 = 0;
-    apstates[i].rbp = 0;
-    apstates[i].rdi = 0;
-    apstates[i].rsi = 0;
-    apstates[i].rdx = 0;
-    apstates[i].rcx = 0;
-    apstates[i].rbx = 0;
-    apstates[i].rax = 0;
+    apstates[i].rreq.arg = NULL;
+    // fresh frame aimed back into the idle loop, this doubles as where
+    // a resumed core lands once its function returns
     apstates[i].rip = (u64)(void*)smp_mainloop;
     apstates[i].cs = 0x08;
     apstates[i].ss = 0x10;
@@ -132,71 +120,77 @@ void clear_ctx(ssize i) {
     apstates[i].rflags = 0x200202;
 }
 
-void smp_contloop(ssize i);
+/* runs on whichever AP took the request IPI. most paths leave through
+   smp_contloop and never come back through the asm epilogue, so the eoi
+   has to happen here or the vector stays in-service and every later
+   request on it gets swallowed */
 void smp_request_hdlr_c(intctx_t* ctx) {
-    ap_req_t* req = NULL;
-    u8 apicid = get_apicid();
-    serial_printf("SMP %d received interrupted\n", apicid);
-    
-    usize i = 0;
-    for (; i < ncores; i++) {
-        if (apreqvec[i].apicid == apicid) {
-            req = &apreqvec[i];
-        }
-    }
+    lapic_eoi();
 
-    //while (atomic_load(&apstates[i].lock));
+    u8 apicid = get_apicid();
+    ssize i = smp_find_core(apicid);
+    if (i < 0) {
+        serial_printf("SMP: request for untracked apicid %d\n", apicid);
+        return;
+    }
+    ap_req_t* req = &apreqvec[i];
+
     atomic_store(&apstates[i].lock, 1);
 
     switch (req->type) {
         case AP_REQ_RUN: {
-            // if we arent in AP_WAITING we dont want to
-            // do anything since it will really mess up our state
             serial_printf("AP %d received RUN request\n", apicid);
+            // only safe to launch out of the idle loop, yanking a paused
+            // or running core would orphan whatever frame it was wearing
             if (apstates[i].state != AP_WAITING) {
                 serial_printf("AP %d will not RUN\n", apicid);
+                atomic_store(&req->done, 1); // ack anyway or the bsp spins forever
                 atomic_store(&apstates[i].lock, 0);
                 smp_contloop(i);
             }
             ap_runreq_t* run = (ap_runreq_t*)req->data;
             apstates[i].rreq = *run;
             apstates[i].state = AP_START;
-            atomic_store(&apreqvec[i].done, 1);
+            atomic_store(&req->done, 1);
             atomic_store(&apstates[i].lock, 0);
-            smp_contloop(i);
+            smp_contloop(i); // drop this frame, mainloop picks the request up
         }
         case AP_REQ_PAUSE: {
             serial_printf("AP %d received PAUSE request\n", apicid);
             apstates[i].state = AP_PAUSED;
             store_ctx(ctx, i);
-            atomic_store(&apreqvec[i].done, 1);
+            atomic_store(&req->done, 1);
             atomic_store(&apstates[i].lock, 0);
             smp_contloop(i);
         }
         case AP_REQ_CONT: {
             serial_printf("AP %d received CONT request\n", apicid);
+            // mainloop sees RUNNING and iretqs back into the stored ctx,
+            // so this path returns normally through the wrapper
             apstates[i].state = AP_RUNNING;
-            atomic_store(&apreqvec[i].done, 1);
+            atomic_store(&req->done, 1);
             atomic_store(&apstates[i].lock, 0);
+            break;
         }
         case AP_REQ_STOP: {
             serial_printf("AP %d received STOP request\n", apicid);
+            // whatever was running gets abandoned on purpose, stop means stop
             apstates[i].state = AP_WAITING;
             send_bsp_request(apicid, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
-            atomic_store(&apreqvec[i].done, 1);
+            atomic_store(&req->done, 1);
             atomic_store(&apstates[i].lock, 0);
             smp_contloop(i);
         }
     }
 }
 
-void smp_main_finish(ssize i) {
+static void smp_main_finish(ssize i) {
     /* INIT leaves this core's lapic software-disabled, without enabling
        it the bsp request IPI below is silently dropped */
     apic_enable_current();
     asm volatile(
         "lidt %0\n\t"
-        "sti" 
+        "sti"
         :: "m"(tidts[i].idtr)
     );
     send_bsp_request(get_apicid(), BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
@@ -215,37 +209,62 @@ void smp_mainloop(ssize i) {
                 break;
             }
             case AP_RUNNING: {
+                /* a paused core wants back in: rebuild its iret frame out
+                   of the state block and let iretq land in it. r15 holds
+                   the base pointer until its real value loads last */
                 asm("cli");
                 atomic_store(&apstates[i].lock, 0);
                 asm volatile(
                     "mov %0, %%r15\n\t"
-                    "mov 136(%%r15), %%rax\n\t"
-                    "mov 128(%%r15), %%rbx\n\t"
-                    "mov 120(%%r15), %%rcx\n\t"
-                    "mov 104(%%r15), %%rsi\n\t"
-                    "mov 96(%%r15), %%rdi\n\t"
-                    "mov 88(%%r15), %%rbp\n\t"
-                    "mov 80(%%r15), %%r8\n\t"
-                    "mov 72(%%r15), %%r9\n\t"
-                    "mov 64(%%r15), %%r10\n\t"
-                    "mov 56(%%r15), %%r11\n\t"
-                    "mov 48(%%r15), %%r12\n\t"
-                    "mov 40(%%r15), %%r13\n\t"
-                    "mov 32(%%r15), %%r14\n\t"
+                    "mov %c1(%%r15), %%rax\n\t"
+                    "mov %c2(%%r15), %%rbx\n\t"
+                    "mov %c3(%%r15), %%rcx\n\t"
+                    "mov %c4(%%r15), %%rdx\n\t"
+                    "mov %c5(%%r15), %%rsi\n\t"
+                    "mov %c6(%%r15), %%rdi\n\t"
+                    "mov %c7(%%r15), %%rbp\n\t"
+                    "mov %c8(%%r15), %%r8\n\t"
+                    "mov %c9(%%r15), %%r9\n\t"
+                    "mov %c10(%%r15), %%r10\n\t"
+                    "mov %c11(%%r15), %%r11\n\t"
+                    "mov %c12(%%r15), %%r12\n\t"
+                    "mov %c13(%%r15), %%r13\n\t"
+                    "mov %c14(%%r15), %%r14\n\t"
 
-                    "pushq 176(%%r15)\n\t"
-                    "pushq 168(%%r15)\n\t"
-                    "pushq 160(%%r15)\n\t"
-                    "pushq 152(%%r15)\n\t"
-                    "pushq 144(%%r15)\n\t"
+                    "pushq %c19(%%r15)\n\t" // ss
+                    "pushq %c18(%%r15)\n\t" // rsp
+                    "pushq %c17(%%r15)\n\t" // rflags
+                    "pushq %c16(%%r15)\n\t" // cs
+                    "pushq %c15(%%r15)\n\t" // rip
 
-                    "mov 24(%%r15), %%r15\n\t"
+                    "mov %c20(%%r15), %%r15\n\t"
                     "iretq"
-                    :: "m"(apstates[i])
-                );
+                    :: "r"(apstates + i),
+                       "i"(offsetof(ap_state, rax)),
+                       "i"(offsetof(ap_state, rbx)),
+                       "i"(offsetof(ap_state, rcx)),
+                       "i"(offsetof(ap_state, rdx)),
+                       "i"(offsetof(ap_state, rsi)),
+                       "i"(offsetof(ap_state, rdi)),
+                       "i"(offsetof(ap_state, rbp)),
+                       "i"(offsetof(ap_state, r8)),
+                       "i"(offsetof(ap_state, r9)),
+                       "i"(offsetof(ap_state, r10)),
+                       "i"(offsetof(ap_state, r11)),
+                       "i"(offsetof(ap_state, r12)),
+                       "i"(offsetof(ap_state, r13)),
+                       "i"(offsetof(ap_state, r14)),
+                       "i"(offsetof(ap_state, rip)),
+                       "i"(offsetof(ap_state, cs)),
+                       "i"(offsetof(ap_state, rflags)),
+                       "i"(offsetof(ap_state, rsp)),
+                       "i"(offsetof(ap_state, ss)),
+                       "i"(offsetof(ap_state, r15))
+                    : "memory");
+                __builtin_unreachable();
             }
             case AP_START: {
-                serial_printf("AP %d START\n");
+                serial_printf("AP %d START\n", get_apicid());
                 asm("cli");
 
                 void(*fn)(void*) = apstates[i].rreq.fn;
@@ -273,7 +292,10 @@ void smp_mainloop(ssize i) {
     }
 }
 
-[[noreturn]] void smp_contloop(ssize i) {
+[[noreturn]] static void smp_contloop(ssize i) {
+    // bail out of whatever frame the handler was wearing: build a fresh
+    // iret frame into the idle loop and iretq straight to it. pause
+    // survives this because store_ctx already copied the state out.
     asm volatile(
         "pushq $0x10\n\t"
         "pushq %0\n\t"
