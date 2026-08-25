@@ -109,10 +109,10 @@ int hpet_init(u64 (**getms)(void)) {
     u64 counter = hpet_read64(0xF0);
     u64 period = 1000000000000ULL / clkperiod;
     serial_printf("HPET period: %u fs\n", clkperiod);
-serial_printf("HPET ticks/ms: %llu\n", period);
+    serial_printf("HPET ticks/ms: %llu\n", period);
     hpet_write64(0x108, counter + period);
 
-    idt_regintr(0x40, hpet_hdlr, 0x8E, 1);
+    idt_regintr(NULL, 0x40, hpet_hdlr, 0x8E, 1);
     ioapic_set_irq(20, 0x40, get_lapic_id(), 0);
     ioapic_unmask_irq(20);
 
@@ -141,7 +141,7 @@ typedef struct {
 } preemptive_timer_t;
 
 int hpet_mkpreemptive_timer(preemptive_timer_t* buf, u64 ms, void(*hdlr)(void)) {
-    idt_regintr(0x3F, hdlr, 0x8E, 1);
+    idt_regintr(NULL, 0x3F, hdlr, 0x8E, 1);
     ioapic_set_irq(19, 0x3F, get_lapic_id(), 0);
     u32 clkprd = hpet_read64(0x00) >> 32;
 

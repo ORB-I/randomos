@@ -355,7 +355,7 @@ int e1000_init(void) {
   /* Setup Interrupt handling if IRQ line is configured */
   if (e1000_irq > 0 && e1000_irq < 24) {
     u8 vector = 0x20 + e1000_irq;
-    idt_regintr(vector, e1000_hdlr, 0x8E, 1);
+    idt_regintr(NULL, vector, e1000_hdlr, 0x8E, 1);
     ioapic_set_irq(e1000_irq, vector, get_lapic_id(), 0);
     ioapic_unmask_irq(e1000_irq);
 

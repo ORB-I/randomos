@@ -31,6 +31,7 @@
 #include <drivers/usb/uhci.h>
 #include <drivers/net/e1000.h>
 #include <drivers/time/clock.h>
+#include <smp/ap.h>
 
 #include <lai/helpers/pm.h>
 #include <ff16/ff.h>
@@ -93,6 +94,10 @@ int try_init(const char* path) {
         return 0;
     }
     return 1;
+}
+
+void ap_testtask() {
+    serial_printf("Hello from SMP%d\n", get_apicid());
 }
 
 int init_lwip();
@@ -176,6 +181,9 @@ void kmain_aftergdt() {
     init_kbd(kbtype);
     printf("IO: Requesting mouse type %d\n", mbtype);
     init_mouse(mbtype);
+
+    printf("Testing AP\n");
+    while (ap_run(ap_testtask, NULL) < 0);
 
     if (init_scheduler() < 0) panic("Failed to initialize scheduler\n");
 

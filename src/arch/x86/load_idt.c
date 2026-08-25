@@ -1,26 +1,12 @@
 #include <core/std.h>
 #include <core/printf.h>
+#include <arch/idt.h>
 
-typedef struct {
-    u16 isr_low;
-    u16 kernel_cs;
-    u8  ist;
-    u8  attributes;
-    u16 isr_mid;
-    u32 isr_high;
-    u32 reserved;
-} __attribute__((packed)) idt_entry_t;
+static idt_entry_t _idt[IDT_SIZE];
+static idtr_t _idtr;
 
-typedef struct {
-    u16 limit;
-    u64 base;
-} __attribute__((packed)) idtr_t;
-
-#define IDT_SIZE 256
-static idt_entry_t idt[IDT_SIZE];
-static idtr_t idtr;
-
-void idt_regintr(u8 vector, void* isr, u8 flags, int ist) {
+void idt_regintr(idt_entry_t* idt, u8 vector, void* isr, u8 flags, int ist) {
+    if (!idt) idt = _idt;
     idt_entry_t* dsc = &idt[vector];
     u64 addr = (u64)isr;
 
@@ -43,12 +29,12 @@ void idt_init() {
     for (s32 i = 0; i < count; i++) {
         s32 vec = vectors[i];
         if (int_hdlr_table[vec]) {
-            idt_regintr(vec, int_hdlr_table[vec], 0x8E, 2);
+            idt_regintr(_idt, vec, int_hdlr_table[vec], 0x8E, 2);
         }
     }
 
-    idtr.limit = sizeof(idt) - 1;
-    idtr.base = (u64)&idt;
+    _idtr.limit = sizeof(_idt) - 1;
+    _idtr.base = (u64)&_idt;
 
-    asm volatile("lidt %0" : : "m"(idtr));
+    asm volatile("lidt %0" : : "m"(_idtr));
 }

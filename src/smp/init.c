@@ -6,29 +6,24 @@
 #include <drivers/time/clock.h>
 #include <core/liballoc.h>
 #include <core/printf.h>
+#include <core/idt.h>
+#include <smp/ipi.h>
+#include <smp/smp.h>
+#include <smp/apreq.h>
 
 extern u8 __smp_startup_begin[];
 extern u8 __smp_startup_end[];
 extern u8 __smp_startup_lma[];
 
-typedef struct {
-    u64 acpiid;
-    u8 stack[16384];
-} __attribute__((packed)) smp_stack_t;
 smp_stack_t* smp_stacks = NULL;
 
-typedef struct {
-    u64 acpiid;
-    u8 tid;
-    madt_plapic_t* acpi_ent;
-} smp_info_t;
 smp_info_t* smp_info = NULL;
+ap_req_t* apreqvec = NULL;
+ap_state* apstates = NULL;
 
-extern uintptr_t lapic_phys_addr;
-extern volatile u32* lapic_virt_addr;
 extern u32 bsp_lapic_id;
 
-static usize ncores = 0;
+usize ncores = 0;
 
 extern u32 __smp_startup_cr3;
 extern u64 __smp_stacks_lst;
@@ -62,39 +57,88 @@ static int init_smpcode(usize ncores) {
     return 0;
 }
 
-#define IPI_TRIGGER_EDGE 0x0
-#define IPI_TRIGGER_LVL  0x1
-
-#define IPI_LEVEL_DEASSERT 0x0
-#define IPI_LEVEL_ASSERT   0x1
-
-#define IPI_DSTMODE_PHYS 0x0
-#define IPI_DSTMODE_LOG  0x1
-
-#define IPI_DELMODE_FIXED 0x00
-#define IPI_DELMODE_LOWP  0x01
-#define IPI_DELMODE_SMI   0x02
-#define IPI_DELMODE_RESV1 0x03
-#define IPI_DELMODE_NMI   0x04
-#define IPI_DELMODE_INIT  0x05
-#define IPI_DELMODE_STUP  0x06
-#define IPI_DELMODE_RESV2 0x07
-
-#define LAPIC_REG(offset) ((volatile uint32_t*)((uintptr_t)lapic_virt_addr + (offset)))
-void ipi_send(u8 dest, u8 trigger, u8 level, u8 dstmode, u8 delmode, u8 vec) {
+void ipi_send(u8 dest, u8 shrtdst, u8 trigger, u8 level, u8 dstmode, u8 delmode, u8 vec) {
     *LAPIC_REG(0x310) = dest << 24;
     u32 icr = ((u32)vec << 0) |
               ((u32)delmode << 8) |
               ((u32)dstmode << 11) |
               ((u32)level << 14) |
-              ((u32)trigger << 15);
+              ((u32)trigger << 15) |
+              ((u32)shrtdst << 18);
+
     *LAPIC_REG(0x300) = icr;
     do {
         asm volatile("pause" ::: "memory");
     } while (*LAPIC_REG(0x300) & (1 << 12));
 }
 
+extern void smp_request_hdlr();
+extern void bsp_request_hdlr();
+extern void ap_stop_hdlr();
+
+thread_idt_t* tidts = NULL;
+thread_gdt_t* tgdts = NULL;
+extern void (*int_hdlr_table[])();
+
+void init_smpreqs() {
+    idt_regintr(NULL, 255, bsp_request_hdlr, 0x8E, 1);
+    bsp_apicid = bsp_lapic_id;
+
+    apreqvec = malloc(sizeof(ap_req_t) * ncores);
+    tidts = malloc(sizeof(thread_idt_t) * ncores);
+    tgdts = malloc(sizeof(thread_gdt_t) * ncores);
+    apstates = malloc(sizeof(ap_state) * ncores);
+
+    if (!apreqvec || !tidts || !tgdts || !apstates) {
+        panic("Failed to initialize SMPs");
+    }
+
+    for (usize i = 0; i < ncores; i++) {
+        thread_gdt_t* tgdt = &tgdts[i];
+        thread_idt_t* tidt = &tidts[i];
+
+        tgdt->apicid = smp_info[i].apicid;
+        set_gdtent(tgdt->gdt, NULLSS, 0, 0, 0, 0);
+        set_gdtent(tgdt->gdt, KCSS, 0, 0xFFFFFFFF, 0x9A, 0x20);
+        set_gdtent(tgdt->gdt, KDSS, 0, 0xFFFFFFFF, 0x92, 0x00);
+        set_gdtent(tgdt->gdt, UCSS, 0, 0xFFFFFFFF, 0xFA, 0x20);
+        set_gdtent(tgdt->gdt, UDSS, 0, 0xFFFFFFFF, 0xF2, 0x00);
+
+        memset(&tgdt->tss, 0, sizeof(tgdt->tss));
+
+        tgdt->tss.rsp0 = (u64)(smp_stacks[i].stack + sizeof(smp_stacks[i].stack));
+        tgdt->tss.iomap_base = sizeof(struct tss_entry);
+
+        u64 tssb = (u64)&tgdt->tss;
+        u64 tssl = sizeof(struct tss_entry) - 1;
+        set_gdt_tss(tgdt->gdt, TSS, tssb, tssl, 0x89);
+
+        tgdt->gdtr.limit = sizeof(tgdt->gdt) - 1;
+        tgdt->gdtr.base = (u64)tgdt->gdt;
+
+        s32 vectors[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19};
+        s32 count = sizeof(vectors) / sizeof(vectors[0]);
+
+        for (s32 i = 0; i < count; i++) {
+            s32 vec = vectors[i];
+            if (int_hdlr_table[vec]) {
+                idt_regintr(tidt->idt, vec, int_hdlr_table[vec], 0x8E, 0);
+            }
+        }
+
+        idt_regintr(tidt->idt, AP_MSGVEC, smp_request_hdlr, 0x8E, 0);
+        idt_regintr(tidt->idt, AP_STOPVEC, ap_stop_hdlr, 0x8E, 0);
+
+        tidt->idtr.limit = sizeof(tidt->idt) - 1;
+        tidt->idtr.base = (u64)&tidt->idt;
+
+        apreqvec[i] = (ap_req_t){0,0,smp_info[i].apicid,0,NULL,0};
+    }
+}
+
+u64 bsp_apicid = 0;
 int init_cores() {
+
     void* madt = NULL;
     if (acpi_hdl && acpi_hdl->xsdt) {
         madt = find_acpitbl(acpi_hdl->xsdt, "APIC");
@@ -123,38 +167,48 @@ int init_cores() {
     init_smpcode(numcores);
     ncores = numcores;
 
-    smp_info = malloc(sizeof(smp_info_t) * ncores);
     usize i = 0;
     ptr = bptr;
+    smp_info = malloc(sizeof(smp_info_t) * ncores);
+    if (!smp_info) {
+        panic("failed to allocate smp info");
+    }
+    
     while (ptr < end) {
         madt_entry_hdr_t* ent = (madt_entry_hdr_t*)ptr;
         if (ent->len == 0) break;
-        if (ent->type == ENT_PROCLOCAL_APIC) smp_info[i++] = (smp_info_t){
-            ((madt_plapic_t*)ptr)->apicid,
-            i,
-            (madt_plapic_t*)ptr
-        };
+        if (ent->type == ENT_PROCLOCAL_APIC) {
+            smp_info[i] = (smp_info_t){
+                ((madt_plapic_t*)ptr)->apicid,
+                i,
+                (madt_plapic_t*)ptr,
+                SMP_STATUS_DEAD
+            };
+            i++;
+        }
         ptr += ent->len;
     }
+    init_smpreqs();
 
-    /* the trampoline matches its cpuid APIC id against these acpiid
+    /* the trampoline matches its cpuid APIC id against these apicid
        fields to locate its own stack, so they need real values before
        any SIPI goes out */
     for (usize i = 0; i < ncores; i++) {
-        smp_stacks[i].acpiid = smp_info[i].acpiid;
+        smp_stacks[i].apicid = smp_info[i].apicid;
     }
 
     for (usize i = 0; i < numcores; i++) {
-        u32 apicid = smp_info[i].acpiid;
+        u32 apicid = smp_info[i].apicid;
         if (apicid == bsp_lapic_id) continue;
-        ipi_send(apicid, IPI_TRIGGER_LVL, IPI_LEVEL_ASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_INIT, 0);
+        serial_printf("Starting SMP %d\n", apicid);
+        ipi_send(apicid, IPI_SHRTDST_NONE, IPI_TRIGGER_LVL, IPI_LEVEL_ASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_INIT, 0);
         sleepms(10);
-        ipi_send(apicid, IPI_TRIGGER_LVL, IPI_LEVEL_DEASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_INIT, 0);
+        ipi_send(apicid, IPI_SHRTDST_NONE, IPI_TRIGGER_LVL, IPI_LEVEL_DEASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_INIT, 0);
         sleepms(1);
 
         for (int j = 0; j < 2; j++) {
             *LAPIC_REG(0x280) = 0;
-            ipi_send(apicid, IPI_TRIGGER_EDGE, 0, IPI_DSTMODE_PHYS, IPI_DELMODE_STUP, 0x08);
+            ipi_send(apicid, IPI_SHRTDST_NONE,IPI_TRIGGER_EDGE, 0, IPI_DSTMODE_PHYS, IPI_DELMODE_STUP, 0x08);
             sleepms(1);
         }
     }

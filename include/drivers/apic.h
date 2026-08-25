@@ -88,3 +88,4 @@ void ioapic_mask_irq(u8 irq);
 void ioapic_unmask_irq(u8 irq);
 void ioapic_route_gsi(u32 gsi, u8 vector, u32 lapic_id, u16 flags, bool masked);
 u32 get_lapic_id();
+u8 get_apicid();

@@ -58,6 +58,6 @@ void irq_enable(u8 line) {
 }
 
 void init_irq(s32 irq, void (*hdlr)()) {
-    idt_regintr(0x20 + irq, hdlr, 0x8E, 1);
+    idt_regintr(NULL, 0x20 + irq, hdlr, 0x8E, 1);
     ioapic_set_irq((u8)irq, (u8)(0x20 + irq), 0, true);
 }

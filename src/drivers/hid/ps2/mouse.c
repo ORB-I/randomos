@@ -48,7 +48,7 @@ void init_mouseps2() {
     ps2_wait_read();
     ps2_dataread();
 
-    idt_regintr(0x2C, mouse_hdlr, 0x8E, 1);
+    idt_regintr(NULL, 0x2C, mouse_hdlr, 0x8E, 1);
     ioapic_set_irq(12, 0x2C, get_lapic_id(), 0);
     ioapic_unmask_irq(12);
 }

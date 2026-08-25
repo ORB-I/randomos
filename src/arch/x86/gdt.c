@@ -1,43 +1,6 @@
 #include <core/std.h>
 #include <lib/string.h>
-
-struct gdtr {
-    u16 limit;
-    u64 base;
-} __attribute__((packed));
-
-struct gdt_entry {
-    u16 limlow;
-    u16 base_low;
-    u8 base_mid;
-    u8 acc;
-    u8 gran;
-    u8 base_high;
-} __attribute__((packed));
-
-struct gdt_tss_entry {
-    u16 limit_low;
-    u16 base_low;
-    u8  base_mid1;
-    u8  access;
-    u8  granularity;
-    u8  base_mid2;
-    u32 base_high;
-    u32 reserved;
-} __attribute__((packed));
-
-struct tss_entry {
-    u32 reserved0;
-    u64 rsp0;
-    u64 rsp1;
-    u64 rsp2;
-    u64 reserved1;
-    u64 ist[7];
-    u64 reserved2;
-    u16 reserved3;
-    u16 iomap_base;
-} __attribute__((packed));
-
+#include <arch/gdt.h>
 
 struct gdt_entry _gdt[8]; 
 struct gdtr _gdtr;
@@ -47,15 +10,8 @@ __attribute__((aligned(16))) u8 kern_stack[16384];
 __attribute__((aligned(16))) u8 intr_stack[16384];
 __attribute__((aligned(16))) u8 exct_stack[16384];
 
-#define NULLSS 0
-#define KCSS 1
-#define KDSS 2
-#define UCSS 3
-#define UDSS 4
-#define TSS 5
-
-void set_gdtent(int n, u32 base, u32 lim, u8 acc, u8 gran) {
-    struct gdt_entry *e = &_gdt[n];
+void set_gdtent(struct gdt_entry* gdt, int n, u32 base, u32 lim, u8 acc, u8 gran) {
+    struct gdt_entry *e = &gdt[n];
 
     e->base_low = (base & 0xFFFF);
     e->base_mid = (base >> 16) & 0xFF;
@@ -70,8 +26,8 @@ void set_gdtent(int n, u32 base, u32 lim, u8 acc, u8 gran) {
     e->acc = acc;
 }
 
-void set_gdt_tss(int n, u64 base, u32 lim, u8 acc) {
-    struct gdt_tss_entry *t = (struct gdt_tss_entry *)&_gdt[n];
+void set_gdt_tss(struct gdt_entry* gdt, int n, u64 base, u32 lim, u8 acc) {
+    struct gdt_tss_entry *t = (struct gdt_tss_entry *)&gdt[n];
 
     t->limit_low = (lim & 0xFFFF);
     t->base_low = (base & 0xFFFF);
@@ -91,11 +47,11 @@ void kmain_aftergdt();
 void gdt_init() {
     asm volatile("cli");
 
-    set_gdtent(NULLSS, 0, 0, 0, 0);
-    set_gdtent(KCSS, 0, 0xFFFFFFFF, 0x9A, 0x20);
-    set_gdtent(KDSS, 0, 0xFFFFFFFF, 0x92, 0x00);
-    set_gdtent(UCSS, 0, 0xFFFFFFFF, 0xFA, 0x20);
-    set_gdtent(UDSS, 0, 0xFFFFFFFF, 0xF2, 0x00);
+    set_gdtent(_gdt, NULLSS, 0, 0, 0, 0);
+    set_gdtent(_gdt, KCSS, 0, 0xFFFFFFFF, 0x9A, 0x20);
+    set_gdtent(_gdt, KDSS, 0, 0xFFFFFFFF, 0x92, 0x00);
+    set_gdtent(_gdt, UCSS, 0, 0xFFFFFFFF, 0xFA, 0x20);
+    set_gdtent(_gdt, UDSS, 0, 0xFFFFFFFF, 0xF2, 0x00);
 
     memset(&_tss, 0, sizeof(_tss));
 
@@ -107,7 +63,7 @@ void gdt_init() {
 
     u64 tss_base = (u64)&_tss;
     u32 tss_limit = sizeof(struct tss_entry) - 1;
-    set_gdt_tss(TSS, tss_base, tss_limit, 0x89);
+    set_gdt_tss(_gdt, TSS, tss_base, tss_limit, 0x89);
 
     _gdtr.limit = sizeof(_gdt) - 1;
     _gdtr.base = (u64)_gdt;

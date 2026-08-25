@@ -40,7 +40,7 @@ void init_kbdps2() {
     ps2_wait_write();
     ps2_datawrite(cb);
 
-    idt_regintr(0x21, kbd_hdlr, 0x8E, 1);
+    idt_regintr(NULL, 0x21, kbd_hdlr, 0x8E, 1);
     ioapic_set_irq(1, 0x21, get_lapic_id(), 0);
     ioapic_unmask_irq(1);
 }
