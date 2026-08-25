@@ -21,6 +21,13 @@ SECTIONS {
     } :limine_requests
     . = ALIGN(CONSTANT(MAXPAGESIZE));
     .text : { *(.text .text.*) } :text
+    .smp_startup : {
+        __smp_startup_begin = .;
+        *(.smp_startup)
+        __smp_startup_end = .;
+    } :text
+    __smp_startup_lma = LOADADDR(.smp_startup);
+    /*. = ADDR(.text) + SIZEOF(.text) + SIZEOF(.smp_startup); */
     . = ALIGN(CONSTANT(MAXPAGESIZE));
     .rodata : { *(.rodata .rodata.*) } :rodata
     .note.gnu.build-id : { *(.note.gnu.build-id) } :rodata

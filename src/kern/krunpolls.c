@@ -5,6 +5,7 @@
 #include <lwip/lwip/prot/dhcp.h>
 
 extern struct netif _e1000_netif;
+int smp_getactive();
 
 void krunpolls() {
     // lwIP is built NO_SYS: its timeout list, heap and pbuf pools have

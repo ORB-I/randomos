@@ -61,7 +61,7 @@ void ctx2proc(process_state_t* dst, procctx_t* src) {
     process_state_t* proc = &proctbl[current_pid];
     procctx_t ctx;
     proc2ctx(&ctx, proc);
-    serial_printf("Switching to %d\n", current_pid);
+    //serial_printf("Switching to %d\n", current_pid);
 
     hpet_start_preemptive(&_schdlr_timer);
     reset_kgsb();
@@ -118,7 +118,7 @@ void scheduler_switch(procctx_t* proc) {
         }
     }
 
-    serial_printf("Switching to %d\n", tgtpid);
+    //serial_printf("Switching to %d\n", tgtpid);
 
     process_state_t* tgtproc = &proctbl[tgtpid];
     process_state_t* currproc = &proctbl[current_pid];
@@ -131,7 +131,7 @@ void scheduler_switch(procctx_t* proc) {
     reset_kgsb();
     procctx_t ctx;
     proc2ctx(&ctx, tgtproc);
-    serial_printf("jumping to %p\n", ctx.rip);
+    //serial_printf("jumping to %p\n", ctx.rip);
     vmm_sasp((page_table_t*)tgtproc->cr3);
 
     // whoever exited before the switch doesn't need

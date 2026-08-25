@@ -200,6 +200,8 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
         return LOADLIB_ERR;
     }
 
+    serial_printf("Loading library %s at base %p\n", path, base);
+
     Elf64_Ehdr ehdr;
     ssize nread = read(fd, &ehdr, sizeof(ehdr));
     if (nread == -1 || (usize)nread < sizeof(ehdr)) {
@@ -639,6 +641,8 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
         printf("Loader: failed to open file %s\n", path);
         return LOADPROG_ERR;
     }
+
+    serial_printf("Loading program %s\n", path);
 
     Elf64_Ehdr ehdr;
     ssize nread = read(fd, &ehdr, sizeof(ehdr));

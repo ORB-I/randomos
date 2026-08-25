@@ -12,6 +12,7 @@
 #include <lib/syscall.h>
 #include <scheduler/scheduler.h>
 #include <scheduler/process.h>
+#include <smp/smp.h>
 
 #include <drivers/time/gettimeofday.h>
 #include <drivers/hid/kbd.h>
@@ -130,6 +131,7 @@ void kmain_aftergdt() {
     asm("sti");
 
     init_gettimeofday();
+    init_cores();
 
     int drive = -1;
 

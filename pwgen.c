@@ -11,14 +11,14 @@ int main(int ac, char** av) {
     uint8_t salt[16];
     arc4random_buf(salt, 16);
 
-    void* wb = malloc(100000 * 1024);
+    void* wb = malloc(16384 * 1024);
     if (!wb) {
         err(1, "malloc failed");
     }
 
     crypto_argon2_config a2cfg = {
         .algorithm = CRYPTO_ARGON2_ID,
-        .nb_blocks = 100000,
+        .nb_blocks = 16384,
         .nb_passes = 3,
         .nb_lanes = 1
     };

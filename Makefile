@@ -18,7 +18,7 @@ XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
         		-no-emul-boot -boot-load-size 4 -boot-info-table -hfsplus \
         		-apm-block-size 2048 --efi-boot boot/limine/limine-uefi-cd.bin \
         		-efi-boot-part --efi-boot-image --protective-msdos-label
-QFLAGS       := -M pc -cpu qemu64,+rdrand -boot d -m 1G -serial stdio \
+QFLAGS       := -M pc -cpu qemu64,+rdrand -boot d -smp 2 -m 1G -serial stdio \
 				-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
 				-drive id=disk,file=drive.img,format=raw,if=none \
   				-device ide-hd,drive=disk,bus=ide.0,unit=0 \
@@ -26,7 +26,8 @@ QFLAGS       := -M pc -cpu qemu64,+rdrand -boot d -m 1G -serial stdio \
 				-device usb-kbd,bus=uhci.0,port=1 \
 				-device usb-mouse,bus=uhci.0,port=2 \
 				-netdev user,id=net0 -device e1000,netdev=net0 \
-				-monitor unix:/tmp/qemu-monitor.sock,server=on,wait=off
+				-monitor unix:/tmp/qemu-monitor.sock,server=on,wait=off \
+				-qmp unix:/tmp/qemu-qmp.sock,server=on,wait=off
 
 AS_SRC := $(shell find src -name '*.asm')
 CC_SRC := $(shell find src -name '*.c')
