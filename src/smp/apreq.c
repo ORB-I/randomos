@@ -9,12 +9,14 @@ void send_ap_request(u64 tgt_apicid, int type, void* data, usize data2) {
             break;
         }
     }
+    if (i >= ncores) return; // not a core we manage
 
     while (atomic_load(&apreqvec[i].lock));
     atomic_store(&apreqvec[i].lock, 1);
 
     atomic_store(&apreqvec[i].done, 0);
-    apreqvec[i].apicid = get_apicid();
+    // apicid stays untouched here: it names the receiver and the handler
+    // matches against it on the other side
     apreqvec[i].type = type;
     apreqvec[i].data = data;
     apreqvec[i].data2 = data2;

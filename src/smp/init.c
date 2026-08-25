@@ -121,8 +121,8 @@ void init_smpreqs() {
         s32 vectors[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19};
         s32 count = sizeof(vectors) / sizeof(vectors[0]);
 
-        for (s32 i = 0; i < count; i++) {
-            s32 vec = vectors[i];
+        for (s32 v = 0; v < count; v++) {
+            s32 vec = vectors[v];
             if (int_hdlr_table[vec]) {
                 idt_regintr(tidt->idt, vec, int_hdlr_table[vec], 0x8E, 0);
             }

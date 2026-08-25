@@ -122,6 +122,13 @@ u32 get_lapic_id() {
     return bsp_lapic_id;
 }
 
+/* per-core, has to read the local apic every time. beware pointer
+   arithmetic here: lapic_virt_addr is a u32* so offsets are word
+   indexed, always go through lapic_read/LAPIC_REG with byte offsets */
+u8 get_apicid() {
+    return (lapic_read(LAPIC_ID_REG) >> 24) & 0xFF;
+}
+
 void ioapic_mask_irq(u8 irq) {
     u16 flags = 0;
     u32 gsi = irq_to_gsi(irq, &flags);
