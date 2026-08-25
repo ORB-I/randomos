@@ -9,13 +9,17 @@
 ## Open
 
 - [ ] Audit most of the code — @eskridd
-- [ ] Work on wm and mouse driver - @Wdboyes13
 - [ ] Add automated testing framework - @Wdboyes13
+- [ ] Home directories - @Wdboyes13
+- [ ] cd support in shell - @Wdboyes13
+- [ ] chdir support in kernel - @Wdboyes13
 
 ## Known issues
 
 ## Design debt
 
 ## No owner yet
-- [ ] fix hashed password (argon2id) support in login (see user/libs/libmcrypto/mcrypto.h)
 - [ ] Documentation for randomOS (in near future - not for now.)
+- [ ] Fix SMP thread just jumping to wherever it feels instead of its init
+- [ ] More userspace utilities
+- [ ] Work on wm
