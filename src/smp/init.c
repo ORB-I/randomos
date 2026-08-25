@@ -75,6 +75,7 @@ void ipi_send(u8 dest, u8 shrtdst, u8 trigger, u8 level, u8 dstmode, u8 delmode,
 extern void smp_request_hdlr();
 extern void bsp_request_hdlr();
 extern void ap_stop_hdlr();
+extern void lapic_spurious_hdlr();
 
 thread_idt_t* tidts = NULL;
 thread_gdt_t* tgdts = NULL;
@@ -82,6 +83,7 @@ extern void (*int_hdlr_table[])();
 
 void init_smpreqs() {
     idt_regintr(NULL, 255, bsp_request_hdlr, 0x8E, 1);
+    idt_regintr(NULL, LAPIC_SPURIOUS_VEC, lapic_spurious_hdlr, 0x8E, 0);
     bsp_apicid = bsp_lapic_id;
 
     apreqvec = malloc(sizeof(ap_req_t) * ncores);
@@ -128,6 +130,7 @@ void init_smpreqs() {
 
         idt_regintr(tidt->idt, AP_MSGVEC, smp_request_hdlr, 0x8E, 0);
         idt_regintr(tidt->idt, AP_STOPVEC, ap_stop_hdlr, 0x8E, 0);
+        idt_regintr(tidt->idt, LAPIC_SPURIOUS_VEC, lapic_spurious_hdlr, 0x8E, 0);
 
         tidt->idtr.limit = sizeof(tidt->idt) - 1;
         tidt->idtr.base = (u64)&tidt->idt;
@@ -208,7 +211,7 @@ int init_cores() {
 
         for (int j = 0; j < 2; j++) {
             *LAPIC_REG(0x280) = 0;
-            ipi_send(apicid, IPI_SHRTDST_NONE,IPI_TRIGGER_EDGE, 0, IPI_DSTMODE_PHYS, IPI_DELMODE_STUP, 0x08);
+            ipi_send(apicid, IPI_SHRTDST_NONE, IPI_TRIGGER_EDGE, IPI_LEVEL_ASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_STUP, 0x08);
             sleepms(1);
         }
     }

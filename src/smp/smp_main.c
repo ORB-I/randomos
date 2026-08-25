@@ -49,11 +49,9 @@ void smp_main(u64 apic_id) {
         "ltr %%ax\n\t"
         "mov %1, %%rsp\n\t"
 
-        "mov %2, %%rdi\n\t"
-        "mov %3, %%rsi\n\t"
-        "call *%4\n\t"
-        :: "m"(tgdts[i].gdtr), "r"(smp_stacks[i].stack + sizeof(smp_stacks[i].stack)), "r"(apic_id), "r"(i), "r"(smp_main_finish)
-        : "rax", "rdi", "memory"
+        "call *%2\n\t"
+        :: "m"(tgdts[i].gdtr), "r"(smp_stacks[i].stack + sizeof(smp_stacks[i].stack)), "c"(smp_main_finish), "D"(apic_id), "S"(i)
+        : "rax", "memory"
     );
 
     for (;;) {
@@ -150,7 +148,7 @@ void smp_request_hdlr_c(intctx_t* ctx) {
 
     switch (req->type) {
         case AP_REQ_RUN: {
-            // if we arent in AP_WAITING we dont want to 
+            // if we arent in AP_WAITING we dont want to
             // do anything since it will really mess up our state
             if (apstates[i].state != AP_WAITING) {
                 atomic_store(&apstates[i].lock, 0);
@@ -186,8 +184,12 @@ void smp_request_hdlr_c(intctx_t* ctx) {
 }
 
 void smp_main_finish(u64 apic_id, ssize i) {
+    /* INIT leaves this core's lapic software-disabled, without enabling
+       it the bsp request IPI below is silently dropped */
+    apic_enable_current();
     asm volatile("lidt %0" :: "m"(tidts[i].idtr));
     send_bsp_request(apic_id, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
+    smp_mainloop(apic_id, i);
 }
 
 void smp_mainloop(u64 apic_id, ssize i) {

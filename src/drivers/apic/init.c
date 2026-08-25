@@ -201,17 +201,24 @@ static void parse_madt(void* madt) {
     }
 }
 
-static void enable_lapic() {
+/* runs on whichever core calls it, an AP must call this itself because
+   INIT leaves its lapic software-disabled so it can neither send nor
+   receive IPIs until the SVR enable bit is set */
+void apic_enable_current() {
     u64 apic_base = rdmsr(IA32_APIC_BASE_MSR);
     apic_base |= IA32_APIC_BASE_MSR_ENABLE;
     wrmsr(IA32_APIC_BASE_MSR, apic_base);
 
     lapic_write(LAPIC_TPR_REG, 0);
-    lapic_write(LAPIC_SVR_REG, 0x1FF);
+    lapic_write(LAPIC_SVR_REG, 0x100 | LAPIC_SPURIOUS_VEC);
     lapic_write(LAPIC_LVT_TIMER, 1 << 16);
     lapic_write(LAPIC_LVT_LINT0, 1 << 16);
     lapic_write(LAPIC_LVT_LINT1, 1 << 16);
     lapic_write(LAPIC_LVT_ERROR, 1 << 16);
+}
+
+static void enable_lapic() {
+    apic_enable_current();
 
     bsp_lapic_id = (lapic_read(LAPIC_ID_REG) >> 24) & 0xFF;
     printf("LAPIC ID %d\n", bsp_lapic_id);
