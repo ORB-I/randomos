@@ -6,6 +6,9 @@
 #define IA32_APIC_BASE_MSR 0x1B
 #define IA32_APIC_BASE_MSR_ENABLE 0x800
 
+/* spurious vector must stay clear of the IPI message vectors (254/255) */
+#define LAPIC_SPURIOUS_VEC 0xF0
+
 #define LAPIC_ID_REG 0x0020
 #define LAPIC_VER_REG 0x0030
 #define LAPIC_TPR_REG 0x0080
@@ -83,6 +86,7 @@ typedef struct {
 
 void apic_init();
 void lapic_eoi();
+void apic_enable_current();
 void ioapic_set_irq(u8 irq, u8 vector, u32 lapic_id, bool masked);
 void ioapic_mask_irq(u8 irq);
 void ioapic_unmask_irq(u8 irq);

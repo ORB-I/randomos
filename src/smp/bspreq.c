@@ -18,7 +18,7 @@ void send_bsp_request(u64 apicid, int type, void* data, usize datasz) {
     global_bspreq_buf.data_sz = datasz;
     atomic_store(&global_bspreq_buf.done, 0);
     
-    ipi_send(bsp_apicid, IPI_SHRTDST_NONE, IPI_TRIGGER_EDGE, IPI_LEVEL_DEASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_FIXED, BSP_REQVEC);
+    ipi_send(bsp_apicid, IPI_SHRTDST_NONE, IPI_TRIGGER_EDGE, IPI_LEVEL_ASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_FIXED, BSP_REQVEC);
 
     while (!atomic_load(&global_bspreq_buf.done));
     atomic_store(&global_bspreq_buf.lock, 0);
@@ -36,7 +36,7 @@ void bsp_request_hdlr_c() {
             break;
         }
         case BSP_REQ_PANIC: {
-            ipi_send(0, IPI_SHRTDST_ALLE, IPI_TRIGGER_EDGE, IPI_LEVEL_DEASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_FIXED, AP_STOPVEC);
+            ipi_send(0, IPI_SHRTDST_ALLE, IPI_TRIGGER_EDGE, IPI_LEVEL_ASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_NMI, AP_STOPVEC);
             panic("SMP %d Panicked", global_bspreq_buf.apicid);
         }
     }
