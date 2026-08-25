@@ -105,6 +105,11 @@ void pmm_init() {
     u64 bmapsidx = bmapaddr / state.framesz;
     u64 bmapfcnt = (state.mmap_sz + state.framesz - 1) / state.framesz;
     pmm_try_resv(bmapsidx, bmapfcnt);
+
+    /* reserve the low trampoline page for the SMP startup blob here.
+       every allocator after this point scans the bitmap from the
+       bottom up and would hand this frame out otherwise */
+    pmm_try_resv(0x8000 / state.framesz, 1);
 }
 
 /*s32 memstat(struct memstat* mst) {
