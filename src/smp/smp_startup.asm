@@ -12,9 +12,10 @@ smp_entry16:
     mov eax, cr0
     or al, 1
     mov cr0, eax
-[bits 32]
-    jmp 0x08:(0x8000 + (.smp_entry32 - smp_entry16))
 
+    jmp dword 0x08:(0x8000 + (.smp_entry32 - smp_entry16))
+
+[bits 32]
 .smp_entry32:
     mov ax, 0x10
     mov ds, ax
@@ -37,7 +38,11 @@ smp_entry16:
     mov eax, cr0
     or eax, 1<<31
     mov cr0, eax
+
+    jmp 0x18:(0x8000 + (.smp_entry64_lm - smp_entry16))
+
 [bits 64]
+.smp_entry64_lm:
     mov rax, smp_entry64
     jmp rax
 
@@ -46,6 +51,7 @@ align 16
     dq 0
     dw 0xFFFF, 0x0000, 0x009A, 0xCF00
     dw 0xFFFF, 0x0000, 0x0092, 0xCF00
+    dq 0x00209A0000000000
 .temp_gdt16_end:
 
 .temp_gdtr16:
@@ -74,8 +80,8 @@ smp_entry64:
     shr ebx, 24
     movzx rbx, bl
 
-    mov rsi, [__smp_stacks_lst]
-    mov rcx, [__smp_stacks_lstn]
+    mov rsi, [rel smp_entry16.local_stacks_lst]
+    mov rcx, [rel smp_entry16.local_stacks_cnt]
 
     mov r8, 16392
 .find_stk_lop:

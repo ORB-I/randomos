@@ -234,6 +234,8 @@ void vmm_init() {
         vmm_map_page(pml4, KERN_START + i, kphys + i, PAGE_WRITE);
     }
 
+    vmm_map_page(pml4, 0x8000, 0x8000, PAGE_WRITE);
+
     u64 lpml4p;
     asm volatile("mov %%cr3, %0" : "=r"(lpml4p));
     page_table_t* lpml4v = (page_table_t*)(hhdm_offset + lpml4p);
