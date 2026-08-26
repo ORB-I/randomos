@@ -9,8 +9,7 @@
 bsp_request_t global_bspreq_buf = {0};
 
 void send_bsp_request(u64 apicid, int type, void* data, usize datasz) {
-    while (atomic_load(&global_bspreq_buf.lock));
-    atomic_store(&global_bspreq_buf.lock, 1);
+    lock_acquire(&global_bspreq_buf.lock);
 
     global_bspreq_buf.apicid = apicid;
     global_bspreq_buf.type = type;
@@ -21,7 +20,7 @@ void send_bsp_request(u64 apicid, int type, void* data, usize datasz) {
     ipi_send(bsp_apicid, IPI_SHRTDST_NONE, IPI_TRIGGER_EDGE, IPI_LEVEL_ASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_FIXED, BSP_REQVEC);
 
     while (!atomic_load(&global_bspreq_buf.done));
-    atomic_store(&global_bspreq_buf.lock, 0);
+    lock_release(&global_bspreq_buf.lock);
 }
 
 void bsp_request_hdlr_c() {

@@ -85,7 +85,9 @@ syscall_hdlr_t syscall_tbl[] = {
     [SYS_RANDOM64] = sys_random64,
     [SYS_RANDOMBYTES] = sys_randombytes,
     [SYS_GETPWD] = sys_getpwd,
-    [SYS_SETPWD] = sys_setpwd
+    [SYS_SETPWD] = sys_setpwd,
+    [SYS_SETCURS] = sys_setcurs,
+    [SYS_GETCURS] = sys_getcurs
 };
 
 bool syscall_c(struct sysregs* args) {

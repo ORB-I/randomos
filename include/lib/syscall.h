@@ -54,5 +54,7 @@
 #define SYS_RANDOMBYTES   58
 #define SYS_GETPWD        59
 #define SYS_SETPWD        60
+#define SYS_SETCURS       61
+#define SYS_GETCURS       62
 
 void init_syscalls();

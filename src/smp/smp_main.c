@@ -125,6 +125,7 @@ static void clear_ctx(ssize i) {
    has to happen here or the vector stays in-service and every later
    request on it gets swallowed */
 void smp_request_hdlr_c(intctx_t* ctx) {
+    serial_printf("AP received request\n");
     lapic_eoi();
 
     u8 apicid = get_apicid();
@@ -135,8 +136,6 @@ void smp_request_hdlr_c(intctx_t* ctx) {
     }
     ap_req_t* req = &apreqvec[i];
 
-    lock_acquire(&apstates[i].lock);
-
     switch (req->type) {
         case AP_REQ_RUN: {
             serial_printf("AP %d received RUN request\n", apicid);
@@ -145,40 +144,40 @@ void smp_request_hdlr_c(intctx_t* ctx) {
             if (apstates[i].state != AP_WAITING) {
                 serial_printf("AP %d will not RUN\n", apicid);
                 atomic_store(&req->done, 1); // ack anyway or the bsp spins forever
-                lock_release(&apstates[i].lock);
                 smp_contloop(i);
             }
             ap_runreq_t* run = (ap_runreq_t*)req->data;
+            lock_acquire(&apstates[i].lock);
             apstates[i].rreq = *run;
             apstates[i].state = AP_START;
-            atomic_store(&req->done, 1);
             lock_release(&apstates[i].lock);
+            atomic_store(&req->done, 1);
             smp_contloop(i);
         }
         case AP_REQ_PAUSE: {
             serial_printf("AP %d received PAUSE request\n", apicid);
+            lock_acquire(&apstates[i].lock);
             apstates[i].state = AP_PAUSED;
             store_ctx(ctx, i);
-            atomic_store(&req->done, 1);
             lock_release(&apstates[i].lock);
+            atomic_store(&req->done, 1);
             smp_contloop(i);
         }
         case AP_REQ_CONT: {
             serial_printf("AP %d received CONT request\n", apicid);
-            // mainloop sees RUNNING and iretqs back into the stored ctx,
-            // so this path returns normally through the wrapper
+            lock_acquire(&apstates[i].lock);
             apstates[i].state = AP_RUNNING;
-            atomic_store(&req->done, 1);
             lock_release(&apstates[i].lock);
+            atomic_store(&req->done, 1);
             break;
         }
         case AP_REQ_STOP: {
             serial_printf("AP %d received STOP request\n", apicid);
-            // whatever was running gets abandoned on purpose, stop means stop
+            lock_acquire(&apstates[i].lock);
             apstates[i].state = AP_WAITING;
+            lock_release(&apstates[i].lock);
             send_bsp_request(apicid, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
             atomic_store(&req->done, 1);
-            lock_release(&apstates[i].lock);
             smp_contloop(i);
         }
     }
@@ -240,7 +239,7 @@ void smp_mainloop(ssize i) {
 
                     "mov %c20(%%r15), %%r15\n\t"
                     "iretq"
-                    :: "r"(state),
+                    :: "r"(&state),
                        "i"(offsetof(ap_state, rax)),
                        "i"(offsetof(ap_state, rbx)),
                        "i"(offsetof(ap_state, rcx)),

@@ -146,12 +146,11 @@ void convstat(FILINFO* finfo, struct stat* st) {
 int readdir(int cdp, struct stat* st) {
     if (fs_backend == FS_BACKEND_EXT2) return ext2_readdir(cdp, st);
     struct fdinfo* info;
-    if (getfd(cdp, &info) < 0) {
-        return -1;
-    }
+    if (getfd(cdp, &info) < 0) return -1;
 
     FILINFO inf;
     if (f_readdir(&info->data.dir, &inf) != FR_OK) return -1;
+
     if (inf.fname[0] == 0) return -1;
 
     convstat(&inf, st);

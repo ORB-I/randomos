@@ -135,7 +135,7 @@ void init_smpreqs() {
         tidt->idtr.limit = sizeof(tidt->idt) - 1;
         tidt->idtr.base = (u64)&tidt->idt;
 
-        apreqvec[i] = (ap_req_t){0,0,smp_info[i].apicid,0,NULL,0};
+        apreqvec[i] = (ap_req_t){{0,0},0,smp_info[i].apicid,0,NULL,0};
     }
 }
 

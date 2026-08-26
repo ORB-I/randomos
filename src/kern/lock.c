@@ -23,12 +23,11 @@ void lock_acquire(lock_t* lk) {
 }
 
 void lock_release(lock_t* lk) {
+    atomic_store_explicit(&lk->lock, 0, memory_order_release);
     asm volatile(
         "push %0\n\t"
         "popfq"
         :: "r"(lk->rflags)
         : "cc", "memory"
     );
-
-    atomic_store(&lk->lock, 0);
 }

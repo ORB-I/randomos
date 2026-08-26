@@ -13,3 +13,5 @@ DEFSYSCALL(sys_createfbwmem);
 DEFSYSCALL(sys_getmouseinfo);
 DEFSYSCALL(sys_serialwrite);
 DEFSYSCALL(sys_getrawscto);
+DEFSYSCALL(sys_setcurs);
+DEFSYSCALL(sys_getcurs);

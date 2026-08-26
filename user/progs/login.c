@@ -249,6 +249,44 @@ int verify_passwd(const char* entered, const char* stored) {
     return mismatch ? 1 : 0;
 }
 
+void ensure_home(char* home) {
+    struct stat st;
+    if (strlen(home) == 0) return;
+    if (stat(home, &st) < 0) {
+        char* tmp = strdup(home);
+        if (!tmp) return;
+
+        char* p = NULL;
+        if (tmp[0] == '/') {
+            p = strchr(tmp + 1, '/');
+        } else {
+            p = strchr(tmp, '/');
+        }
+
+        while (p != NULL) {
+            *p = '\0';
+            if (mkdir(tmp) != 0) {
+                if (stat(tmp, &st) < 0) {
+                    free(tmp);
+                    return;
+                }
+            }
+            *p = '/';
+            p = strchr(p+1, '/');
+        }
+
+        if (mkdir(tmp) != 0) {
+            if (stat(tmp, &st) < 0) {
+                free(tmp);
+                return;
+            }
+        }
+
+        free(tmp);
+        return;
+    }
+}
+
 int main() {
     while (1) {
         char *uname, *pwd;
@@ -297,6 +335,7 @@ int main() {
 
         crypto_wipe(pwd, strlen(pwd));
         setenv("HOME", pass.home, 1);
+        ensure_home(pass.home);
         setuid(pass.uid);
         seteuid(pass.uid);
         setgid(pass.gid);

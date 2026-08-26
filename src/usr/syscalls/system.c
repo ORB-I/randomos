@@ -1,4 +1,5 @@
 #include "ssc.h"
+#include "../ensurance.h"
 #include <lai/helpers/pm.h>
 #include <core/mem/vmm.h>
 #include <drivers/rng/rng.h>
@@ -29,6 +30,6 @@ DEFSYSCALL(sys_random64) {
 }
 
 DEFSYSCALL(sys_randombytes) {
-    if (!args->a0) return -1;
+    if (!ensure_pointer((void*)args->a0, args->a1, 1)) return -1;
     return random_bytes((u8*)args->a0, args->a1);
 }

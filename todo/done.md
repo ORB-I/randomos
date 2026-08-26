@@ -56,3 +56,4 @@ Newest entries go at the bottom of each section.
 - [x] RNG driver
 - [x] SMP support
 - [x] chdir support in kernel - @Wdboyes13
+- [x] cd support in shell - @Wdboyes13

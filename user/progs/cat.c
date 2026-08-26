@@ -18,8 +18,12 @@ int main(int ac, char** av) {
 
     char buf[CAT_CHUNK];
     ssize n;
-    while ((n = read(fd, buf, sizeof(buf))) > 0) {
-        for (ssize i = 0; i < n; i++) putchar(buf[i]);
+    while ((n = read(fd, buf, sizeof(buf)-1)) > 0) {
+        buf[n] = '\0';
+        printf("%s", buf); // use printf because it pauses autoflush automatically
+                                  // if we use putchar the screen will autoflush every write making
+                                  // it extremely slow since every flush copies the entire framebuffer
+                                  // to the display (we should maybe use deltas sometime idk)
     }
     close(fd);
     return n < 0 ? 1 : 0;

@@ -1,4 +1,5 @@
 #include "ssc.h"
+#include "../ensurance.h"
 #include <scheduler/process.h>
 #include <scheduler/scheduler.h>
 #include <drivers/time/clock.h>
@@ -23,7 +24,7 @@ DEFSYSCALL(sys_gettimeofday) {
 }
 
 DEFSYSCALL(sys_getmtimeofday) {
-    if (!args->a0) return -1;
+    if (!ensure_pointer((void*)args->a0, sizeof(struct millitime), 1)) return -1;
     getmtimeofday((struct millitime*)args->a0);
     return 0;
 }

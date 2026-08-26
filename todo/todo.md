@@ -10,9 +10,7 @@
 - [ ] Work on wm — @eskridd
 - [ ] errno support (libc reports positive errnos, kernel reports negative errnos) — @eskridd
 - [ ] Audit most of the code — @eskridd
-- [ ] Add automated testing framework - @Wdboyes13
 - [ ] Home directories - @Wdboyes13
-- [ ] cd support in shell - @Wdboyes13
 - [ ] VFS layer - @Wdboyes13
 - [ ] devfs - @Wdboyes13
 
@@ -22,6 +20,8 @@
 - [ ] Make a simple README.md for randomOS.
 - [ ] Change About to something more professional.
 - [ ] Remove dead codes.
+- [ ] Add safety checks (ensurance.(c|h)) to process syscalls (src/usr/syscalls/ssc_proc)
+- [ ] Add invalid flags safety checks to ensurance.(c|h) and actually use them
 
 ## Future tasks
 - [ ] Documentation for randomOS (in near future - not for now.)

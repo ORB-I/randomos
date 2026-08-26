@@ -46,7 +46,10 @@ int cdfn(int ac, char** av) {
         return 1;
     }
 
-    if (chdir(av[1]) < 0) return 1;
+    if (chdir(av[1]) < 0) {
+        printf("cd failed\n");
+        return 1;
+    }
     return 0;
 }
 
@@ -113,7 +116,13 @@ char* find_exe(char* av0, int* isalloc) {
 int main() {
     if (!environ) {
         printf("no environ\n");
+    } else {
+        char* HOME = NULL;
+        if ((HOME = getenv("HOME"))) {
+            chdir(HOME);
+        }
     }
+
     while (1) {
         char* argv[MAX_ARGS];
 
