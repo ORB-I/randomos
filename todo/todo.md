@@ -10,13 +10,13 @@
 - [ ] Work on wm — @eskridd
 - [ ] errno support (libc reports positive errnos, kernel reports negative errnos) — @eskridd
 - [ ] Audit most of the code — @eskridd
-- [ ] Home directories - @Wdboyes13
 - [ ] VFS layer - @Wdboyes13
 - [ ] devfs - @Wdboyes13
 
 ## Known issues
 
 ## Unassigned tasks
+- [ ] EXT2 write support
 - [ ] Make a simple README.md for randomOS.
 - [ ] Change About to something more professional.
 - [ ] Remove dead codes.

@@ -57,3 +57,4 @@ Newest entries go at the bottom of each section.
 - [x] SMP support
 - [x] chdir support in kernel - @Wdboyes13
 - [x] cd support in shell - @Wdboyes13
+- [x] Home directories - @Wdboyes13
