@@ -67,7 +67,7 @@ static char cwd_buf[CWD_MAX] = "/";
    around the copies, never across a disk read */
 static int cwd_cached_valid;
 static char cwd_cached[CWD_MAX];
-static spinlock_t cwd_lk;
+static lock_t cwd_lk = {0};
 
 static inline u16 le16(const u8* p) { return (u16)(p[0] | (p[1] << 8)); }
 static inline u32 le32(const u8* p) {
@@ -98,9 +98,9 @@ static int build_abs(char* out, usize cap, const char* base, const char* path) {
 /* snapshot of the shared cwd for path building. callers get a stable
    copy even when another cpu republishes cwd_buf mid-resolve */
 static void cwd_snapshot(char* out, usize cap) {
-    spl_lock(&cwd_lk);
+    lock_acquire(&cwd_lk);
     scpy(out, cwd_buf, cap);
-    spl_unlock(&cwd_lk);
+    lock_release(&cwd_lk);
 }
 
 static int read_block(u32 blk, u8* out) {
@@ -180,7 +180,6 @@ int ext2_detect(void) {
 int ext2_mount(const char* path) {
     (void)path;
     if (!probe_superblock()) return -1;
-    spl_init(&cwd_lk);
     sb.ready = 1;
     cwd_buf[0] = '/';
     cwd_buf[1] = '\0';
@@ -694,9 +693,9 @@ int ext2_chdir(const char* path) {
     char abs[CWD_MAX + NAME_MAX_LEN + 2];
     if (build_abs(abs, sizeof(abs), base, path) != 0) return -1;
 
-    spl_lock(&cwd_lk);
+    lock_acquire(&cwd_lk);
     int hit = cwd_cached_valid && strcmp(cwd_cached, abs) == 0;
-    spl_unlock(&cwd_lk);
+    lock_release(&cwd_lk);
     if (hit) return 0;      /* validated before, dont touch the disk */
 
     u32 ino;
@@ -710,22 +709,22 @@ int ext2_chdir(const char* path) {
     char canon[CWD_MAX];
     if (canon_path(ino, canon, sizeof(canon)) != 0) return -1;
 
-    spl_lock(&cwd_lk);
+    lock_acquire(&cwd_lk);
     scpy(cwd_buf, canon, sizeof(cwd_buf));
     scpy(cwd_cached, canon, sizeof(cwd_cached));
     cwd_cached_valid = 1;
-    spl_unlock(&cwd_lk);
+    lock_release(&cwd_lk);
     return 0;
 }
 
 int ext2_getcwd(char* buf, usize len) {
-    spl_lock(&cwd_lk);
+    lock_acquire(&cwd_lk);
     usize need = strlen(cwd_buf) + 1;
     int r = -1;
     if (len >= need) {
         memcpy(buf, cwd_buf, need);
         r = 0;
     }
-    spl_unlock(&cwd_lk);
+    lock_release(&cwd_lk);
     return r;
 }

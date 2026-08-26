@@ -1,10 +1,12 @@
 #pragma once
+#include <stdatomic.h>
+#include <core/std.h>
 
 typedef struct {
-    volatile int __lkst;
-    unsigned long long __flags;
-} spinlock_t;
+    atomic_int lock;
+    u64 rflags;
+} lock_t;
 
-void spl_init(spinlock_t* spl);
-void spl_lock(spinlock_t* spl);
-void spl_unlock(spinlock_t* spl);
+void lock_init(lock_t* lk);
+void lock_acquire(lock_t* lk);
+void lock_release(lock_t* lk);

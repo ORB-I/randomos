@@ -23,7 +23,7 @@ int _drv_id = -1;
    data port makes the next reader eat the previous sector. scoped to
    the pio path only since ahci/usbmsd completion relies on interrupts.
    spl_lock keeps interrupts off for the same reason */
-static spinlock_t blkio_lk;
+static lock_t blkio_lk = {0};
 
 int block_init() {
     int drv = usbmsd_init();
@@ -70,7 +70,7 @@ int block_write(u8 id, const u8* buf, u32 lba, usize cnt) {
         return BLOCK_INVAL;
     }
 
-    if (_drv_type == DRV_ATA) spl_lock(&blkio_lk);
+    if (_drv_type == DRV_ATA) lock_acquire(&blkio_lk);
 
     if (fn32) {
         for (usize i = 0; i < cnt; i++) {
@@ -82,7 +82,7 @@ int block_write(u8 id, const u8* buf, u32 lba, usize cnt) {
         }
     }
 
-    if (_drv_type == DRV_ATA) spl_unlock(&blkio_lk);
+    if (_drv_type == DRV_ATA) lock_release(&blkio_lk);
 
     return 0;
 }
@@ -102,7 +102,7 @@ int block_read(u8 id, u8* buf, u32 lba, usize cnt) {
         return BLOCK_INVAL;
     }
 
-    if (_drv_type == DRV_ATA) spl_lock(&blkio_lk);
+    if (_drv_type == DRV_ATA) lock_acquire(&blkio_lk);
 
     if (fn32) {
         for (usize i = 0; i < cnt; i++) {
@@ -114,7 +114,7 @@ int block_read(u8 id, u8* buf, u32 lba, usize cnt) {
         }
     }
 
-    if (_drv_type == DRV_ATA) spl_unlock(&blkio_lk);
+    if (_drv_type == DRV_ATA) lock_release(&blkio_lk);
 
     return 0;
 }

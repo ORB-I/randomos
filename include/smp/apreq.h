@@ -1,4 +1,5 @@
 #pragma once
+#include <core/lock.h>
 #include <stdatomic.h>
 #include <core/std.h>
 
@@ -13,7 +14,7 @@ typedef struct {
 } __attribute__((packed)) ap_runreq_t;
 
 typedef struct {
-    atomic_int lock;
+    lock_t lock;
     atomic_int done;
     u64 apicid; // receiver apic id
     int type;
@@ -26,7 +27,7 @@ typedef struct {
 #define AP_START   0x02
 #define AP_RUNNING 0x03
 typedef struct {
-    _Alignas(4) atomic_int lock; // has to be aligned or else clang will try to call __atomic_*
+    lock_t lock;
 
     int state;
     ap_runreq_t rreq;

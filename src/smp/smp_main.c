@@ -135,7 +135,7 @@ void smp_request_hdlr_c(intctx_t* ctx) {
     }
     ap_req_t* req = &apreqvec[i];
 
-    atomic_store(&apstates[i].lock, 1);
+    lock_acquire(&apstates[i].lock);
 
     switch (req->type) {
         case AP_REQ_RUN: {
@@ -145,22 +145,22 @@ void smp_request_hdlr_c(intctx_t* ctx) {
             if (apstates[i].state != AP_WAITING) {
                 serial_printf("AP %d will not RUN\n", apicid);
                 atomic_store(&req->done, 1); // ack anyway or the bsp spins forever
-                atomic_store(&apstates[i].lock, 0);
+                lock_release(&apstates[i].lock);
                 smp_contloop(i);
             }
             ap_runreq_t* run = (ap_runreq_t*)req->data;
             apstates[i].rreq = *run;
             apstates[i].state = AP_START;
             atomic_store(&req->done, 1);
-            atomic_store(&apstates[i].lock, 0);
-            smp_contloop(i); // drop this frame, mainloop picks the request up
+            lock_release(&apstates[i].lock);
+            smp_contloop(i);
         }
         case AP_REQ_PAUSE: {
             serial_printf("AP %d received PAUSE request\n", apicid);
             apstates[i].state = AP_PAUSED;
             store_ctx(ctx, i);
             atomic_store(&req->done, 1);
-            atomic_store(&apstates[i].lock, 0);
+            lock_release(&apstates[i].lock);
             smp_contloop(i);
         }
         case AP_REQ_CONT: {
@@ -169,7 +169,7 @@ void smp_request_hdlr_c(intctx_t* ctx) {
             // so this path returns normally through the wrapper
             apstates[i].state = AP_RUNNING;
             atomic_store(&req->done, 1);
-            atomic_store(&apstates[i].lock, 0);
+            lock_release(&apstates[i].lock);
             break;
         }
         case AP_REQ_STOP: {
@@ -178,7 +178,7 @@ void smp_request_hdlr_c(intctx_t* ctx) {
             apstates[i].state = AP_WAITING;
             send_bsp_request(apicid, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
             atomic_store(&req->done, 1);
-            atomic_store(&apstates[i].lock, 0);
+            lock_release(&apstates[i].lock);
             smp_contloop(i);
         }
     }
@@ -200,20 +200,21 @@ static void smp_main_finish(ssize i) {
 void smp_mainloop(ssize i) {
     u64 apic_id = get_apicid();
     for (;;) {
-        while (atomic_load(&apstates[i].lock));
-        atomic_store(&apstates[i].lock, 1);
+        lock_acquire(&apstates[i].lock);
         switch (apstates[i].state) {
             case AP_WAITING:
             case AP_PAUSED: {
-                atomic_store(&apstates[i].lock, 0);
+                lock_release(&apstates[i].lock);
                 break;
             }
             case AP_RUNNING: {
-                /* a paused core wants back in: rebuild its iret frame out
-                   of the state block and let iretq land in it. r15 holds
-                   the base pointer until its real value loads last */
-                asm("cli");
-                atomic_store(&apstates[i].lock, 0);
+                // we need to copy the current state before we release the lock
+                // since an interrupt could fire mid-switch and change the state
+                // causing a broken state, and we cant keep the lock acquired until
+                // iretq since calling lock_release would clobber our new register states
+                ap_state state;
+                memcpy(&state, &apstates[i], sizeof(state));
+                lock_release(&apstates[i].lock);
                 asm volatile(
                     "mov %0, %%r15\n\t"
                     "mov %c1(%%r15), %%rax\n\t"
@@ -239,7 +240,7 @@ void smp_mainloop(ssize i) {
 
                     "mov %c20(%%r15), %%r15\n\t"
                     "iretq"
-                    :: "r"(apstates + i),
+                    :: "r"(state),
                        "i"(offsetof(ap_state, rax)),
                        "i"(offsetof(ap_state, rbx)),
                        "i"(offsetof(ap_state, rcx)),
@@ -271,19 +272,18 @@ void smp_mainloop(ssize i) {
                 void* arg = apstates[i].rreq.arg;
                 clear_ctx(i);
                 send_bsp_request(apic_id, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WORKING);
-                atomic_store(&apstates[i].lock, 0);
+                lock_release(&apstates[i].lock);
 
                 asm("sti");
                 fn(arg);
                 asm("cli");
 
-                while (atomic_load(&apstates[i].lock));
-                atomic_store(&apstates[i].lock, 1);
+                lock_acquire(&apstates[i].lock);
 
                 clear_ctx(i);
                 apstates[i].state = AP_WAITING;
                 send_bsp_request(apic_id, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
-                atomic_store(&apstates[i].lock, 0);
+                lock_release(&apstates[i].lock);
 
                 asm("sti");
                 continue;
@@ -293,9 +293,9 @@ void smp_mainloop(ssize i) {
 }
 
 [[noreturn]] static void smp_contloop(ssize i) {
-    // bail out of whatever frame the handler was wearing: build a fresh
-    // iret frame into the idle loop and iretq straight to it. pause
-    // survives this because store_ctx already copied the state out.
+    // we need to call the mainloop through an iretq frame
+    // once the interrupt handler is done because otherwise
+    // its not garunteed that it would ever reach the main loop
     asm volatile(
         "pushq $0x10\n\t"
         "pushq %0\n\t"

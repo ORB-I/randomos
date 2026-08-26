@@ -2,20 +2,14 @@
 #include <core/mem/vmm.h>
 #include <core/lock.h>
 
-spinlock_t __liballoc_spl;
-bool       __liballoc_spl_inited = false;
+lock_t __liballoc_lk = {0};
 int liballoc_lock() {
-    if (!__liballoc_spl_inited) {
-        spl_init(&__liballoc_spl);
-        __liballoc_spl_inited = true;
-    }
-
-    spl_lock(&__liballoc_spl);
+    lock_acquire(&__liballoc_lk);
     return 0;
 }
 
 int liballoc_unlock() {
-    spl_unlock(&__liballoc_spl);
+    lock_release(&__liballoc_lk);
     return 0;
 }
 

@@ -1,11 +1,11 @@
 #pragma once
-#include <stdatomic.h>
+#include <core/lock.h>
 #include <core/std.h>
 
 #define BSP_REQ_PANIC   1
 #define BSP_REQ_SETSTAT 2
 typedef struct {
-    atomic_int lock;
+    lock_t lock;
     atomic_int done;
     u64 apicid; // senders apicid
     int type;

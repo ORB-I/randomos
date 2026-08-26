@@ -1,18 +1,15 @@
 #include <core/asmh.h>
-#include <stdatomic.h>
+#include <core/lock.h>
 #define SERIAL_PORT 0x3F8
 
-struct {
-    atomic_int locked;
-} __attribute__((aligned(4))) _serial_lock = {0};
+lock_t _serial_lock = {0};
 
 int serial_isempty() {
     return inb(SERIAL_PORT + 5) & 0x20;
 }
 
 void serial_putchar(char c) {
-    while (atomic_load(&_serial_lock.locked));
-    atomic_store(&_serial_lock.locked, 1);
+    lock_acquire(&_serial_lock);
 
     while (serial_isempty() == 0);
     if (c == '\n') {
@@ -22,7 +19,7 @@ void serial_putchar(char c) {
         outb(SERIAL_PORT, c);
     }
 
-    atomic_store(&_serial_lock.locked, 0);
+    lock_release(&_serial_lock);
 }
 
 void serial_puts(const char *str) {
