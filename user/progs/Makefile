@@ -13,6 +13,7 @@ LDFLAGS := -m elf_x86_64 --no-pie
 PROGS := init \
 		 sh \
 		 echo \
+		 cat \
 		 ls \
 		 mkfile \
 		 poweroff \

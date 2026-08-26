@@ -88,19 +88,39 @@ DEFSYSCALL(sys_getpwd) {
     char* buf = (char*)args->a0;
     usize bufsz = args->a1;
 
-    memcpy(buf, proctbl[current_pid].pwd, bufsz-1);
-    buf[bufsz-1] = '\0';
+    char* pwd = proctbl[current_pid].pwd;
+    if (!pwd || bufsz == 0) return -1;
+
+    /* bound the copy by the string, not the caller's buffer: a short
+       pwd must not drag in whatever sits past it in kernel memory */
+    usize len = strlen(pwd) + 1;
+    if (bufsz < len) return -1;
+    memcpy(buf, pwd, len);
 
     return 0;
 }
 
+/* pwd strings get replayed verbatim by the scheduler on every context
+   switch against whatever cwd the previous process left behind, so the
+   only safe thing to store is a validated canonical absolute path.
+   resolving here also gives cd its failure semantics back: chdir to a
+   nonexistent dir fails now instead of silently landing somewhere else
+   at the next switch */
+#define PWD_PATH_MAX 256
+
 DEFSYSCALL(sys_setpwd) {
     if (!args->a0) return -1;
-    usize len = strlen((char*)args->a0) + 1;
+
+    char canon[PWD_PATH_MAX];
+    if (chdir((char*)args->a0) != 0) return -1;
+    if (getcwd(canon, sizeof(canon)) != 0) return -1;
+
+    usize len = strlen(canon) + 1;
     void* newpwd = malloc(len);
     if (!newpwd) return -1;
+    memcpy(newpwd, canon, len);
+
     free(proctbl[current_pid].pwd);
     proctbl[current_pid].pwd = newpwd;
-    memcpy(proctbl[current_pid].pwd, (char*)args->a0, len);
     return 0;
 }

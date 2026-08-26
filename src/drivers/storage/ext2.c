@@ -2,6 +2,7 @@
 #include <core/liballoc.h>
 #include <core/printf.h>
 #include <core/fd.h>
+#include <core/lock.h>
 #include <drivers/display/serial.h>
 #include <lib/string.h>
 #include <drivers/storage/block.h>
@@ -60,9 +61,13 @@ static char cwd_buf[CWD_MAX] = "/";
 /* the scheduler re-runs chdir(pwd) on every context switch to emulate
    per-process working dirs on top of the kernels single cwd. resolving
    that from disk each time means three ata pio reads per timer tick, so
-   paths already validated by a real chdir get a string-hit fast path */
+   paths already validated by a real chdir get a string-hit fast path.
+   with smp the switch path runs on every cpu at once, so everything
+   touching these three goes through cwd_lk; the lock is only ever held
+   around the copies, never across a disk read */
 static int cwd_cached_valid;
 static char cwd_cached[CWD_MAX];
+static spinlock_t cwd_lk;
 
 static inline u16 le16(const u8* p) { return (u16)(p[0] | (p[1] << 8)); }
 static inline u32 le32(const u8* p) {
@@ -78,10 +83,9 @@ static usize scpy(char* dst, const char* src, usize cap) {
     return i;
 }
 
-/* join onto cwd unless already absolute, refuses to truncate */
-static int build_abs(char* out, usize cap, const char* path) {
+/* join onto base unless already absolute, refuses to truncate */
+static int build_abs(char* out, usize cap, const char* base, const char* path) {
     usize n = 0;
-    const char* base = cwd_buf;
     if (path[0] != '/') {
         while (*base && n < cap - 1) out[n++] = *base++;
         if (n > 0 && out[n - 1] != '/') out[n++] = '/';
@@ -89,6 +93,14 @@ static int build_abs(char* out, usize cap, const char* path) {
     for (; *path && n < cap - 1; path++) out[n++] = *path;
     out[n] = '\0';
     return *path ? -1 : 0;
+}
+
+/* snapshot of the shared cwd for path building. callers get a stable
+   copy even when another cpu republishes cwd_buf mid-resolve */
+static void cwd_snapshot(char* out, usize cap) {
+    spl_lock(&cwd_lk);
+    scpy(out, cwd_buf, cap);
+    spl_unlock(&cwd_lk);
 }
 
 static int read_block(u32 blk, u8* out) {
@@ -168,6 +180,7 @@ int ext2_detect(void) {
 int ext2_mount(const char* path) {
     (void)path;
     if (!probe_superblock()) return -1;
+    spl_init(&cwd_lk);
     sb.ready = 1;
     cwd_buf[0] = '/';
     cwd_buf[1] = '\0';
@@ -292,9 +305,11 @@ static int bmap(const e2inode_t* in, u64 lblk, u32* phys) {
     if (lblk < ppb) return ind_lookup(in->block[12], lblk, 0, phys);
     lblk -= ppb;
     if (lblk < (u64)ppb * ppb) return ind_lookup(in->block[13], lblk, 1, phys);
+    lblk -= (u64)ppb * ppb;
+    if (lblk < (u64)ppb * ppb * ppb) return ind_lookup(in->block[14], lblk, 2, phys);
 
-    /* triple indirect: unreachable for sane images, refuse rather than
-       pretend the math works */
+    /* beyond triple indirect: the u32 size field caps files long
+       before this range on sane images, refuse rather than pretend */
     return -1;
 }
 
@@ -434,14 +449,86 @@ static int lookup_in(u32 dino, const char* name, u32* out_ino) {
     return -1;
 }
 
+/* reconstruct a directory's real path by walking its ".." entry back
+   to the root and collecting names on the way up. this is what makes
+   the stored cwd canonical: "a/./../b//", "a/../b" and "/b" all end up
+   published as the same string, which the scheduler can then replay
+   verbatim without caring how the user originally spelled it.
+   components are pushed onto rev deepest-first, so emitting rev
+   back-to-front yields root-first order */
+static int canon_path(u32 dino, char* out, usize cap) {
+    if (dino == EXT2_ROOT_INO) {
+        out[0] = '/';
+        out[1] = '\0';
+        return 0;
+    }
+
+    e2inode_t node;
+    u32 cur = dino;
+    char rev[CWD_MAX];
+    usize rlen = 0;
+
+    while (cur != EXT2_ROOT_INO) {
+        if (read_inode(cur, &node) != 0 || (node.mode & 0xF000) != E2_IFDIR) return -1;
+
+        u32 parent;
+        if (lookup_in(cur, "..", &parent) != 0) return -1;
+        /* a corrupt ".." that never reaches root dies on the rev bound
+           below instead of spinning */
+        if (parent == cur && cur != EXT2_ROOT_INO) return -1;
+
+        dirent_ent_t ent;
+        off_t pos = 0;
+        int found = 0;
+        int r;
+        while ((r = dir_next(parent, &pos, &ent)) == 1) {
+            if (ent.ino == cur &&
+                !(ent.len == 1 && ent.name[0] == '.') &&
+                !(ent.len == 2 && ent.name[0] == '.' && ent.name[1] == '.')) {
+                found = 1;
+                break;
+            }
+        }
+        if (!found) return -1;      /* dir with no parent entry */
+
+        usize nl = strlen(ent.name);
+        if (rlen + nl + 1 > sizeof(rev)) return -1;     /* deeper than cwd cap */
+        memcpy(rev + rlen, ent.name, nl);
+        rlen += nl;
+        rev[rlen++] = '/';
+        cur = parent;
+    }
+
+    usize olen = 0;
+    ssize i = (ssize)rlen - 1;
+    while (i >= 0) {
+        ssize end = i;
+        while (i >= 0 && rev[i] != '/') i--;
+        usize seglen = (usize)(end - i);
+        if (seglen > 0) {
+            if (olen + seglen + 1 > cap) return -1;
+            out[olen++] = '/';
+            memcpy(out + olen, &rev[i + 1], seglen);
+            olen += seglen;
+        }
+        i--;
+    }
+    if (olen == 0) out[olen++] = '/';   /* unreachable: dino != root means >= 1 component */
+    out[olen] = '\0';
+    return 0;
+}
+
 /* walk one path component at a time. ".." resolves through the dir's
    own dotdot entry instead of string surgery, so weird spellings like
    a/../../usr still land somewhere real */
 static int resolve(const char* path, u32* out_ino, e2inode_t* out_node) {
     if (!sb.ready || !path || path[0] == '\0') return -1;
 
+    char base[CWD_MAX];
+    cwd_snapshot(base, sizeof(base));
+
     char abs[CWD_MAX + NAME_MAX_LEN + 2];
-    if (build_abs(abs, sizeof(abs), path) != 0) return -1;
+    if (build_abs(abs, sizeof(abs), base, path) != 0) return -1;
 
     u32 cur = EXT2_ROOT_INO;
     e2inode_t node;
@@ -532,15 +619,17 @@ off_t ext2_lseek(int fd, off_t off, int whence) {
     e2inode_t node;
     if (read_inode(info->data.exfile.ino, &node) != 0) return -1;
 
-    off_t target = 0;
+    /* s64 intermediate: SEEK_END with a size near 4G overflows s32
+       before the clamp ever gets a say */
+    s64 target;
     if (whence == SEEK_SET) target = off;
-    else if (whence == SEEK_CUR) target = info->data.exfile.pos + off;
-    else if (whence == SEEK_END) target = (off_t)node.size + off;
+    else if (whence == SEEK_CUR) target = (s64)info->data.exfile.pos + off;
+    else if (whence == SEEK_END) target = (s64)node.size + off;
     else return -1;
 
     if (target < 0) target = 0;
-    if ((u64)target > node.size) target = (off_t)node.size;
-    info->data.exfile.pos = target;
+    if ((u64)target > node.size) target = (u64)node.size;
+    info->data.exfile.pos = (off_t)target;
     return 0;
 }
 
@@ -568,13 +657,25 @@ int ext2_readdir(int cdp, struct stat* st) {
     if (getfd(cdp, &info) < 0 || info->type != FDTYPE_DIR) return -1;
 
     dirent_ent_t ent;
-    int r = dir_next(info->data.exdir.ino, &info->data.exdir.pos, &ent);
-    if (r != 1) return -1;
-
     e2inode_t node;
-    if (read_inode(ent.ino, &node) != 0) return -1;
+    /* an entry whose inode wont read (truncated table, stale image)
+       costs one entry, not the rest of the listing */
+    for (;;) {
+        if (dir_next(info->data.exdir.ino, &info->data.exdir.pos, &ent) != 1) return -1;
+        if (read_inode(ent.ino, &node) == 0) break;
+    }
+
     fill_stat(st, &node, ent.name);
     return 0;
+}
+
+/* basename after dropping trailing slashes, "/" itself stats as "/" */
+static const char* base_name(const char* path) {
+    const char* end = path + strlen(path);
+    while (end > path && end[-1] == '/') end--;
+    const char* cut = end;
+    while (cut > path && cut[-1] != '/') cut--;
+    return (cut == end) ? "/" : cut;
 }
 
 int ext2_stat(const char* path, struct stat* st) {
@@ -582,36 +683,49 @@ int ext2_stat(const char* path, struct stat* st) {
     e2inode_t node;
     if (resolve(path, &ino, &node) != 0) return -1;
 
-    // basename after the last slash, "/" itself stats as the root
-    const char* base = path + strlen(path);
-    while (base > path && base[-1] != '/') base--;
-    if (*base == '\0') base = "/";
-    fill_stat(st, &node, base);
+    fill_stat(st, &node, base_name(path));
     return 0;
 }
 
 int ext2_chdir(const char* path) {
-    char abs[CWD_MAX + NAME_MAX_LEN + 2];
-    if (build_abs(abs, sizeof(abs), path) != 0) return -1;
+    char base[CWD_MAX];
+    cwd_snapshot(base, sizeof(base));
 
-    if (cwd_cached_valid && strcmp(cwd_cached, abs) == 0) {
-        return 0;   /* validated before, dont touch the disk */
-    }
+    char abs[CWD_MAX + NAME_MAX_LEN + 2];
+    if (build_abs(abs, sizeof(abs), base, path) != 0) return -1;
+
+    spl_lock(&cwd_lk);
+    int hit = cwd_cached_valid && strcmp(cwd_cached, abs) == 0;
+    spl_unlock(&cwd_lk);
+    if (hit) return 0;      /* validated before, dont touch the disk */
 
     u32 ino;
     e2inode_t node;
     if (resolve(path, &ino, &node) != 0) return -1;
     if ((node.mode & 0xF000) != E2_IFDIR) return -1;
 
-    scpy(cwd_buf, abs, sizeof(cwd_buf));
-    scpy(cwd_cached, abs, sizeof(cwd_cached));
+    /* publish the canonical spelling: the scheduler replays the stored
+       pwd on every switch against whatever cwd the previous process
+       left, so only real root-first paths are safe to keep */
+    char canon[CWD_MAX];
+    if (canon_path(ino, canon, sizeof(canon)) != 0) return -1;
+
+    spl_lock(&cwd_lk);
+    scpy(cwd_buf, canon, sizeof(cwd_buf));
+    scpy(cwd_cached, canon, sizeof(cwd_cached));
     cwd_cached_valid = 1;
+    spl_unlock(&cwd_lk);
     return 0;
 }
 
 int ext2_getcwd(char* buf, usize len) {
+    spl_lock(&cwd_lk);
     usize need = strlen(cwd_buf) + 1;
-    if (len < need) return -1;
-    memcpy(buf, cwd_buf, need);
-    return 0;
+    int r = -1;
+    if (len >= need) {
+        memcpy(buf, cwd_buf, need);
+        r = 0;
+    }
+    spl_unlock(&cwd_lk);
+    return r;
 }
