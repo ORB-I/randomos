@@ -1,4 +1,5 @@
 #include <core/std.h>
+#include <core/lock.h>
 #include <core/printf.h>
 #include <drivers/storage/ata.h>
 #include <drivers/storage/ahci.h>
@@ -16,6 +17,13 @@
 
 int _drv_type = -1;
 int _drv_id = -1;
+
+/* ata transfers hold a lock because the ata registers are shared
+   state: a preemption between issuing the command and draining the
+   data port makes the next reader eat the previous sector. scoped to
+   the pio path only since ahci/usbmsd completion relies on interrupts.
+   spl_lock keeps interrupts off for the same reason */
+static spinlock_t blkio_lk;
 
 int block_init() {
     int drv = usbmsd_init();
@@ -62,6 +70,8 @@ int block_write(u8 id, const u8* buf, u32 lba, usize cnt) {
         return BLOCK_INVAL;
     }
 
+    if (_drv_type == DRV_ATA) spl_lock(&blkio_lk);
+
     if (fn32) {
         for (usize i = 0; i < cnt; i++) {
             fn32(drv, (u32)(lba + i), (u8*)(buf + (i * 512)));
@@ -71,6 +81,8 @@ int block_write(u8 id, const u8* buf, u32 lba, usize cnt) {
             fn64(drv, (u64)(lba + i), (u8*)(buf + (i * 512)));
         }
     }
+
+    if (_drv_type == DRV_ATA) spl_unlock(&blkio_lk);
 
     return 0;
 }
@@ -90,6 +102,8 @@ int block_read(u8 id, u8* buf, u32 lba, usize cnt) {
         return BLOCK_INVAL;
     }
 
+    if (_drv_type == DRV_ATA) spl_lock(&blkio_lk);
+
     if (fn32) {
         for (usize i = 0; i < cnt; i++) {
             fn32(drv, (u32)(lba + i), (u8*)(buf + (i * 512)));
@@ -99,6 +113,8 @@ int block_read(u8 id, u8* buf, u32 lba, usize cnt) {
             fn64(drv, (u64)(lba + i), (u8*)(buf + (i * 512)));
         }
     }
+
+    if (_drv_type == DRV_ATA) spl_unlock(&blkio_lk);
 
     return 0;
 }

@@ -57,6 +57,12 @@ static struct {
 } sb;
 
 static char cwd_buf[CWD_MAX] = "/";
+/* the scheduler re-runs chdir(pwd) on every context switch to emulate
+   per-process working dirs on top of the kernels single cwd. resolving
+   that from disk each time means three ata pio reads per timer tick, so
+   paths already validated by a real chdir get a string-hit fast path */
+static int cwd_cached_valid;
+static char cwd_cached[CWD_MAX];
 
 static inline u16 le16(const u8* p) { return (u16)(p[0] | (p[1] << 8)); }
 static inline u32 le32(const u8* p) {
@@ -165,6 +171,7 @@ int ext2_mount(const char* path) {
     sb.ready = 1;
     cwd_buf[0] = '/';
     cwd_buf[1] = '\0';
+    cwd_cached_valid = 0;
     printf("EXT2: mounted, %d blocks x %d bytes, %d groups\n",
            sb.blocks_count, sb.block_size, sb.ngroups);
     return 0;
@@ -584,15 +591,21 @@ int ext2_stat(const char* path, struct stat* st) {
 }
 
 int ext2_chdir(const char* path) {
+    char abs[CWD_MAX + NAME_MAX_LEN + 2];
+    if (build_abs(abs, sizeof(abs), path) != 0) return -1;
+
+    if (cwd_cached_valid && strcmp(cwd_cached, abs) == 0) {
+        return 0;   /* validated before, dont touch the disk */
+    }
+
     u32 ino;
     e2inode_t node;
     if (resolve(path, &ino, &node) != 0) return -1;
     if ((node.mode & 0xF000) != E2_IFDIR) return -1;
 
-    char abs[CWD_MAX + NAME_MAX_LEN + 2];
-    if (build_abs(abs, sizeof(abs), path) != 0) return -1;
-
     scpy(cwd_buf, abs, sizeof(cwd_buf));
+    scpy(cwd_cached, abs, sizeof(cwd_cached));
+    cwd_cached_valid = 1;
     return 0;
 }
 

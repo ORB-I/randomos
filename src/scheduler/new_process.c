@@ -14,14 +14,19 @@ ssize copy_fds(u8 dst, u8 src) {
     process_state_t* dproc = &proctbl[dst];
     process_state_t* sproc = &proctbl[src];
 
+    if (!sproc->fds || sproc->nfds == 0) return -1;
+
     struct fdinfo* new_fds = malloc(sizeof(struct fdinfo) * sproc->nfds);
     if (!new_fds) {
         return -1;
     }
 
-    memcpy(new_fds, sproc, sizeof(struct fdinfo) * sproc->nfds);
+    // the child gets its OWN copy of the table; sharing the parent's
+    // pointer means the first exiting child frees it out from under
+    // everyone still running (fds pages get unmapped by liballoc)
+    memcpy(new_fds, sproc->fds, sizeof(struct fdinfo) * sproc->nfds);
     dproc->nfds = sproc->nfds;
-    dproc->fds = sproc->fds;
+    dproc->fds = new_fds;
     return sizeof(struct fdinfo) * sproc->nfds;
 }
 

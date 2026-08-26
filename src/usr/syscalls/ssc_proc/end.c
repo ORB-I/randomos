@@ -11,8 +11,13 @@ void endproc_shared(s64 pid) {
     proctbl[pid].is_dead = 1;
     reparent_children((u8)pid);
     wake_waiter((u8)pid);
-    // free(proctbl[pid].fds); - for some reason causing panic rn, should fix
-    free(proctbl[current_pid].pwd);
+    // free the TARGET's resources (pid == current_pid on the exit path,
+    // but sys_kill can pass another process; freeing current's pwd here
+    // used to dangle the killer's own cwd)
+    free(proctbl[pid].fds);
+    proctbl[pid].fds = NULL;
+    free(proctbl[pid].pwd);
+    proctbl[pid].pwd = NULL;
 
     vmm_dasp((page_table_t*)proctbl[pid].cr3);
     proctbl[pid].used = 0;

@@ -89,7 +89,7 @@ DEFSYSCALL(sys_getpwd) {
     usize bufsz = args->a1;
 
     memcpy(buf, proctbl[current_pid].pwd, bufsz-1);
-    buf[bufsz] = '\0';
+    buf[bufsz-1] = '\0';
 
     return 0;
 }

@@ -18,7 +18,11 @@ XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
         		-no-emul-boot -boot-load-size 4 -boot-info-table -hfsplus \
         		-apm-block-size 2048 --efi-boot boot/limine/limine-uefi-cd.bin \
         		-efi-boot-part --efi-boot-image --protective-msdos-label
+# kvm when available with tcg fallback for speed. run-headless appends
+# -display none and moves serial into qemu.log for quiet CI-style runs.
 QFLAGS       := -M pc -cpu qemu64,+rdrand -boot d -smp 2 -m 1G -serial stdio \
+				-accel kvm -accel tcg \
+				-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
 				-drive id=disk,file=drive.img,format=raw,if=none \
   				-device ide-hd,drive=disk,bus=ide.0,unit=0 \
 				-device piix3-usb-uhci,id=uhci \
@@ -27,6 +31,7 @@ QFLAGS       := -M pc -cpu qemu64,+rdrand -boot d -smp 2 -m 1G -serial stdio \
 				-netdev user,id=net0 -device e1000,netdev=net0 \
 				-monitor unix:/tmp/qemu-monitor.sock,server=on,wait=off \
 				-qmp unix:/tmp/qemu-qmp.sock,server=on,wait=off
+QFLAGS_HEADLESS := -display none -serial file:qemu.log
 
 AS_SRC := $(shell find src -name '*.asm')
 CC_SRC := $(shell find src -name '*.c')
@@ -52,7 +57,7 @@ all: subdirs $(ISO)
 
 subdirs:
 	@for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)'; \
+		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)' || exit 1; \
 	done
 
 $(ISO): $(EXE)
@@ -105,6 +110,11 @@ run: all
 	@echo "[QEMU]"
 	$(QEMU) $(QFLAGS) $(QEMUFLAGS) -cdrom $(ISO)
 
+# same vm, no window, serial captured into qemu.log
+run-headless: all
+	@echo "[QEMU headless]"
+	$(QEMU) $(QFLAGS) $(QFLAGS_HEADLESS) $(QEMUFLAGS) -cdrom $(ISO)
+
 clean:
 	@echo "[CLEAN]"
 	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS) ksyms.c ksyms.o ksyms.d lib/liblwip.a $(LWIP_OBJ) $(LWIP_DEPS)
@@ -123,6 +133,6 @@ compile_commands.json: clean
 		exit 1; \
 	fi
 
-.PHONY: run clean all subdirs
+.PHONY: run run-headless clean all subdirs
 -include $(DEPS)
 -include $(LWIP_DEPS)
