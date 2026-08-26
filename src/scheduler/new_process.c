@@ -5,11 +5,12 @@
 #include <core/liballoc.h>
 #include <lib/string.h>
 #include <drivers/display/term.h>
+#include <lib/string.h>
 #include <drivers/hid/kbd.h>
 
 process_state_t proctbl[MAX_PROCESSES];
 
-int copy_fds(u8 dst, u8 src) {
+ssize copy_fds(u8 dst, u8 src) {
     process_state_t* dproc = &proctbl[dst];
     process_state_t* sproc = &proctbl[src];
 
@@ -21,7 +22,7 @@ int copy_fds(u8 dst, u8 src) {
     memcpy(new_fds, sproc, sizeof(struct fdinfo) * sproc->nfds);
     dproc->nfds = sproc->nfds;
     dproc->fds = sproc->fds;
-    return 0;
+    return sizeof(struct fdinfo) * sproc->nfds;
 }
 
 int kexecve(const char* path, char** argv, char** envp, u8 cpid) {
@@ -135,11 +136,22 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
         proc->fds = new_fds;
         proc->nfds = 4;
         proc->currfb = 3;
+
+        // we have to malloc this since
+        // setpwd uses malloc and we will
+        // need to use free() on it on process end
+        proc->pwd = malloc(2);
+        if (!proc->pwd) return -1;
+        proc->pwd[0] = '/';
+        proc->pwd[1] = '\0';
     } else {
-        if (copy_fds(pid, ppid) < 0) {
+        usize sz;
+        if ((sz = copy_fds(pid, ppid)) < 0) {
             return -1;
         }
         proc->currfb = get_currfb();
+        proc->pwd = strcpy(proctbl[proc->ppid].pwd);
+        if (!proc->pwd) return -1;
     }
 
     proc->rip = res.entry;

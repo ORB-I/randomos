@@ -234,6 +234,10 @@ int verify_passwd(const char* entered, const char* stored) {
     return mismatch ? 1 : 0;
 }
 
+int ensure_home() {
+    
+}
+
 int main() {
     while (1) {
         char *uname, *pwd;

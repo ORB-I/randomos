@@ -8,7 +8,6 @@
 #define SYS_CLOSE         5
 #define SYS_CREAT         6
 #define SYS_UNLINK        7
-#define SYS_CHDIR         8
 #define SYS_LSEEK         9
 #define SYS_RENAME        10
 #define SYS_MKDIR         11
@@ -19,7 +18,6 @@
 #define SYS_SLEEP         16
 #define SYS_READDIR       17
 #define SYS_OPENDIR       18
-#define SYS_GETCWD        20
 #define SYS_SYNC          21
 #define SYS_TRUNC         22
 #define SYS_TERMCTL       23
@@ -55,6 +53,8 @@
 #define SYS_EXECVE        56
 #define SYS_RANDOM64      57
 #define SYS_RANDOMBYTES   58
+#define SYS_GETPWD        59
+#define SYS_SETPWD        60
 
 u64 __syscall0(u64 nr);
 u64 __syscall1(u64 nr, u64 arg0);

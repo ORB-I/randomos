@@ -1,6 +1,18 @@
 #pragma once
 #include <core/std.h>
 
+#define FREEREQ_MALLOC 1
+#define FREEREQ_PHYS   2
+#define FREEREQ_VIRT   3
+
+// request to free something at process end
+// only for kernel-allocated stuff
+struct freereq_t {
+    void* ptr;
+    usize sz; // npgs or size
+    int type;
+};
+
 #define MAX_PROCESSES 255
 // passed as a wait target when any dead child will do
 #define WAIT_ANY 0xFF
@@ -30,6 +42,8 @@ typedef struct {
     u8 wait_pid;
     // target time in ms to wake up if sleeping
     u64 wake_ms;
+
+    char* pwd;
 
     u16 code;
     int* codeptr;
