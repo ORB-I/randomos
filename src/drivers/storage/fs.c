@@ -3,9 +3,34 @@
 #include <core/printf.h>
 #include <lib/string.h>
 #include <drivers/storage/fs.h>
+#include <drivers/storage/ext2.h>
+#include <drivers/display/serial.h>
 #include <drivers/display/term.h>
 #include <drivers/hid/kbd.h>
 #include <core/fd.h>
+
+int fs_backend = FS_BACKEND_FAT;
+
+/* figure out what's actually on the drive before anything gets mounted.
+   ext2 wins if its superblock checks out, fat is the fallback. ordering
+   matters here: mount() with MNT_FORMAT would happily format over a
+   filesystem we just failed to recognize */
+int fs_probe_mount(void) {
+    serial_printf("[dbg] probing fs\n");
+    if (ext2_detect()) {
+        serial_printf("[dbg] ext2 detected\n");
+        if (ext2_mount("") == 0) {
+            fs_backend = FS_BACKEND_EXT2;
+            return 0;
+        }
+        printf("EXT2 detected but refused to mount, trying FAT\n");
+    }
+    if (mount("", MNT_FORMAT) == 0) {
+        fs_backend = FS_BACKEND_FAT;
+        return 0;
+    }
+    return -1;
+}
 
 FATFS fs;
 int mount(const char* path, int flags) {
@@ -27,6 +52,7 @@ int mount(const char* path, int flags) {
 int umount(const char* path) { return (f_unmount(path) == FR_OK) ? 0 : -1; }
 
 int open(const char* path, int flags) {
+    if (fs_backend == FS_BACKEND_EXT2) return ext2_open(path, flags);
     struct fdinfo fdi = {
         .fd = -1,
         .inuse = 0,
@@ -56,6 +82,7 @@ int open(const char* path, int flags) {
 }
 
 off_t lseek(int fd, off_t off, int whence) {
+    if (fs_backend == FS_BACKEND_EXT2) return ext2_lseek(fd, off, whence);
     struct fdinfo* info;
     if (getfd(fd, &info) < 0) return -1;
 
@@ -68,7 +95,9 @@ off_t lseek(int fd, off_t off, int whence) {
     } else return -1;
 }
 
-int trunc(int fd) { 
+// read-only backend has nothing to truncate
+int trunc(int fd) {
+    if (fs_backend == FS_BACKEND_EXT2) return -1;
     struct fdinfo* info;
     if (getfd(fd, &info) < 0) {
         return -1;
@@ -77,6 +106,7 @@ int trunc(int fd) {
 }
 
 int sync(int fd) {
+    if (fs_backend == FS_BACKEND_EXT2) return 0; // nothing dirty on a ro fs
     struct fdinfo* info;
     if (getfd(fd, &info) < 0) {
         return -1;
@@ -85,6 +115,7 @@ int sync(int fd) {
 }
 
 int opendir(const char* path) {
+    if (fs_backend == FS_BACKEND_EXT2) return ext2_opendir(path);
     struct fdinfo fdi = {
         .fd = -1,
         .inuse = 0,
@@ -115,6 +146,7 @@ void convstat(FILINFO* finfo, struct stat* st) {
 }
 
 int readdir(int cdp, struct stat* st) {
+    if (fs_backend == FS_BACKEND_EXT2) return ext2_readdir(cdp, st);
     struct fdinfo* info;
     if (getfd(cdp, &info) < 0) {
         return -1;
@@ -129,14 +161,31 @@ int readdir(int cdp, struct stat* st) {
 }
 
 int stat(const char* path, struct stat* st) {
+    if (fs_backend == FS_BACKEND_EXT2) return ext2_stat(path, st);
     FILINFO inf;
     if (f_stat(path, &inf) != FR_OK) return -1;
     convstat(&inf, st);
     return 0;
 }
 
-int unlink(const char* path) { return f_unlink(path) == FR_OK ? 0 : -1; }
-int rename(const char* oname, const char* nname) { return f_rename(oname, nname) == FR_OK ? 0 : -1; }
-int mkdir(const char* path) { return f_mkdir(path) == FR_OK ? 0 : -1; }
-int chdir(const char* path) { return f_chdir(path) == FR_OK ? 0 : -1; }
-int getcwd(char* buf, usize len) { return f_getcwd(buf, len) == FR_OK ? 0 : -1; }
+// mutating ops dont exist on the read-only backend
+int unlink(const char* path) {
+    if (fs_backend == FS_BACKEND_EXT2) return -1;
+    return f_unlink(path) == FR_OK ? 0 : -1;
+}
+int rename(const char* oname, const char* nname) {
+    if (fs_backend == FS_BACKEND_EXT2) return -1;
+    return f_rename(oname, nname) == FR_OK ? 0 : -1;
+}
+int mkdir(const char* path) {
+    if (fs_backend == FS_BACKEND_EXT2) return -1;
+    return f_mkdir(path) == FR_OK ? 0 : -1;
+}
+int chdir(const char* path) {
+    if (fs_backend == FS_BACKEND_EXT2) return ext2_chdir(path);
+    return f_chdir(path) == FR_OK ? 0 : -1;
+}
+int getcwd(char* buf, usize len) {
+    if (fs_backend == FS_BACKEND_EXT2) return ext2_getcwd(buf, len);
+    return f_getcwd(buf, len) == FR_OK ? 0 : -1;
+}

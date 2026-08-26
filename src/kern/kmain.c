@@ -158,7 +158,9 @@ void kmain_aftergdt() {
     }
 
     if (drive >= 0) {
-        if (mount("", MNT_FORMAT) < 0) {
+        // probes ext2 first, falls back to fat. never formats unless the
+        // drive has neither
+        if (fs_probe_mount() < 0) {
             printf("failed to mount\n");
         }
     } else {

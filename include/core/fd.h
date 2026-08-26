@@ -2,6 +2,7 @@
 #include <ff16/ff.h>
 #include <core/std.h>
 #include <drivers/display/fb.h>
+#include <drivers/storage/fs.h>
 
 #define FDTYPE_FILE 1
 #define FDTYPE_DIR  2
@@ -17,6 +18,17 @@ struct iofd {
     ssize (*read)(void* buf, usize str);
 };
 
+// ext2 keeps its state small enough to share the union with fatfs
+struct ex2file {
+    u32 ino;
+    off_t pos;
+};
+
+struct ex2dir {
+    u32 ino;
+    off_t pos;
+};
+
 struct fdinfo {
     int fd;
     int inuse;
@@ -27,6 +39,8 @@ struct fdinfo {
         int sock;
         framebuf_t* fb;
         struct iofd io;
+        struct ex2file exfile;
+        struct ex2dir exdir;
     } data;
 };
 
