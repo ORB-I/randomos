@@ -18,7 +18,7 @@ int unlink(char* path) {
 }
 
 int chdir(char* path) {
-    return (int)__syscall1(SYS_CHDIR, (u64)path);
+    return (int)__syscall1(SYS_SETPWD, (u64)path);
 }
 
 off_t lseek(int fd, off_t off, u32 whence) {
@@ -50,7 +50,7 @@ int opendir(char* path) {
 }
 
 int getcwd(char* buf, usize buflen) {
-    return (int)__syscall2(SYS_GETCWD, (u64)buf, (u64)buflen);
+    return (int)__syscall2(SYS_GETPWD, (u64)buf, (u64)buflen);
 }
 
 int sync(int fd) {

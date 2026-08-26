@@ -22,11 +22,9 @@
 #include <drivers/apic.h>
 #include <drivers/acpi.h>
 #include <drivers/display/term.h>
-#include <drivers/storage/ata.h>
 #include <drivers/storage/ff16_init.h>
 #include <drivers/storage/fs.h>
-#include <drivers/storage/ahci.h>
-#include <drivers/storage/usbmsd.h>
+#include <drivers/storage/block.h>
 #include <drivers/display/fb.h>
 #include <drivers/usb/uhci.h>
 #include <drivers/net/e1000.h>
@@ -138,33 +136,12 @@ void kmain_aftergdt() {
     init_gettimeofday();
     init_cores();
 
-    int drive = -1;
-
-    drive = ata_init();
-    if (drive <= 0) {
-        drive = ahci_init();
-        if (drive >= 0) {
-            ff16_set_drive(drive);
-            ff16_set_ahci();
-        } else {
-            drive = usbmsd_init();
-            if (drive >= 0) {
-                ff16_set_drive(drive);
-                ff16_set_usbmsd();
-            }
-        }
-    } else {
-        ff16_set_drive(drive);
+    if (block_init() != BLOCK_OK) {
+        panic("KERN: No drive available\n");
     }
 
-    if (drive >= 0) {
-        // probes ext2 first, falls back to fat. never formats unless the
-        // drive has neither
-        if (fs_probe_mount() < 0) {
-            printf("failed to mount\n");
-        }
-    } else {
-        printf("KERN: No drive available\n");
+    if (fs_probe_mount() < 0) {
+        panic("Failed to mount\n");
     }
 
     int kbtype = KBD_USBHID;

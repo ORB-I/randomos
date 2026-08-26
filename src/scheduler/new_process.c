@@ -63,7 +63,6 @@ int kexecve(const char* path, char** argv, char** envp, u8 cpid) {
     proc->wake_ms = 0;
     
     vmm_setumapbase(proc->pid, res.load_high);
-
     return 0;
 }
 

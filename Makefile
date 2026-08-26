@@ -19,7 +19,6 @@ XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
         		-apm-block-size 2048 --efi-boot boot/limine/limine-uefi-cd.bin \
         		-efi-boot-part --efi-boot-image --protective-msdos-label
 QFLAGS       := -M pc -cpu qemu64,+rdrand -boot d -smp 2 -m 1G -serial stdio \
-				-device isa-debug-exit,iobase=0xf4,iosize=0x04 \
 				-drive id=disk,file=drive.img,format=raw,if=none \
   				-device ide-hd,drive=disk,bus=ide.0,unit=0 \
 				-device piix3-usb-uhci,id=uhci \

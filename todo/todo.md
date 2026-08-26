@@ -8,7 +8,6 @@
 
 - [ ] Work more on ext2 - @eskridd
 - [ ] Fix issues on ext2 - @eskridd
-- [ ] Fix SMP thread just jumping to wherever it feels instead of its init — @eskridd
 - [ ] More userspace utilities — @eskridd
 - [ ] Work on wm — @eskridd
 - [ ] errno support (libc reports positive errnos, kernel reports negative errnos) — @eskridd
@@ -16,7 +15,8 @@
 - [ ] Add automated testing framework - @Wdboyes13
 - [ ] Home directories - @Wdboyes13
 - [ ] cd support in shell - @Wdboyes13
-- [ ] chdir support in kernel - @Wdboyes13
+- [ ] VFS layer - @Wdboyes13
+- [ ] devfs - @Wdboyes13
 
 ## Known issues
 

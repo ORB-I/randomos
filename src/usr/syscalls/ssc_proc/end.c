@@ -11,7 +11,7 @@ void endproc_shared(s64 pid) {
     proctbl[pid].is_dead = 1;
     reparent_children((u8)pid);
     wake_waiter((u8)pid);
-    free(proctbl[pid].fds);
+    // free(proctbl[pid].fds); - for some reason causing panic rn, should fix
     free(proctbl[current_pid].pwd);
 
     vmm_dasp((page_table_t*)proctbl[pid].cr3);

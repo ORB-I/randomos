@@ -35,6 +35,34 @@ s32 parse_args(char* str, char** argv) {
     return argc;
 }
 
+typedef struct {
+    const char* name;
+    int (*fn)(int,char**);
+} builtin_t;
+
+int cdfn(int ac, char** av) {
+    if (ac < 2) {
+        printf("not enough arguments\n");
+        return 1;
+    }
+
+    if (chdir(av[1]) < 0) return 1;
+    return 0;
+}
+
+builtin_t builtins[] = {
+    {"cd", cdfn}
+};
+
+int is_builtin(char* av0) {
+    for (int i = 0; i < (int)(sizeof(builtins)/sizeof(builtin_t)); i++) {
+        if (streq(builtins[i].name, av0)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 char* find_exe(char* av0, int* isalloc) {
     if (strneq("../", av0, 3) || strneq("./", av0, 2) || strneq("/", av0, 1)) {
         struct stat st;
@@ -101,21 +129,26 @@ int main() {
             continue;
         }
 
-        int isalloc = 0;
-        char* path = find_exe(argv[0], &isalloc);
-        if (path) {
-            int pid = newproc(path, argv, environ);
-            if (pid < 0) {
-                printf("failed to start program\n");
-                if (isalloc) free(path);
-                continue;
-            }
+        int builtin = is_builtin(argv[0]);
+        if (builtin < 0) {
+            int isalloc = 0;
+            char* path = find_exe(argv[0], &isalloc);
+            if (path) {
+                int pid = newproc(path, argv, environ);
+                if (pid < 0) {
+                    printf("failed to start program\n");
+                    if (isalloc) free(path);
+                    continue;
+                }
 
-            int ex;
-            wait(pid, &ex);
-            free(path);
+                int ex;
+                wait(pid, &ex);
+                free(path);
+            } else {
+                printf("failed to find program\n");
+            }
         } else {
-            printf("failed to find program\n");
+            builtins[builtin].fn(argc, argv);
         }
         free(cmd);
     }

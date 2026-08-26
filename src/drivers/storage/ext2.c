@@ -4,7 +4,7 @@
 #include <core/fd.h>
 #include <drivers/display/serial.h>
 #include <lib/string.h>
-#include <drivers/storage/fs.h>
+#include <drivers/storage/block.h>
 #include <drivers/storage/ext2.h>
 
 /* read-only ext2. nothing on the disk is trusted: every field gets
@@ -87,7 +87,7 @@ static int build_abs(char* out, usize cap, const char* path) {
 
 static int read_block(u32 blk, u8* out) {
     if (blk >= sb.blocks_count) return -1;
-    if (storage_blk_read((u64)blk * sb.spb, sb.spb, out) != 0) return -1;
+    if (block_read(0, out, (u64)blk * sb.spb, sb.spb) != 0) return -1;
     return 0;
 }
 
@@ -95,7 +95,7 @@ static int probe_superblock(void) {
     u8 raw[1024];
     /* the primary superblock always lives at byte 1024, independent of
        block size, so plain sector reads are safe here */
-    if (storage_blk_read(2, 2, raw) != 0) return 0;
+    if (block_read(0, raw, 2, 2) != 0) return 0;
     if (le16(raw + SB_OFF_MAGIC) != EXT2_MAGIC) return 0;
 
     u32 log_bs = le32(raw + 24);

@@ -32,6 +32,7 @@ Newest entries go at the bottom of each section.
 - [x] Implement Intel E1000 Gigabit Ethernet network driver
 - [x] Implement multi-user support (uid, gid, euid, egid syscalls, credentials inheritance, and userland id/whoami)
 - [x] fix hashed password (argon2id) support in login (see user/libs/libmcrypto/mcrypto.h)
+- [x] Fix SMP thread just jumping to wherever it feels instead of its init — @eskridd
 
 ## @Wdboyes13
 
@@ -48,3 +49,4 @@ Newest entries go at the bottom of each section.
 - [x] login support (/etc/passwd)
 - [x] RNG driver
 - [x] SMP support
+- [x] chdir support in kernel - @Wdboyes13

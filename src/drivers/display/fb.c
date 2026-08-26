@@ -169,7 +169,6 @@ void clear_fb(int fb) {
     if (getfd(fb, &info) < 0) {
         return;
     }
-
     memset(info->data.fb->ptr, 0, info->data.fb->ptrsz);
 }
 

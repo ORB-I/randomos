@@ -33,11 +33,6 @@ struct stat {
 int mount(const char* path, int flags);
 int umount(const char* path);
 
-/* raw block access shared by every fs backend, routes through whatever
-   drive/backing (ata/ahci/usbmsd) the boot probe picked. 512b sectors */
-int storage_blk_read(u64 lba, u32 count, void* buf);
-int storage_blk_write(u64 lba, u32 count, const void* buf);
-
 int open(const char* path, int flags);
 int close(int fd);
 ssize read(int fd, void* buf, usize size);
