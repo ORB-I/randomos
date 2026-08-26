@@ -6,8 +6,6 @@
 
 ## Open and being worked on
 
-- [ ] Work more on ext2 - @eskridd
-- [ ] Fix issues on ext2 - @eskridd
 - [ ] More userspace utilities — @eskridd
 - [ ] Work on wm — @eskridd
 - [ ] errno support (libc reports positive errnos, kernel reports negative errnos) — @eskridd

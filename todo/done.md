@@ -32,7 +32,13 @@ Newest entries go at the bottom of each section.
 - [x] Implement Intel E1000 Gigabit Ethernet network driver
 - [x] Implement multi-user support (uid, gid, euid, egid syscalls, credentials inheritance, and userland id/whoami)
 - [x] fix hashed password (argon2id) support in login (see user/libs/libmcrypto/mcrypto.h)
-- [x] Fix SMP thread just jumping to wherever it feels instead of its init — @eskridd
+- [x] Fix SMP thread just jumping to wherever it feels instead of its init
+- [x] Fix ext2 issues triple-indirect block reads (files past ~64MB), cd to
+      nonexistent dirs silently succeeding, relative/accumulating cwd spellings
+      breaking the per-process chdir replay, unsynchronized cwd state under smp,
+      readdir aborting whole listings on one bad entry, stat basename on trailing
+      slashes, lseek SEEK_END s32 overflow. setpwd now stores validated canonical
+      paths and getpwd stops reading past the string. added cat
 
 ## @Wdboyes13
 

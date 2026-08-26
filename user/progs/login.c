@@ -67,28 +67,43 @@ int getpwnam(const char* login, struct passwd* buf) {
 
     struct stat st;
     if (stat("/etc/passwd", &st) < 0) {
+        close(fd);
         return -2;
     }
 
-    char* fbuf = malloc(st.st_size + 1);
-    if (!fbuf) return -2;
+    usize size = (usize)st.st_size;
+    char* fbuf = malloc(size + 1);
+    if (!fbuf) {
+        close(fd);
+        return -2;
+    }
 
     ssize rd;
-    if ((rd = read(fd, fbuf, st.st_size)) < 0 || (usize)rd != st.st_size) {
+    if ((rd = read(fd, fbuf, st.st_size)) < 0 || (usize)rd != size) {
         free(fbuf);
+        close(fd);
         return -2;
     }
+    fbuf[size] = '\0';
+    close(fd);
 
+    // entries are '\n'-terminated; the last one may lack the newline,
+    // so i == size also closes a pending entry. entst must advance to
+    // the line after each entry or only the first user can ever match.
+    // malformed lines are skipped, not fatal.
     char* entst = fbuf;
-    for (usize i = 0; i < st.st_size; i++) {
-        if (fbuf[i] == '\n') {
-            fbuf[i] = '\0';
-            if (decode_passwd(entst, buf) < 0) return -1;
-            if (streq(login, buf->uname)) {
-                return 0;
-            }
+    for (usize i = 0; i <= size; i++) {
+        if (i < size && fbuf[i] != '\n') continue;
+        fbuf[i] = '\0';
+        if (*entst != '\0' &&
+            decode_passwd(entst, buf) == 0 &&
+            streq(login, buf->uname)) {
+            return 0;   // buf fields point into fbuf; caller must not free it
         }
+        entst = &fbuf[i + 1];
     }
+
+    free(fbuf);
     return -3;
 }
 
@@ -232,10 +247,6 @@ int verify_passwd(const char* entered, const char* stored) {
     free(work);
 
     return mismatch ? 1 : 0;
-}
-
-int ensure_home() {
-    
 }
 
 int main() {

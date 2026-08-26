@@ -16,9 +16,7 @@ int fs_backend = FS_BACKEND_FAT;
    matters here: mount() with MNT_FORMAT would happily format over a
    filesystem we just failed to recognize */
 int fs_probe_mount(void) {
-    serial_printf("[dbg] probing fs\n");
     if (ext2_detect()) {
-        serial_printf("[dbg] ext2 detected\n");
         if (ext2_mount("") == 0) {
             fs_backend = FS_BACKEND_EXT2;
             return 0;
