@@ -6,6 +6,7 @@
 #include <drivers/time/clock.h>
 #include <core/printf.h>
 #include <drivers/display/fb.h>
+#include <drivers/storage/fs.h>
 
 // these arent defined
 // in a header because theyre only
@@ -118,11 +119,8 @@ void scheduler_switch(procctx_t* proc) {
         }
     }
 
-    //serial_printf("Switching to %d\n", tgtpid);
-
     process_state_t* tgtproc = &proctbl[tgtpid];
     process_state_t* currproc = &proctbl[current_pid];
-    u64 curcr3 = currproc->cr3;
 
     ctx2proc(currproc, proc);
     current_pid = (u8)tgtpid;
@@ -131,14 +129,8 @@ void scheduler_switch(procctx_t* proc) {
     reset_kgsb();
     procctx_t ctx;
     proc2ctx(&ctx, tgtproc);
-    //serial_printf("jumping to %p\n", ctx.rip);
     vmm_sasp((page_table_t*)tgtproc->cr3);
-
-    // whoever exited before the switch doesn't need
-    // their address space anymore
-    if (currproc->is_dead) {
-        vmm_dasp((page_table_t*)curcr3);
-    }
+    chdir(tgtproc->pwd);
     
     switch_fb(tgtproc->currfb);
     switch_ctx(&ctx);

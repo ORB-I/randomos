@@ -1,4 +1,5 @@
 #include <core/std.h>
+#include <core/liballoc.h>
 
 usize strlen(const char* str) {
     const char* ststr = str;
@@ -134,4 +135,12 @@ int strncmp(const char* s1, const char* s2, usize n) {
     }
 
     return 0;
+}
+
+void* strcpy(const char* str) {
+    usize sz = strlen(str) + 1;
+    char* nstr = malloc(sz);
+    if (!nstr) return NULL;
+    memcpy(nstr, str, sz);
+    return nstr;
 }

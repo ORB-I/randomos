@@ -16,3 +16,5 @@ char* strchr(const char* str, char c);
 
 int strcmp(const char* s1, const char* s2);
 int strncmp(const char* s1, const char* s2, usize n);
+
+void* strcpy(const char* str);

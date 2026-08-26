@@ -23,3 +23,4 @@
 - [ ] Fix SMP thread just jumping to wherever it feels instead of its init
 - [ ] More userspace utilities
 - [ ] Work on wm
+- [ ] errno support (libc reports positive errnos, kernel reports negative errnos)
