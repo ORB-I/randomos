@@ -1,6 +1,8 @@
 #include <ff16/ff.h>
 #include <lib/string.h>
 #include <core/fd.h>
+#include <drivers/storage/fs.h>
+#include <drivers/storage/ext2.h>
 #include <scheduler/process.h>
 #include <core/liballoc.h>
 #include <drivers/display/fb.h>
@@ -58,12 +60,19 @@ int close(int fd) {
 
     switch (info->type) {
         case FDTYPE_FILE: {
+            // ext2 keeps no kernel-side handle to close
+            if (fs_backend == FS_BACKEND_EXT2) {
+                break;
+            }
             if (f_close(&info->data.file) != FR_OK) {
                 return -1;
             }
             break;
         }
         case FDTYPE_DIR: {
+            if (fs_backend == FS_BACKEND_EXT2) {
+                break;
+            }
             if (f_closedir(&info->data.dir) != FR_OK) {
                 return -1;
             }
@@ -92,6 +101,10 @@ ssize read(int fd, void* buf, usize size) {
 
     switch (info->type) {
         case FDTYPE_FILE: {
+            // ext2 fds share the FILE type but keep their own state
+            if (fs_backend == FS_BACKEND_EXT2) {
+                return ext2_read(fd, buf, size);
+            }
             UINT nread;
             return (f_read(&info->data.file, buf, size, &nread) == FR_OK ? (ssize)nread : -1);
         }
@@ -122,6 +135,10 @@ ssize write(int fd, void* buf, usize size) {
 
     switch (info->type) {
         case FDTYPE_FILE: {
+            // read-only backend, nothing to write
+            if (fs_backend == FS_BACKEND_EXT2) {
+                return -1;
+            }
             UINT nwritten;
             return (f_write(&info->data.file, buf, size, &nwritten) == FR_OK ? (ssize)nwritten : -1);
         }

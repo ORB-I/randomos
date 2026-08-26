@@ -4,6 +4,13 @@
 
 #define MNT_FORMAT 0x01
 
+/* which filesystem owns the mounted drive */
+#define FS_BACKEND_FAT  0
+#define FS_BACKEND_EXT2 1
+extern int fs_backend;
+
+int fs_probe_mount(void); /* detect what's on the drive and mount it */
+
 #define O_WRONLY FA_WRITE
 #define O_RDONLY FA_READ
 #define O_RDWR (O_WRONLY | O_RDONLY)
@@ -25,6 +32,12 @@ struct stat {
 
 int mount(const char* path, int flags);
 int umount(const char* path);
+
+/* raw block access shared by every fs backend, routes through whatever
+   drive/backing (ata/ahci/usbmsd) the boot probe picked. 512b sectors */
+int storage_blk_read(u64 lba, u32 count, void* buf);
+int storage_blk_write(u64 lba, u32 count, const void* buf);
+
 int open(const char* path, int flags);
 int close(int fd);
 ssize read(int fd, void* buf, usize size);
