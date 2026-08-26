@@ -26,6 +26,7 @@ ssize copy_fds(u8 dst, u8 src) {
 }
 
 int kexecve(const char* path, char** argv, char** envp, u8 cpid) {
+    serial_printf("New process %s requested\n", path);
     process_state_t* proc = &proctbl[cpid];
     loadprog_res_t res = load_program(path, argv, envp);
     if (res.status < 0) {
@@ -63,6 +64,7 @@ int kexecve(const char* path, char** argv, char** envp, u8 cpid) {
     proc->wake_ms = 0;
     
     vmm_setumapbase(proc->pid, res.load_high);
+    serial_printf("New process %s created\n", path);
     return 0;
 }
 
