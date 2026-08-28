@@ -1,0 +1,11 @@
+This file keeps track of all third-party software in this repository including public domain
+software. This file includes names, original repositories, license name, and usage info.
+
+FatFs, https://elm-chan.org/fsw/ff/, BSD-style license, for FAT filesystem support
+LAI, https://github.com/managarm/lai, MIT License, for ACPI AML interpretation
+Limine, https://github.com/limine-bootloader/limine, BSD-2-Clause, for bootloading
+Flanterm, https://github.com/mintsuki/flanterm, BSD-2-Clause, for full terminal support
+Printf, https://github.com/mpaland/printf, MIT License, for a full-featured printf library
+LwIP, https://savannah.nongnu.org/projects/lwip/, BSD-style license, for networking support
+liballoc, https://github.com/blanham/liballoc, public domain, for malloc/realloc/calloc/free support
+monocypher (mcrypto), https://github.com/LoupVaillant/monocypher, CC0 or BSD-2-Clause (CC0), for cryptography support
