@@ -55,7 +55,7 @@ static struct {
     u32 inode_size;
     u32 ngroups;
     u8 filetype_names;      /* dirent type byte is meaningful */
-} sb;
+} __attribute__((packed)) sb;
 
 static char cwd_buf[CWD_MAX] = "/";
 /* the scheduler re-runs chdir(pwd) on every context switch to emulate
@@ -105,7 +105,7 @@ static void cwd_snapshot(char* out, usize cap) {
 
 static int read_block(u32 blk, u8* out) {
     if (blk >= sb.blocks_count) return -1;
-    if (block_read(0, out, (u64)blk * sb.spb, sb.spb) != 0) return -1;
+    if (block_read(0, out, blk * sb.spb, sb.spb) != 0) return -1;
     return 0;
 }
 
@@ -448,13 +448,6 @@ static int lookup_in(u32 dino, const char* name, u32* out_ino) {
     return -1;
 }
 
-/* reconstruct a directory's real path by walking its ".." entry back
-   to the root and collecting names on the way up. this is what makes
-   the stored cwd canonical: "a/./../b//", "a/../b" and "/b" all end up
-   published as the same string, which the scheduler can then replay
-   verbatim without caring how the user originally spelled it.
-   components are pushed onto rev deepest-first, so emitting rev
-   back-to-front yields root-first order */
 static int canon_path(u32 dino, char* out, usize cap) {
     if (dino == EXT2_ROOT_INO) {
         out[0] = '/';
@@ -727,4 +720,12 @@ int ext2_getcwd(char* buf, usize len) {
     }
     lock_release(&cwd_lk);
     return r;
+}
+
+int ext2_creat(const char* path) {
+    u32 ex_ino;
+    e2inode_t ex_node;
+    if (resolve(path, &ex_ino, &ex_node) == 0) return -1;
+
+    
 }

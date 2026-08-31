@@ -141,6 +141,7 @@ void convstat(FILINFO* finfo, struct stat* st) {
     memcpy(st->st_name, finfo->fname, sizeof(st->st_name));
     st->st_attrib = finfo->fattrib;
     st->st_size = finfo->fsize;
+    st->mode = S_IFREG | 0x0777;
 }
 
 int readdir(int cdp, struct stat* st) {

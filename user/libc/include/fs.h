@@ -17,6 +17,7 @@ typedef s32 off_t;
 struct stat {
     char st_name[256];
     u8 st_attrib;
+    u32 mode;
     usize st_size;
 } __attribute__((packed));
 
