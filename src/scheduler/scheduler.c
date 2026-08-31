@@ -7,6 +7,7 @@
 #include <core/printf.h>
 #include <drivers/display/fb.h>
 #include <drivers/storage/fs.h>
+#include <core/errno.h>
 
 // these arent defined
 // in a header because theyre only
@@ -29,7 +30,7 @@ u8 preempt_pending = 0;
 procctx_t preempt_ctx;
 
 int init_scheduler() {
-    if (!hpet_active()) return -1;
+    if (!hpet_active()) return -EINVAL;
     hpet_mkpreemptive_timer(&_schdlr_timer, 20, preempt_hdlr);
     return 0; // dont start the preempt timer yet because we dont have processes yet, start_scheduler should do that
 }
@@ -92,7 +93,7 @@ int nextproc() {
             }
         }
     } while (pid != start);
-    return -1;
+    return -ENOPROC;
 }
 
 int scheduler_execve = 0;

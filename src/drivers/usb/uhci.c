@@ -1,5 +1,6 @@
 #include <core/std.h>
 #include <core/asmh.h>
+#include <core/errno.h>
 #include <core/mem/pmm.h>
 #include <core/mem/vmm.h>
 #include <drivers/pci.h>
@@ -130,17 +131,17 @@ int uhci_regdev(uhci_controller_t* hc, int port, int low_speed, u8 class, u8 pro
 
 static int uhci_init_controller(u8 bus, u8 slot, u8 fn) {
     if (num_controllers >= MAX_UHCI_CONTROLLERS) {
-        return -1;
+        return -ERANGE;
     }
 
     u32 bar4 = pci_read_bar(bus, slot, fn, 4);
     if (!(bar4 & 1)) {
-        return -1;
+        return -EINVAL;
     }
 
     u16 io_base = (u16)(bar4 & ~0x3);
     if (io_base == 0) {
-        return -1;
+        return -ENOEXIST;
     }
 
     u16 cmd = pci_cfg_inw(bus, slot, fn, 0x04);
@@ -170,7 +171,7 @@ static int uhci_init_controller(u8 bus, u8 slot, u8 fn) {
 
     void* fl_phys = pmm_falloc(1);
     if (!fl_phys) {
-        return -1;
+        return -ENOMEM;
     }
 
     hc->frame_list_phys = (u64)fl_phys;
@@ -179,7 +180,7 @@ static int uhci_init_controller(u8 bus, u8 slot, u8 fn) {
 
     void* qh_phys = pmm_falloc(1);
     if (!qh_phys) {
-        return -1;
+        return -ENOMEM;
     }
 
     hc->queue_head_phys = (u64)qh_phys;
@@ -236,7 +237,7 @@ int init_uhci() {
             }
         }
     }
-    return -1;
+    return -ENOEXIST;
 }
 
 static int uhci_ctrl_err(u32 ctrl) {
@@ -246,13 +247,13 @@ static int uhci_ctrl_err(u32 ctrl) {
 
 int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, usb_device_request_t* req, void* data, u16 len) {
     if (!hc || !hc->exists) {
-        return -1;
+        return -EINVAL;
     }
 
     u64 dtvirt = (u64)data + HHDM_START;
 
     void* pgphys = pmm_falloc(1);
-    if (!pgphys) return -1;
+    if (!pgphys) return -ENOMEM;
 
     u64 pvirt = (u64)pgphys + HHDM_START;
     memset((void*)pvirt, 0, 4096);
@@ -269,7 +270,7 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
     if (len && data && !data_in) {
         if (len > 2048) {
             pmm_ffree(pgphys, 1);
-            return -1;
+            return -ERANGE;
         }
         memcpy((void*)dtbovirt, (void*)dtvirt, len);
     }
@@ -427,10 +428,10 @@ usize uhci_get_controllers(uhci_controller_t** ctrlrs) {
 }
 
 int uhci_bulk_transfer(uhci_controller_t* hc, u8 dev_addr, u8 ep, void* data, u32 len, int in) {
-    if (!hc || !hc->exists) return -1;
+    if (!hc || !hc->exists) return -EINVAL;
 
     void* pgphys = pmm_falloc(1);
-    if (!pgphys) return -1;
+    if (!pgphys) return -ENOMEM;
 
     u64 pvirt = (u64)pgphys + HHDM_START;
     memset((void*)pvirt, 0, 4096);

@@ -48,11 +48,16 @@ PROGFILES_C := $(PROGS_C:=.elf)
 all: $(DRIVE) $(PROGFILES) $(PROGFILES_C) copy
 
 $(DRIVE):
-	dd if=/dev/zero of=$@ bs=1M count=16
-	mkfs.msdos -F 16 $@
-	mmd -i $(DRIVE) ::/bin
-	mmd -i $(DRIVE) ::/etc
-	mmd -i $(DRIVE) ::/lib
+	dd if=/dev/zero of=$@ bs=1M count=100
+	mkfs.ext2 $@
+	debugfs -w -R "mkdir /bin" $@
+	debugfs -w -R "mkdir /etc" $@
+	debugfs -w -R "mkdir /lib" $@
+
+	#mkfs.msdos -F 16 $@
+	#mmd -i $(DRIVE) ::/bin
+	#mmd -i $(DRIVE) ::/etc
+	#mmd -i $(DRIVE) ::/lib
 
 
 $(PROGFILES): %.elf: %.c $(DEPLIBS)
@@ -68,7 +73,7 @@ $(PROGFILES_C): %.elf: %.c $(DEPLIBS) $(DEPLIBS_C)
 # link rules and up-to-date targets skipped it, leaving /bin half empty
 copy: $(PROGFILES) $(PROGFILES_C)
 	for f in $(PROGFILES) $(PROGFILES_C); do \
-		mcopy -voi $(DRIVE) $$f "::/bin/$$(basename $$f .elf)"; \
+		debugfs -w -R "write $$f /bin/$(basename $$f .elf)" $(DRIVE); \
 	done
 
 clean:

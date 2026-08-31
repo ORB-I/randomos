@@ -2,6 +2,7 @@
 #include <core/asmh.h>
 #include <core/panic.h>
 #include <core/printf.h>
+#include <core/errno.h>
 #include <core/mem/pmm.h>
 #include <lib/string.h>
 #include <core/mem/vmm.h>
@@ -32,11 +33,12 @@ static int usbmsd_read_cfg_desc(uhci_controller_t* hc, u8 addr, u8** buf) {
     req.len = 255;
 
     void* page_phys = pmm_falloc(1);
-    if (!page_phys) return -1;
+    if (!page_phys) return -ENOMEM;
 
-    if (uhci_control_transfer(hc, addr, false, &req, page_phys, 255) < 0) {
+    int ret = 0;
+    if ((ret = uhci_control_transfer(hc, addr, false, &req, page_phys, 255)) < 0) {
         pmm_ffree(page_phys, 1);
-        return -1;
+        return ret;
     }
 
     *buf = (u8*)((u64)page_phys + HHDM_START);
@@ -85,32 +87,33 @@ static int usbmsd_parse_endpoints(u8* cfg, u16 total_len, u8* ep_in, u8* ep_out,
         offset += blen;
     }
 
-    if (!*ep_in || !*ep_out) return -1;
+    if (!*ep_in || !*ep_out) return -EINVAL;
     return 0;
 }
 
 static int usbmsd_do_bot(usbmsd_cbw_t* cbw, void* data, u32 len) {
     usbmsd_dev_t* dev = &usbmsd_dev;
 
-    if (uhci_bulk_transfer(dev->ctrl, dev->addr, dev->ep_out, cbw, sizeof(*cbw), 0) < 0) {
-        return -1;
+    int ret = 0;
+    if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, dev->ep_out, cbw, sizeof(*cbw), 0)) < 0) {
+        return ret;
     }
 
     if (len > 0) {
         int in = (cbw->flags & 0x80) ? 1 : 0;
-        if (uhci_bulk_transfer(dev->ctrl, dev->addr, in ? dev->ep_in : dev->ep_out, data, len, in) < 0) {
-            return -1;
+        if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, in ? dev->ep_in : dev->ep_out, data, len, in)) < 0) {
+            return ret;
         }
     }
 
     usbmsd_csw_t csw;
-    if (uhci_bulk_transfer(dev->ctrl, dev->addr, dev->ep_in, &csw, sizeof(csw), 1) < 0) {
-        return -1;
+    if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, dev->ep_in, &csw, sizeof(csw), 1)) < 0) {
+        return ret;
     }
 
-    if (csw.signature != CSW_SIGNATURE) return -1;
-    if (csw.tag != cbw->tag) return -1;
-    if (csw.status != CSW_CMD_PASSED) return -1;
+    if (csw.signature != CSW_SIGNATURE) return -EINVAL;
+    if (csw.tag != cbw->tag) return -EINVAL;
+    if (csw.status != CSW_CMD_PASSED) return -EINVAL;
 
     return 0;
 }
@@ -134,25 +137,26 @@ static int usbmsd_scsi_cmd(u8 cmd, void* data, u32 len) {
         cbw.cdb[8] = (u8)(len & 0xFF);
     }
 
-    if (uhci_bulk_transfer(dev->ctrl, dev->addr, dev->ep_out, &cbw, sizeof(cbw), 0) < 0) {
-        return -1;
+    int ret = 0;
+    if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, dev->ep_out, &cbw, sizeof(cbw), 0)) < 0) {
+        return ret;
     }
 
     if (len > 0) {
         int in = (cbw.flags & 0x80) ? 1 : 0;
-        if (uhci_bulk_transfer(dev->ctrl, dev->addr, in ? dev->ep_in : dev->ep_out, data, len, in) < 0) {
-            return -1;
+        if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, in ? dev->ep_in : dev->ep_out, data, len, in)) < 0) {
+            return ret;
         }
     }
 
     usbmsd_csw_t csw;
-    if (uhci_bulk_transfer(dev->ctrl, dev->addr, dev->ep_in, &csw, sizeof(csw), 1) < 0) {
-        return -1;
+    if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, dev->ep_in, &csw, sizeof(csw), 1)) < 0) {
+        return ret;
     }
 
-    if (csw.signature != CSW_SIGNATURE) return -1;
-    if (csw.tag != cbw.tag) return -1;
-    if (csw.status != CSW_CMD_PASSED) return -1;
+    if (csw.signature != CSW_SIGNATURE) return -EINVAL;
+    if (csw.tag != cbw.tag) return -EINVAL;
+    if (csw.status != CSW_CMD_PASSED) return -EINVAL;
 
     return 0;
 }
@@ -175,7 +179,7 @@ static int usbmsd_wait_ready(void) {
         }
         sleepms(50);
     }
-    return -1;
+    return -ETIME;
 }
 
 int usbmsd_init(void) {
@@ -240,7 +244,7 @@ int usbmsd_init(void) {
     }
 
     printf("USBMSD: No device found\n");
-    return -1;
+    return -ENOEXIST;
 }
 
 void usbmsd_secread(u8 drv, u32 lba, u8* buf) {

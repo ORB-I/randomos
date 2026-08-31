@@ -5,6 +5,7 @@
 #include <core/printf.h>
 #include <core/idt.h>
 #include <drivers/time/hpet.h>
+#include <core/errno.h>
 
 typedef struct {
     sdt_header_t hdr;
@@ -65,19 +66,19 @@ int hpet_init(u64 (**getms)(void)) {
     }
 
     if (!acpitbl_ptr) {
-        return -1;
+        return -ENOEXIST;
     }
 
     hpet_acpitbl = (hpet_acpitbl_t*)acpitbl_ptr;
     u64 capid = hpet_read64(0x00);
     if (!(capid & (1 << 13))) {
         hpet_acpitbl = NULL;
-        return -1;
+        return -ENOEXIST;
     }
 
     u8 numtims = (capid >> 8) & 0x1F;
     if (numtims < 2) {
-        return -1; // the whole point
+        return -ENOEXIST; // the whole point
                    // of this driver outside of a clock source
                    // is for a preemptive timer so we'll need 2
     }
@@ -95,7 +96,7 @@ int hpet_init(u64 (**getms)(void)) {
     if (!(tm0cap & (1 << 4))) {
         hpet_write64(0x100, 0);
         hpet_acpitbl = NULL;
-        return -1;
+        return -ENOEXIST;
     }
 
     u64 tm0cfg = tm0cap;

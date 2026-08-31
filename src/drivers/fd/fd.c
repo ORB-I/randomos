@@ -6,6 +6,7 @@
 #include <scheduler/process.h>
 #include <core/liballoc.h>
 #include <drivers/display/fb.h>
+#include <core/errno.h>
 
 struct fdinfo* getnewfd(struct fdinfo* info) {
     struct fdinfo* fds = proctbl[current_pid].fds;
@@ -34,8 +35,9 @@ struct fdinfo* getnewfd(struct fdinfo* info) {
 }
 
 int getfd(int fd, struct fdinfo** info) {
-    if (fd >= (int)proctbl[current_pid].nfds) return -1;
-    if (fd < 0) return -1;
+    if (fd >= (int)proctbl[current_pid].nfds) return -EBADF;
+    if (fd < 0) return -EBADF;
+    if (!proctbl[current_pid].fds[fd].inuse) return -EBADF;
 
     *info = &proctbl[current_pid].fds[fd];
     return 0;
@@ -45,8 +47,8 @@ int closefd(int fd) {
     struct fdinfo* fds = proctbl[current_pid].fds;
     usize nfds = proctbl[current_pid].nfds;
 
-    if (fd >= (int)nfds) return -1;
-    if (fd < 0) return -1;
+    if (fd >= (int)nfds) return -EBADF;
+    if (fd < 0) return -EBADF;
 
     fds[fd].inuse = 0;
     return 0;
@@ -54,31 +56,33 @@ int closefd(int fd) {
 
 int close(int fd) {
     struct fdinfo* info;
-    if (getfd(fd, &info) < 0) {
-        return -1;
+    int ret = 0;
+    if ((ret = getfd(fd, &info)) < 0) {
+        return ret;
     }
 
     switch (info->type) {
         case FDTYPE_FILE: {
             // ext2 keeps no kernel-side handle to close
-            if (fs_backend == FS_BACKEND_EXT2) {
+            return _ext2_close(fd);
+            /*if (fs_backend == FS_BACKEND_EXT2) {
                 break;
             }
-            if (f_close(&info->data.file) != FR_OK) {
-                return -1;
-            }
+            if ((ret = f_close(&info->data.file)) != FR_OK) {
+                return -FF_TO_ERRNO(ret);
+            }*/
             break;
         }
         case FDTYPE_DIR: {
             if (fs_backend == FS_BACKEND_EXT2) {
                 break;
             }
-            if (f_closedir(&info->data.dir) != FR_OK) {
-                return -1;
+            if ((ret = f_closedir(&info->data.dir)) != FR_OK) {
+                return -FF_TO_ERRNO(ret);
             }
             break;
         }
-        case FDTYPE_SOCK: return -1;
+        case FDTYPE_SOCK: return -EINVAL;
         case FDTYPE_FB: {
             return free_fb(fd);
         }
@@ -95,68 +99,78 @@ int close(int fd) {
 
 ssize read(int fd, void* buf, usize size) {
     struct fdinfo* info;
-    if (getfd(fd, &info) < 0) {
-        return -1;
+    int ret = 0;
+    if ((ret = getfd(fd, &info)) < 0) {
+        return ret;
     }
 
     switch (info->type) {
         case FDTYPE_FILE: {
-            // ext2 fds share the FILE type but keep their own state
+            return _ext2_read(fd, buf, size);
+            /* ext2 fds share the FILE type but keep their own state
             if (fs_backend == FS_BACKEND_EXT2) {
                 return ext2_read(fd, buf, size);
             }
+
             UINT nread;
-            return (f_read(&info->data.file, buf, size, &nread) == FR_OK ? (ssize)nread : -1);
+            if ((ret = f_read(&info->data.file, buf, size, &nread)) == FR_OK) {
+                return (ssize)nread;
+            } else {
+                return FF_TO_ERRNO(ret);
+            }*/
         }
         case FDTYPE_DIR:
         case FDTYPE_FB: 
         case FDTYPE_FBW: {
-            return -1;
+            return -EINVAL;
         }
         case FDTYPE_SOCK: {
-            return -1;
+            return -EINVAL;
         }
         case FDTYPE_IO: {
             if (info->data.io.in) {
                 return info->data.io.read(buf, size);
             } else {
-                return -1;
+                return -EBADF;
             }
         }
-        default: return -1;
+        default: return -EINVAL;
     }
 }
 
 ssize write(int fd, void* buf, usize size) {
     struct fdinfo* info;
-    if (getfd(fd, &info) < 0) {
-        return -1;
+
+    int ret = 0;
+    if ((ret = getfd(fd, &info)) < 0) {
+        return ret;
     }
 
     switch (info->type) {
         case FDTYPE_FILE: {
-            // read-only backend, nothing to write
+            return _ext2_write(fd, buf, size);
+            /* read-only backend, nothing to write
             if (fs_backend == FS_BACKEND_EXT2) {
-                return -1;
+                return -ERO;
             }
             UINT nwritten;
-            return (f_write(&info->data.file, buf, size, &nwritten) == FR_OK ? (ssize)nwritten : -1);
+            return (f_write(&info->data.file, buf, size, &nwritten) == FR_OK ? (ssize)nwritten : -1);*/
         }
         case FDTYPE_DIR:
         case FDTYPE_FB:
         case FDTYPE_FBW: {
-            return -1;
+            return -EINVAL;
         }
         case FDTYPE_SOCK: {
-            return -1;
+            return -EINVAL;
         }
         case FDTYPE_IO: {
             if (info->data.io.out) {
                 return info->data.io.write(buf, size);
             } else {
-                return -1;
+                return -EBADF;
             }
         }
-        default: return -1;
+        default: return -EINVAL;
     }
 }

@@ -5,7 +5,7 @@
 #include <core/fd.h>
 #include <lib/string.h>
 #include <drivers/storage/fs.h>
-#include <drivers/storage/_ext2.h>
+#include <drivers/storage/ext2.h>
 #include <drivers/storage/block.h>
 #include <drivers/time/gettimeofday.h>
 #include <scheduler/process.h>
@@ -154,7 +154,7 @@ static int read_indr(u32 blkn, u32* obuf) {
 }
 
 static ssize ino_getblkid(ext2_ino_t* inod, usize idx) {
-    if (!inod) return NULL;
+    if (!inod) return -1;
 
     const u32 ppb = 1024 / 4;
     u32 indrs[3][ppb];
@@ -682,7 +682,7 @@ static int rmlink(const char* path) {
     return -1;
 }
 
-int mklink(const char* path, u32 ino, u16 mode) {
+static int mklink(const char* path, u32 ino, u16 mode) {
     char dir[1024], base[1204];
     if (path_nameprts(path, base, 1024, dir, 1024) < 0) return -1;
 
@@ -762,7 +762,7 @@ int mklink(const char* path, u32 ino, u16 mode) {
 }
 
 #define CONVE2(NAME) (e2mode & EXT2_##NAME) { mode |= NAME; }
-u32 e2mode_conv(u32 e2mode) {
+static u32 e2mode_conv(u32 e2mode) {
     u32 mode = 0;
 
     if CONVE2(S_IXOTH) 
@@ -793,7 +793,7 @@ u32 e2mode_conv(u32 e2mode) {
 }
 
 #define CONVSYS(NAME) (sysmode & NAME) { mode |= EXT2_##NAME; }
-u32 sysmode_conv(u32 sysmode) {
+static u32 sysmode_conv(u32 sysmode) {
     u32 mode = 0;
 
     if CONVSYS(S_IXOTH) 

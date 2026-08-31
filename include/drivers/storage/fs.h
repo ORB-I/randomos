@@ -56,7 +56,7 @@ struct stat {
 int mount(const char* path, int flags);
 int umount(const char* path);
 
-int open(const char* path, int flags);
+int open(const char* path, int flags, int mode);
 int close(int fd);
 ssize read(int fd, void* buf, usize size);
 ssize write(int fd, void* buf, usize size);
@@ -69,6 +69,8 @@ int readdir(int cdp, struct stat* st);
 int stat(const char* path, struct stat* st);
 int unlink(const char* path);
 int rename(const char* oname, const char* nname);
-int mkdir(const char* path);
+int mkdir(const char* path, int mode);
 int chdir(const char* path);
 int getcwd(char* buf, usize len);
+int rmdir(const char* path);
+int creat(const char* path, int mode);

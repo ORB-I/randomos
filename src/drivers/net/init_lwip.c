@@ -1,3 +1,4 @@
+#include <core/errno.h>
 #include <lwip/netif/ethernet.h>
 #include <lwip/lwip/init.h>
 #include <lwip/lwip/dhcp.h>
@@ -50,7 +51,7 @@ int init_lwip() {
 
     if (!nf) {
         printf("Failed to add interface\n");
-        return -1;
+        return -ENOEXIST;
     }
 
     serial_printf("_e1000_netif=%p,netif=%p\n", &_e1000_netif, nf);

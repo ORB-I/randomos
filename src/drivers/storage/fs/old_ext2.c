@@ -6,7 +6,7 @@
 #include <drivers/display/serial.h>
 #include <lib/string.h>
 #include <drivers/storage/block.h>
-#include <drivers/storage/ext2.h>
+#include <drivers/storage/old_ext2.h>
 
 /* read-only ext2. nothing on the disk is trusted: every field gets
    range-checked before it can influence an allocation, a device read or
@@ -567,6 +567,8 @@ static void fill_stat(struct stat* st, const e2inode_t* node, const char* name) 
 }
 
 int ext2_open(const char* path, int flags) {
+    return -1;
+
     if (flags & (O_WRONLY | O_CREAT | O_APPEND | O_TRUNC)) {
         return -1;      /* read-only fs, dont pretend otherwise */
     }
@@ -585,47 +587,52 @@ int ext2_open(const char* path, int flags) {
     struct fdinfo* fd = getnewfd(&fdi);
     if (!fd) return -1;
 
-    fd->data.exfile.ino = ino;
-    fd->data.exfile.pos = 0;
+    //fd->data.exfile.ino = ino;
+    //fd->data.exfile.pos = 0;
     return fd->fd;
 }
 
 ssize ext2_read(int fd, void* buf, usize size) {
+    return -1;
+
     struct fdinfo* info;
     if (getfd(fd, &info) < 0 || info->type != FDTYPE_FILE) return -1;
 
     e2inode_t node;
-    if (read_inode(info->data.exfile.ino, &node) != 0) return -1;
+    //if (read_inode(info->data.exfile.ino, &node) != 0) return -1;
     if ((node.mode & 0xF000) != E2_IFREG) return -1;
 
-    if (info->data.exfile.pos < 0) return -1;
-    ssize got = read_data(&node, (u64)info->data.exfile.pos, buf, size);
-    if (got > 0) info->data.exfile.pos += got;
-    return got;
+    //if (info->data.exfile.pos < 0) return -1;
+    //ssize got = read_data(&node, (u64)info->data.exfile.pos, buf, size);
+    //if (got > 0) info->data.exfile.pos += got;
+    //return got;
 }
 
 off_t ext2_lseek(int fd, off_t off, int whence) {
+    return -1;
     struct fdinfo* info;
     if (getfd(fd, &info) < 0 || info->type != FDTYPE_FILE) return -1;
 
     e2inode_t node;
-    if (read_inode(info->data.exfile.ino, &node) != 0) return -1;
+    //if (read_inode(info->data.exfile.ino, &node) != 0) return -1;
 
     /* s64 intermediate: SEEK_END with a size near 4G overflows s32
        before the clamp ever gets a say */
     s64 target;
     if (whence == SEEK_SET) target = off;
-    else if (whence == SEEK_CUR) target = (s64)info->data.exfile.pos + off;
+    //else if (whence == SEEK_CUR) target = (s64)info->data.exfile.pos + off;
     else if (whence == SEEK_END) target = (s64)node.size + off;
     else return -1;
 
     if (target < 0) target = 0;
     if ((u64)target > node.size) target = (u64)node.size;
-    info->data.exfile.pos = (off_t)target;
+    //info->data.exfile.pos = (off_t)target;
     return 0;
 }
 
 int ext2_opendir(const char* path) {
+    return -1;
+
     u32 ino;
     e2inode_t node;
     if (resolve(path, &ino, &node) != 0) return -1;
@@ -639,12 +646,14 @@ int ext2_opendir(const char* path) {
     struct fdinfo* fd = getnewfd(&fdi);
     if (!fd) return -1;
 
-    fd->data.exdir.ino = ino;
-    fd->data.exdir.pos = 0;
+    //fd->data.exdir.ino = ino;
+    //fd->data.exdir.pos = 0;
     return fd->fd;
 }
 
 int ext2_readdir(int cdp, struct stat* st) {
+    return -1;
+
     struct fdinfo* info;
     if (getfd(cdp, &info) < 0 || info->type != FDTYPE_DIR) return -1;
 
@@ -653,7 +662,7 @@ int ext2_readdir(int cdp, struct stat* st) {
     /* an entry whose inode wont read (truncated table, stale image)
        costs one entry, not the rest of the listing */
     for (;;) {
-        if (dir_next(info->data.exdir.ino, &info->data.exdir.pos, &ent) != 1) return -1;
+        //if (dir_next(info->data.exdir.ino, &info->data.exdir.pos, &ent) != 1) return -1;
         if (read_inode(ent.ino, &node) == 0) break;
     }
 

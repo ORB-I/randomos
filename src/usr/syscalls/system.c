@@ -7,13 +7,13 @@
 DEFSYSCALL(sys_reboot) {
     (void)args;
     if (lai_acpi_reset() == 0) return 0;
-    return -1;
+    return -EUNKNOWN;
 }
 
 DEFSYSCALL(sys_poweroff) {
     (void)args;
     if (lai_enter_sleep(5) == 0) return 0;
-    else return -1;
+    else return -EUNKNOWN;
 }
 
 DEFSYSCALL(sys_mmap) {
@@ -30,6 +30,6 @@ DEFSYSCALL(sys_random64) {
 }
 
 DEFSYSCALL(sys_randombytes) {
-    if (!ensure_pointer((void*)args->a0, args->a1, 1)) return -1;
+    if (!ensure_pointer((void*)args->a0, args->a1, 1)) return -EINVAL;
     return random_bytes((u8*)args->a0, args->a1);
 }

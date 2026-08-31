@@ -1,6 +1,7 @@
 #include <core/asmh.h>
 #include <core/std.h>
 #include <core/panic.h>
+#include <core/errno.h>
 #include <core/printf.h>
 
 #define D1IOB 0x1F0
@@ -94,19 +95,19 @@ bool ata_identify_drive(u8 drv_id, u8 drivet) {
 s16 ata_find_valid_drive() {
     if (inb(D1IOB + 7) == 0xFF) {
         if (inb(D2IOB + 7) == 0xFF) {
-            return -1;
+            return -ENOEXIST;
         } else {
             if (ata_identify_drive(1, 0xA0)) {
                 return 2;
             } else {
-                return -1;
+                return -ENOEXIST;
             }
         }
     } else {
         if (ata_identify_drive(1, 0xA0)) {
             return 1;
         } else {
-            return -1;
+            return -ENOEXIST;
         }
     }
 }
@@ -117,7 +118,7 @@ int ata_init() {
     s16 drv;
     if ((drv = ata_find_valid_drive()) < 0) {
         printf("ATA: No valid drive found\n");
-        return -1;
+        return drv;
     }
     printf("ATA: Found ATA drive with id %d\n", drv);
     return (u8)drv;

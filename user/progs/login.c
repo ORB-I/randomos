@@ -62,7 +62,7 @@ int decode_passwd(char* ent, struct passwd* pwd) {
 }
 
 int getpwnam(const char* login, struct passwd* buf) {
-    int fd = open("/etc/passwd", O_RDONLY);
+    int fd = open("/etc/passwd", O_RDONLY, 0);
     if (fd < 0) return -1;
 
     struct stat st;
@@ -265,7 +265,7 @@ void ensure_home(char* home) {
 
         while (p != NULL) {
             *p = '\0';
-            if (mkdir(tmp) != 0) {
+            if (mkdir(tmp, 0x755) != 0) {
                 if (stat(tmp, &st) < 0) {
                     free(tmp);
                     return;
@@ -275,7 +275,7 @@ void ensure_home(char* home) {
             p = strchr(p+1, '/');
         }
 
-        if (mkdir(tmp) != 0) {
+        if (mkdir(tmp, 0x755) != 0) {
             if (stat(tmp, &st) < 0) {
                 free(tmp);
                 return;

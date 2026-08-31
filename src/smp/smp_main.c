@@ -9,6 +9,7 @@
 #include <smp/apreq.h>
 #include <smp/ipi.h>
 #include <lib/string.h>
+#include <core/errno.h>
 
 extern usize ncores;
 extern thread_idt_t* tidts;
@@ -50,7 +51,7 @@ static ssize smp_find_core(u8 apicid) {
     for (ssize i = 0; i < (ssize)ncores; i++) {
         if (smp_info[i].apicid == apicid) return i;
     }
-    return -1;
+    return -ENOCORE;
 }
 
 void smp_main(u64 apic_id) {

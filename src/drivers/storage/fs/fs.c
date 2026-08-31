@@ -1,4 +1,4 @@
-#include <ff16/ff.h>
+//#include <ff16/ff.h>
 #include <core/std.h>
 #include <core/printf.h>
 #include <lib/string.h>
@@ -16,7 +16,12 @@ int fs_backend = FS_BACKEND_FAT;
    matters here: mount() with MNT_FORMAT would happily format over a
    filesystem we just failed to recognize */
 int fs_probe_mount(void) {
-    if (ext2_detect()) {
+    // we are going to start removing fat support
+    if (_ext2_mount("/") < 0) {
+        printf("Failed to mount EXT2\n");
+        return -1;
+    }
+    /*if (ext2_detect()) {
         if (ext2_mount("") == 0) {
             fs_backend = FS_BACKEND_EXT2;
             return 0;
@@ -26,11 +31,11 @@ int fs_probe_mount(void) {
     if (mount("", MNT_FORMAT) == 0) {
         fs_backend = FS_BACKEND_FAT;
         return 0;
-    }
+    }*/
     return -1;
 }
 
-FATFS fs;
+/*FATFS fs;
 int mount(const char* path, int flags) {
     FRESULT res = f_mount(&fs, path, 1);
     if (res == FR_OK) {
@@ -45,12 +50,21 @@ int mount(const char* path, int flags) {
             } else return -1;
         } else return -1;
     } else return -1;
+}*/
+
+int umount(const char* path) {
+    (void)path;
+    return _ext2_unmount();
+    //return (f_unmount(path) == FR_OK) ? 0 : -1; 
 }
 
-int umount(const char* path) { return (f_unmount(path) == FR_OK) ? 0 : -1; }
+int open(const char* path, int flags, int mode) {
+    if (flags & O_CREAT) {
+        mode |= S_IFREG;
+    }
 
-int open(const char* path, int flags) {
-    if (fs_backend == FS_BACKEND_EXT2) return ext2_open(path, flags);
+    return _ext2_open(path, flags, mode);
+    /*if (fs_backend == FS_BACKEND_EXT2) return ext2_open(path, flags);
     struct fdinfo fdi = {
         .fd = -1,
         .inuse = 0,
@@ -76,12 +90,13 @@ int open(const char* path, int flags) {
         }
     }
     fd->data.file = fp;
-    return fd->fd;
+    return fd->fd;*/
 }
 
 off_t lseek(int fd, off_t off, int whence) {
-    if (fs_backend == FS_BACKEND_EXT2) return ext2_lseek(fd, off, whence);
-    struct fdinfo* info;
+    return _ext2_lseek(fd, off, whence);
+    //if (fs_backend == FS_BACKEND_EXT2) return ext2_lseek(fd, off, whence);
+    /*struct fdinfo* info;
     if (getfd(fd, &info) < 0) return -1;
 
     if (whence == SEEK_SET) {
@@ -90,30 +105,33 @@ off_t lseek(int fd, off_t off, int whence) {
         return f_lseek(&info->data.file, f_tell(&info->data.file) + off) == FR_OK ? 0 : -1;
     } else if (whence == SEEK_END) {
         return f_lseek(&info->data.file, f_size(&info->data.file) + off) == FR_OK ? 0 : -1;
-    } else return -1;
+    } else return -1;*/
 }
 
 // read-only backend has nothing to truncate
 int trunc(int fd) {
-    if (fs_backend == FS_BACKEND_EXT2) return -1;
+    return _ext2_trunc(fd);
+    /*if (fs_backend == FS_BACKEND_EXT2) return -1;
     struct fdinfo* info;
     if (getfd(fd, &info) < 0) {
         return -1;
     } 
-    return f_truncate(&info->data.file) == FR_OK ? 0 : -1; 
+    return f_truncate(&info->data.file) == FR_OK ? 0 : -1;*/
 }
 
 int sync(int fd) {
-    if (fs_backend == FS_BACKEND_EXT2) return 0; // nothing dirty on a ro fs
+    return _ext2_sync(fd);
+    /*if (fs_backend == FS_BACKEND_EXT2) return 0; // nothing dirty on a ro fs
     struct fdinfo* info;
     if (getfd(fd, &info) < 0) {
         return -1;
     } 
-    return f_sync(&info->data.file) == FR_OK ? 0 : -1; 
+    return f_sync(&info->data.file) == FR_OK ? 0 : -1;*/
 }
 
 int opendir(const char* path) {
-    if (fs_backend == FS_BACKEND_EXT2) return ext2_opendir(path);
+    return _ext2_opendir(path);
+    /*if (fs_backend == FS_BACKEND_EXT2) return ext2_opendir(path);
     struct fdinfo fdi = {
         .fd = -1,
         .inuse = 0,
@@ -130,11 +148,12 @@ int opendir(const char* path) {
         closefd(fd->fd);
     }
 
-    return -1;
+    return -1;*/
 }
 
 int closedir(int cdp) {
-    return close(cdp);
+    return _ext2_close(cdp);
+    //return close(cdp);
 }
 
 void convstat(FILINFO* finfo, struct stat* st) {
@@ -145,7 +164,8 @@ void convstat(FILINFO* finfo, struct stat* st) {
 }
 
 int readdir(int cdp, struct stat* st) {
-    if (fs_backend == FS_BACKEND_EXT2) return ext2_readdir(cdp, st);
+    return _ext2_readdir(cdp, st);
+    /*if (fs_backend == FS_BACKEND_EXT2) return ext2_readdir(cdp, st);
     struct fdinfo* info;
     if (getfd(cdp, &info) < 0) return -1;
 
@@ -155,35 +175,52 @@ int readdir(int cdp, struct stat* st) {
     if (inf.fname[0] == 0) return -1;
 
     convstat(&inf, st);
-    return 0;
+    return 0;*/
 }
 
 int stat(const char* path, struct stat* st) {
-    if (fs_backend == FS_BACKEND_EXT2) return ext2_stat(path, st);
+    return _ext2_stat(path, st);
+    /*if (fs_backend == FS_BACKEND_EXT2) return ext2_stat(path, st);
     FILINFO inf;
     if (f_stat(path, &inf) != FR_OK) return -1;
     convstat(&inf, st);
-    return 0;
+    return 0;*/
 }
 
 // mutating ops dont exist on the read-only backend
 int unlink(const char* path) {
-    if (fs_backend == FS_BACKEND_EXT2) return -1;
-    return f_unlink(path) == FR_OK ? 0 : -1;
+    return _ext2_unlink(path);
+    /*if (fs_backend == FS_BACKEND_EXT2) return -1;
+    return f_unlink(path) == FR_OK ? 0 : -1;*/
 }
+
+int rmdir(const char* path) {
+    return _ext2_rmdir(path);
+}
+
 int rename(const char* oname, const char* nname) {
-    if (fs_backend == FS_BACKEND_EXT2) return -1;
-    return f_rename(oname, nname) == FR_OK ? 0 : -1;
+    return _ext2_rename(oname, nname);
+    /*if (fs_backend == FS_BACKEND_EXT2) return -1;
+    return f_rename(oname, nname) == FR_OK ? 0 : -1;*/
 }
-int mkdir(const char* path) {
-    if (fs_backend == FS_BACKEND_EXT2) return -1;
-    return f_mkdir(path) == FR_OK ? 0 : -1;
+
+int mkdir(const char* path, int mode) {
+    return _ext2_mkdir(path, mode);
+    /*if (fs_backend == FS_BACKEND_EXT2) return -1;
+    return f_mkdir(path) == FR_OK ? 0 : -1;*/
 }
+
 int chdir(const char* path) {
-    if (fs_backend == FS_BACKEND_EXT2) return ext2_chdir(path);
-    return f_chdir(path) == FR_OK ? 0 : -1;
+    return _ext2_chdir(path);
+    /*if (fs_backend == FS_BACKEND_EXT2) return ext2_chdir(path);
+    return f_chdir(path) == FR_OK ? 0 : -1;*/
 }
 int getcwd(char* buf, usize len) {
-    if (fs_backend == FS_BACKEND_EXT2) return ext2_getcwd(buf, len);
-    return f_getcwd(buf, len) == FR_OK ? 0 : -1;
+    return _ext2_getcwd(buf, len);
+    /*if (fs_backend == FS_BACKEND_EXT2) return ext2_getcwd(buf, len);
+    return f_getcwd(buf, len) == FR_OK ? 0 : -1;*/
+}
+
+int creat(const char* path, int mode) {
+    return _ext2_creat(path, mode | S_IFREG);
 }

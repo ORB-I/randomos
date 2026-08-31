@@ -3,6 +3,7 @@
 #include <core/panic.h>
 #include <core/liballoc.h>
 #include <core/mem/vmm.h>
+#include <core/errno.h>
 #include "../ssc.h"
 
 void endproc_shared(s64 pid) {
@@ -11,9 +12,7 @@ void endproc_shared(s64 pid) {
     proctbl[pid].is_dead = 1;
     reparent_children((u8)pid);
     wake_waiter((u8)pid);
-    // free the TARGET's resources (pid == current_pid on the exit path,
-    // but sys_kill can pass another process; freeing current's pwd here
-    // used to dangle the killer's own cwd)
+
     free(proctbl[pid].fds);
     proctbl[pid].fds = NULL;
     free(proctbl[pid].pwd);
@@ -26,17 +25,16 @@ void endproc_shared(s64 pid) {
 DEFSYSCALL(sys_kill) {
     s64 pid = args->a0;
 
-    if (pid == 0) return -1; // dont kill init, that could panic kernel
+    if (pid == 0) return -EINVAL; // dont kill init, that could panic kernel
     if (pid <= 0 || pid >= MAX_PROCESSES || pid == current_pid ||
         !proctbl[pid].used || proctbl[pid].is_dead) {
-        return -1;
+        return -ENOPROC;
     }
 
-    /* only root or owner can kill process */
     if (proctbl[current_pid].euid != 0 &&
         proctbl[current_pid].euid != proctbl[pid].uid &&
         proctbl[current_pid].uid != proctbl[pid].uid) {
-        return -1;
+        return -EACCESS;
     }
 
     endproc_shared(pid);

@@ -1,16 +1,17 @@
 #include <fs.h>
+#include <sys/sysfn.h>
 #include <sys/syscall.h>
 
-int open(char* path, u32 flags) {
-    return (int)__syscall2(SYS_OPEN, (u64)path, flags);
+int open(char* path, u32 flags, int mode) {
+    return (int)__syscall3(SYS_OPEN, (u64)path, flags, mode);
 }
 
 int close(int fd) {
     return (int)__syscall1(SYS_CLOSE, (u32)fd);
 }
 
-int creat(char* path) {
-    return (int)__syscall1(SYS_CREAT, (u64)path);
+int creat(char* path, int mode) {
+    return (int)__syscall2(SYS_CREAT, (u64)path, mode);
 }
 
 int unlink(char* path) {
@@ -29,8 +30,8 @@ int rename(char* oldname, char* newname) {
     return (int)__syscall2(SYS_RENAME, (u64)oldname, (u64)newname);
 }
 
-int mkdir(char* path) {
-    return (int)__syscall1(SYS_MKDIR, (u64)path);
+int mkdir(char* path, int mode) {
+    return (int)__syscall2(SYS_MKDIR, (u64)path, mode);
 }
 
 int rmdir(char* path) {

@@ -1,6 +1,7 @@
 #include <smp/smp.h>
 #include <smp/apreq.h>
 #include <smp/ipi.h>
+#include <core/errno.h>
 
 void send_ap_request(u64 tgt_apicid, int type, void* data, usize data2) {
     usize i = 0;
@@ -35,7 +36,7 @@ int ap_run(void(*fn)(void*), void* arg) {
             break;
         }
     }
-    if (!found) return -1;
+    if (!found) return -ENOCORE;
 
     ap_runreq_t rreq = {fn, arg};
     send_ap_request(smp_info[i].apicid, AP_REQ_RUN, &rreq, 0);

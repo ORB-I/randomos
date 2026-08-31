@@ -3,6 +3,7 @@
 #include <lib/string.h>
 #include <core/mem/pmm.h>
 #include <core/mem/vmm.h>
+#include <core/errno.h>
 #include "../ssc.h"
 
 void proc2ctx(procctx_t* dst, process_state_t* src);
@@ -16,7 +17,7 @@ struct copy_npa_res {
     char** kargv;
     char** kenvp;
 };
-#define COPY_NPA_BAD ((struct copy_npa_res){-1,0,0,NULL,NULL,NULL})
+#define COPY_NPA_BAD(ERRNO) ((struct copy_npa_res){ERRNO,0,0,NULL,NULL,NULL})
 
 struct copy_npa_res copy_newprocargs(const char* path, char** argv, char** envp) {
     // we need to copy our args into the kasp and switch
@@ -42,7 +43,7 @@ struct copy_npa_res copy_newprocargs(const char* path, char** argv, char** envp)
     usize npgs = (totalsz + 4095) / 4096;
 
     void* phys = pmm_falloc(npgs);
-    if (!phys) return COPY_NPA_BAD;
+    if (!phys) return COPY_NPA_BAD(-ENOMEM);
 
     void* virt = (void*)((u64)phys + HHDM_START);
     char** kargv = (char**)virt;
@@ -88,10 +89,10 @@ DEFSYSCALL(sys_newproc) {
     char* path = (char*)args->a0;
     char** argv = (char**)args->a1;
     char** envp = (char**)args->a2;
-    if (!path || !argv || !envp) return -1;
+    if (!path || !argv || !envp) return -EINVAL;
     struct copy_npa_res res = copy_newprocargs(path, argv, envp);
     if (res.stat < 0) {
-        return -1;
+        return res.stat;
     }
 
     vmm_skasp();
@@ -108,17 +109,17 @@ DEFSYSCALL(sys_execve) {
     char* path = (char*)args->a0;
     char** argv = (char**)args->a1;
     char** envp = (char**)args->a2;
-    if (!path || !argv || !envp) return -1;
+    if (!path || !argv || !envp) return -EINVAL;
 
     struct copy_npa_res res = copy_newprocargs(path, argv, envp);
-    if (res.stat < 0) return -1;
+    if (res.stat < 0) return res.stat;
 
     vmm_skasp();
     int ret = kexecve(res.kpath, res.kargv, res.kenvp, current_pid);
     vmm_sasp(uasp);
 
     pmm_ffree((void*)res.phys, res.npgs);
-    if (ret < 0) return -1;
+    if (ret < 0) return ret;
 
     procctx_t ctx;
     proc2ctx(&ctx, &proctbl[current_pid]);

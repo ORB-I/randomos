@@ -7,13 +7,16 @@
 #include <drivers/hid/kbd.h>
 #include <drivers/display/fb.h>
 #include <scheduler/process.h>
+#include <core/errno.h>
 
 struct flanterm_context* _term_ctx;
 int _term_flush = 1;
 
 int init_term(int fb) {
     framebuf_info_t fbinfo;
-    if (get_fbinfo(fb, &fbinfo) < 0) return -1;
+
+    int ret = 0;
+    if ((ret = get_fbinfo(fb, &fbinfo)) < 0) return ret;
 
     _term_ctx = flanterm_fb_init(
         NULL, NULL,
@@ -121,7 +124,7 @@ int termctl(int code, int arg0) {
             term_clear();
             return 0;
         case TCTL_SCLR:
-            if (arg0 < 0 || arg0 > 15) return -1;
+            if (arg0 < 0 || arg0 > 15) return -EINVAL;
             term_setfgcolor(arg0);
             return 0;
         case TCTL_CCLR:
@@ -134,6 +137,6 @@ int termctl(int code, int arg0) {
             return _term_flush;
         case TCTL_NOECHO:
             noecho(arg0);
-        default: return -1;
+        default: return -EINVAL;
     }
 }

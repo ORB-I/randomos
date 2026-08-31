@@ -3,7 +3,7 @@
 #include <core/std.h>
 #include <drivers/display/fb.h>
 #include <drivers/storage/fs.h>
-#include <drivers/storage/_ext2.h>
+#include <drivers/storage/ext2.h>
 
 #define FDTYPE_FILE  1
 #define FDTYPE_DIR   2

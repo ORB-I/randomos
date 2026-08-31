@@ -9,6 +9,7 @@
 #include <lib/syscall.h>
 #include <core/printf.h>
 #include <core/asmh.h>
+#include <core/errno.h>
 
 #define USTACK    (16 * 4096)
 #define USTACKPGS 16
@@ -21,7 +22,7 @@ typedef struct {
     void* ptr;
     usize npgs;
 } segment_ld_t;
-#define SEGLD_ERR ((segment_ld_t){-1,NULL,0})
+#define SEGLD_ERR(ERRNO) ((segment_ld_t){ERRNO,NULL,0})
 
 void clrksegs(segment_ld_t* segs, usize nsegs) {
     for (usize i = 0; i < nsegs; i++) {
@@ -30,7 +31,7 @@ void clrksegs(segment_ld_t* segs, usize nsegs) {
 }
 
 segment_ld_t load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp, u64 load_base) {
-    if (phdr->p_memsz == 0) return SEGLD_ERR;
+    if (phdr->p_memsz == 0) return SEGLD_ERR(EOK);
     u64 seg_vaddr = load_base + phdr->p_vaddr;
 
     u64 start_page = seg_vaddr & ~0xFFFULL;
@@ -38,13 +39,14 @@ segment_ld_t load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp, u64 load
     usize npgs = (usize)((end_page - start_page) / 4096);
 
     void* mapped = vmm_map_pages(vmm_cpml4v(), start_page, 0, npgs, MAP_ANYPHYS | MAP_CONT | PAGE_WRITE);
-    if (!mapped) return SEGLD_ERR;
+    if (!mapped) return SEGLD_ERR(-ENOMEM);
 
     void* addr = (void*)seg_vaddr;
 
-    if (lseek(fd, phdr->p_offset, SEEK_SET) < 0) {
+    int ret = 0;
+    if ((ret = lseek(fd, phdr->p_offset, SEEK_SET)) < 0) {
         printf("Loader: failed to seek phdr offset\n");
-        return SEGLD_ERR;
+        return SEGLD_ERR(ret);
     }
 
     if (phdr->p_memsz > phdr->p_filesz) {
@@ -54,7 +56,7 @@ segment_ld_t load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp, u64 load
     ssize nread = read(fd, addr, phdr->p_filesz);
     if (nread < 0 || (usize)nread < phdr->p_filesz) {
         printf("Loader: failed to read program data\n");
-        return SEGLD_ERR;
+        return SEGLD_ERR(nread);
     }
 
     u64 flgs = PAGE_USER;
@@ -64,7 +66,7 @@ segment_ld_t load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp, u64 load
 
     u64 paddr = vmm_get_phys(vmm_cpml4v(), start_page);
     if (!vmm_map_pages(nasp, start_page, paddr, npgs, MAP_CONT | flgs)) {
-        return SEGLD_ERR;
+        return SEGLD_ERR(ENOMEM);
     }
 
     return (segment_ld_t){0, (void*)start_page, npgs};
@@ -143,7 +145,7 @@ int apply_rela(Elf64_Rela* rela, dyninfo_t* info) {
                 symaddr = locate_extern(info->dynstr + sym->st_name, NULL);
                 if (!symaddr) {
                     printf("Loader: symbol resolution failed for %s\n", info->dynstr + sym->st_name);
-                    return -1;
+                    return -ENOEXIST;
                 }
             }
             v2r = symaddr + rela->r_addend;
@@ -160,7 +162,7 @@ int apply_rela(Elf64_Rela* rela, dyninfo_t* info) {
                 symaddr = locate_extern(info->dynstr + sym->st_name, &sz);
                 if (!symaddr) {
                     printf("Loader: symbol resolution failed for %s\n", info->dynstr + sym->st_name);
-                    return -1;
+                    return -ENOEXIST;
                 }
             }
 
@@ -179,34 +181,35 @@ typedef struct {
     int code;
     dyninfo_t info;
 } loadlib_res_t;
-#define LOADLIB_ERR ((loadlib_res_t){-1,{0,0,NULL,0,NULL}})
+#define LOADLIB_ERR(ERRNO) ((loadlib_res_t){ERRNO,{0,0,NULL,0,NULL}})
 
 int readoff(int fd, void* buf, usize sz, off_t off) {
+    int ret = 0;
     if (lseek(fd, off, SEEK_SET) < 0) {
-        return -1;
+        return ret;
     }
 
     ssize nread = read(fd, buf, sz);
     if (nread < 0 || (usize)nread < sz) {
-        return -1;
+        return nread;
     }
 
     return 0;
 }
 
 loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
-    int fd = open(path, O_RDONLY);
+    int fd = open(path, O_RDONLY, 0);
     if (fd < 0) {
-        return LOADLIB_ERR;
+        return LOADLIB_ERR(fd);
     }
 
     serial_printf("Loading library %s at base %p\n", path, base);
 
     Elf64_Ehdr ehdr;
     ssize nread = read(fd, &ehdr, sizeof(ehdr));
-    if (nread == -1 || (usize)nread < sizeof(ehdr)) {
+    if (nread < 0 || (usize)nread < sizeof(ehdr)) {
         close(fd);
-        return LOADLIB_ERR;
+        return LOADLIB_ERR(nread);
     }
 
     if (ehdr.e_ident[EI_MAG0]    != ELFMAG0     ||
@@ -216,19 +219,20 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
         ehdr.e_ident[EI_CLASS]   != ELFCLASS64  ||
         ehdr.e_ident[EI_DATA]    != ELFDATA2LSB) {
             close(fd);
-            return LOADLIB_ERR;
+            return LOADLIB_ERR(-EBADEXE);
     }
 
     if (ehdr.e_type != ET_DYN ||
         ehdr.e_machine != EM_X86_64 ||
         ehdr.e_version != EV_CURRENT) {
             close(fd);
-            return LOADLIB_ERR;
+            return LOADLIB_ERR(-EBADEXE);
     }
 
-    if (lseek(fd, ehdr.e_phoff, SEEK_SET) < 0) {
+    int ret = 0;
+    if ((ret = lseek(fd, ehdr.e_phoff, SEEK_SET)) < 0) {
         close(fd);
-        return LOADLIB_ERR;
+        return LOADLIB_ERR(ret);
     }
 
     Elf64_Phdr phdrs[ehdr.e_phnum];
@@ -237,15 +241,15 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
     usize nloads = 0;
     for (int i = 0; i < ehdr.e_phnum; i++) {
         ssize nread = read(fd, &phdrs[i], sizeof(Elf64_Phdr));
-        if (nread == -1 || (usize)nread != ehdr.e_phentsize) {
+        if (nread < 0 || (usize)nread != ehdr.e_phentsize) {
             close(fd);
-            return LOADLIB_ERR;
+            return LOADLIB_ERR(nread);
         }
 
         u64 seg_vaddr = base + phdrs[i].p_vaddr;
         if ((seg_vaddr + phdrs[i].p_memsz) >= USER_END) {
             close(fd);
-            return LOADLIB_ERR;
+            return LOADLIB_ERR(-ERANGE);
         }
 
         if (seg_vaddr + phdrs[i].p_memsz > load_high) load_high = seg_vaddr + phdrs[i].p_memsz;
@@ -262,7 +266,7 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
             if (seg.code < 0) {
                 clrksegs(segs, nldsegs);
                 close(fd);
-                return LOADLIB_ERR;
+                return LOADLIB_ERR(seg.code);
             }
             segs[nldsegs++] = seg;
         }
@@ -272,22 +276,22 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
     if (!shdrs) {
         clrksegs(segs, nldsegs);
         close(fd);
-        return LOADLIB_ERR;
+        return LOADLIB_ERR(-ENOMEM);
     }
 
-    if (lseek(fd, ehdr.e_shoff, SEEK_SET) < 0) {
+    if ((ret = lseek(fd, ehdr.e_shoff, SEEK_SET)) < 0) {
         clrksegs(segs, nldsegs);
         close(fd);
-        return LOADLIB_ERR;
+        return LOADLIB_ERR(ret);
     }
 
     for (int i = 0; i < ehdr.e_shnum; i++) {
         ssize nread = read(fd, &shdrs[i], sizeof(Elf64_Shdr));
-        if (nread == -1 || (usize)nread != ehdr.e_shentsize) {
+        if (nread < 0 || (usize)nread != ehdr.e_shentsize) {
             clrksegs(segs, nldsegs);
             free(shdrs);
             close(fd);
-            return LOADLIB_ERR;
+            return LOADLIB_ERR(nread);
         }
     }
 
@@ -299,15 +303,15 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
             clrksegs(segs, nldsegs);
             free(shdrs);
             close(fd);
-            return LOADLIB_ERR;
+            return LOADLIB_ERR(-ENOMEM);
         }
 
-        if (readoff(fd, shstrtab, shstrtab_shdr.sh_size, shstrtab_shdr.sh_offset) < 0) {
+        if ((ret = readoff(fd, shstrtab, shstrtab_shdr.sh_size, shstrtab_shdr.sh_offset)) < 0) {
             clrksegs(segs, nldsegs);
             close(fd);
             free(shstrtab);
             free(shdrs);
-            return LOADLIB_ERR;
+            return LOADLIB_ERR(ret);
         }
     }
 
@@ -333,37 +337,37 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
     if (!dynsym_shdr || !dynstr_shdr) { // both are required by ELF spec
         clrksegs(segs, nldsegs);
         close(fd);
-        return LOADLIB_ERR;
+        return LOADLIB_ERR(-EBADEXE);
     }
 
     dynsym = malloc(dynsym_shdr->sh_size);
     if (!dynsym) {
         clrksegs(segs, nldsegs);
         close(fd);
-        return LOADLIB_ERR;
+        return LOADLIB_ERR(-ENOMEM);
     }
 
     dynstr = malloc(dynstr_shdr->sh_size);
     if (!dynstr) {
         clrksegs(segs, nldsegs);
         close(fd);
-        return LOADLIB_ERR;
+        return LOADLIB_ERR(-ENOMEM);
     }
 
-    if (readoff(fd, dynsym, dynsym_shdr->sh_size, dynsym_shdr->sh_offset) < 0) {
+    if ((ret = readoff(fd, dynsym, dynsym_shdr->sh_size, dynsym_shdr->sh_offset)) < 0) {
         clrksegs(segs, nldsegs);
         free(dynsym);
         free(dynstr);
         close(fd);
-        return LOADLIB_ERR;
+        return LOADLIB_ERR(ret);
     }
 
-    if (readoff(fd, dynstr, dynstr_shdr->sh_size, dynstr_shdr->sh_offset) < 0) {
+    if ((ret = readoff(fd, dynstr, dynstr_shdr->sh_size, dynstr_shdr->sh_offset)) < 0) {
         clrksegs(segs, nldsegs);
         free(dynsym);
         free(dynstr);
         close(fd);
-        return LOADLIB_ERR;
+        return LOADLIB_ERR(ret);
     }
 
     // R_X86_64_RELATIVE
@@ -385,28 +389,28 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
             free(dynsym);
             free(dynstr);
             close(fd);
-            return LOADLIB_ERR;
+            return LOADLIB_ERR(-ENOMEM);
         }
 
-        if (readoff(fd, relas, rela_dyn_shdr->sh_size, rela_dyn_shdr->sh_offset) < 0) {
+        if ((ret = readoff(fd, relas, rela_dyn_shdr->sh_size, rela_dyn_shdr->sh_offset)) < 0) {
             clrksegs(segs, nldsegs);
             free(relas);
             free(dynsym);
             free(dynstr);
             close(fd);
-            return LOADLIB_ERR;
+            return LOADLIB_ERR(ret);
         }
 
         usize nrels = rela_dyn_shdr->sh_size / sizeof(Elf64_Rela);
         for (usize i = 0; i < nrels; i++) {
-            if (apply_rela(&relas[i], &info) < 0) {
+            if ((ret = apply_rela(&relas[i], &info)) < 0) {
                 clrksegs(segs, nldsegs);
                 free(relas);
                 free(dynsym);
                 free(dynstr);
                 close(fd);
                 printf("Failed to apply relocations while loading library %s\n", path);
-                return LOADLIB_ERR;
+                return LOADLIB_ERR(ret);
             }
         }
 
@@ -420,28 +424,28 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
             free(dynsym);
             free(dynstr);
             close(fd);
-            return LOADLIB_ERR;
+            return LOADLIB_ERR(-ENOMEM);
         }
 
-        if (readoff(fd, relas, rela_plt_shdr->sh_size, rela_plt_shdr->sh_offset) < 0) {
+        if ((ret = readoff(fd, relas, rela_plt_shdr->sh_size, rela_plt_shdr->sh_offset)) < 0) {
             clrksegs(segs, nldsegs);
             free(relas);
             free(dynsym);
             free(dynstr);
             close(fd);
-            return LOADLIB_ERR;
+            return LOADLIB_ERR(ret);
         }
 
         usize nrels = rela_plt_shdr->sh_size / sizeof(Elf64_Rela);
         for (usize i = 0; i < nrels; i++) {
-            if (apply_rela(&relas[i], &info) < 0) {
+            if ((ret = apply_rela(&relas[i], &info)) < 0) {
                 clrksegs(segs, nldsegs);
                 free(relas);
                 free(dynsym);
                 free(dynstr);
                 close(fd);
                 printf("Failed to apply relocations while loading library %s\n", path);
-                return LOADLIB_ERR;
+                return LOADLIB_ERR(ret);
             }
         }
 
@@ -486,29 +490,30 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
     char* dynstr = NULL;
 
     if (!dynsym_shdr || !dynstr_shdr) { // both are required by ELF spec
-        return -1;
+        return -EBADEXE;
     }
 
     dynsym = malloc(dynsym_shdr->sh_size);
     if (!dynsym) {
-        return -1;
+        return -ENOMEM;
     }
 
     dynstr = malloc(dynstr_shdr->sh_size);
     if (!dynstr) {
-        return -1;
+        return -ENOMEM;
     }
 
-    if (readoff(fd, dynsym, dynsym_shdr->sh_size, dynsym_shdr->sh_offset) < 0) {
+    int ret = 0;
+    if ((ret = readoff(fd, dynsym, dynsym_shdr->sh_size, dynsym_shdr->sh_offset)) < 0) {
         free(dynsym);
         free(dynstr);
-        return -1;
+        return ret;
     }
 
-    if (readoff(fd, dynstr, dynstr_shdr->sh_size, dynstr_shdr->sh_offset) < 0) {
+    if ((ret = readoff(fd, dynstr, dynstr_shdr->sh_size, dynstr_shdr->sh_offset)) < 0) {
         free(dynsym);
         free(dynstr);
-        return -1;
+        return ret;
     }
 
     u64 lib_base = (*load_high + 0xFFF) & ~0xFFFULL;
@@ -522,17 +527,17 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
     };
 
     if (dynshdr && ndyns > 0) {
-        if (lseek(fd, dynshdr->sh_offset, SEEK_SET) < 0) {
+        if ((ret = lseek(fd, dynshdr->sh_offset, SEEK_SET)) < 0) {
             free(dynsym);
             free(dynstr);
-            return -1;
+            return ret;
         }
         Elf64_Dyn dyns[ndyns];
         ssize nread = read(fd, dyns, dynshdr->sh_size);
-        if (nread == -1 || (usize)nread != dynshdr->sh_size) {
+        if (nread < 0 || (usize)nread != dynshdr->sh_size) {
             free(dynsym);
             free(dynstr);
-            return -1;
+            return nread;
         }
 
         for (usize i = 0; i < ndyns; i++) {
@@ -545,7 +550,7 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
                 if (res.code < 0) {
                     free(dynsym);
                     free(dynstr);
-                    return -1;
+                    return res.code;
                 } else {
                     loaded_libs[nloaded++] = res.info;
                     lib_base += (res.info.size + 0xFFF) & ~0xFFFULL;;
@@ -567,24 +572,24 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
         if (!relas) {
             free(dynsym);
             free(dynstr);
-            return -1;
+            return -ENOMEM;
         }
 
-        if (readoff(fd, relas, rela_dyn_shdr->sh_size, rela_dyn_shdr->sh_offset) < 0) {
+        if ((ret = readoff(fd, relas, rela_dyn_shdr->sh_size, rela_dyn_shdr->sh_offset)) < 0) {
             free(relas);
             free(dynsym);
             free(dynstr);
-            return -1;
+            return ret;
         }
 
         usize nrels = rela_dyn_shdr->sh_size / sizeof(Elf64_Rela);
         for (usize i = 0; i < nrels; i++) {
-            if (apply_rela(&relas[i], &info) < 0) {
+            if ((ret = apply_rela(&relas[i], &info)) < 0) {
                 free(relas);
                 free(dynsym);
                 free(dynstr);
                 printf("Failed to apply relocations while loading program\n");
-                return -1;
+                return ret;
             }
         }
 
@@ -596,24 +601,24 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
         if (!relas) {
             free(dynsym);
             free(dynstr);
-            return -1;
+            return -ENOMEM;
         }
 
-        if (readoff(fd, relas, rela_plt_shdr->sh_size, rela_plt_shdr->sh_offset) < 0) {
+        if ((ret = readoff(fd, relas, rela_plt_shdr->sh_size, rela_plt_shdr->sh_offset)) < 0) {
             free(relas);
             free(dynsym);
             free(dynstr);
-            return -1;
+            return ret;
         }
 
         usize nrels = rela_plt_shdr->sh_size / sizeof(Elf64_Rela);
         for (usize i = 0; i < nrels; i++) {
-            if (apply_rela(&relas[i], &info) < 0) {
+            if ((ret = apply_rela(&relas[i], &info)) < 0) {
                 free(relas);
                 free(dynsym);
                 free(dynstr);
                 printf("Failed to apply relocations while loading program\n");
-                return -1;
+                return ret;
             }
         }
 
@@ -636,20 +641,20 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
 }
 
 loadprog_res_t load_program(const char* path, char** argv, char** environ) {
-    int fd = open(path, O_RDONLY);
+    int fd = open(path, O_RDONLY, 0);
     if (fd < 0) {
         printf("Loader: failed to open file %s\n", path);
-        return LOADPROG_ERR;
+        return LOADPROG_ERR(fd);
     }
 
     serial_printf("Loading program %s\n", path);
 
     Elf64_Ehdr ehdr;
     ssize nread = read(fd, &ehdr, sizeof(ehdr));
-    if (nread == -1 || (usize)nread < sizeof(ehdr)) {
+    if (nread < 0 || (usize)nread < sizeof(ehdr)) {
         close(fd);
         printf("Loader: failed to read ehdr\n");
-        return LOADPROG_ERR;
+        return LOADPROG_ERR(nread);
     }
 
     if (ehdr.e_ident[EI_MAG0]    != ELFMAG0     ||
@@ -660,7 +665,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
         ehdr.e_ident[EI_DATA]    != ELFDATA2LSB) {
             close(fd);
             printf("Loader: invalid or unsupported file\n");
-            return LOADPROG_ERR;
+            return LOADPROG_ERR(-EBADEXE);
     }
 
     // accept both static (ET_EXEC) and position-independent (ET_DYN) elfs
@@ -669,13 +674,14 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
         ehdr.e_version != EV_CURRENT) {
             close(fd);
             printf("Loader: invalid or unsupported file\n");
-            return LOADPROG_ERR;
+            return LOADPROG_ERR(-EBADEXE);
     }
 
-    if (lseek(fd, ehdr.e_phoff, SEEK_SET) < 0) {
+    int ret = 0;
+    if ((ret = lseek(fd, ehdr.e_phoff, SEEK_SET)) < 0) {
         close(fd);
         printf("Loader: failed to get phdrs\n");
-        return LOADPROG_ERR;
+        return LOADPROG_ERR(ret);
     }
 
     Elf64_Phdr phdrs[ehdr.e_phnum];
@@ -684,16 +690,17 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
     usize nloads = 0;
     for (int i = 0; i < ehdr.e_phnum; i++) {
         ssize nread = read(fd, &phdrs[i], sizeof(Elf64_Phdr));
-        if (nread == -1 || (usize)nread != ehdr.e_phentsize) {
+        if (nread < 0 || (usize)nread != ehdr.e_phentsize) {
             close(fd);
             printf("Loader: failed to read phdrs\n");
-            return LOADPROG_ERR;
+            return LOADPROG_ERR(nread);
         }
+
         u64 seg_vaddr = phdrs[i].p_vaddr;
         if ((seg_vaddr + phdrs[i].p_memsz) >= USER_END) {
             close(fd);
             printf("Loader: program tried to load to invalid address\n");
-            return LOADPROG_ERR;
+            return LOADPROG_ERR(-ERANGE);
         }
 
         if (seg_vaddr + phdrs[i].p_memsz > load_high) load_high = seg_vaddr + phdrs[i].p_memsz;
@@ -711,7 +718,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
             if (seg.code < 0) {
                 clrksegs(segs, nldsegs);
                 close(fd);
-                return LOADPROG_ERR;
+                return LOADPROG_ERR(seg.code);
             }
             segs[nldsegs++] = seg;
         } else if (phdrs[i].p_type == PT_INTERP) {
@@ -719,14 +726,14 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
             if (!interp) {
                 clrksegs(segs, nldsegs);
                 close(fd);
-                return LOADPROG_ERR;
+                return LOADPROG_ERR(-ENOMEM);
             }
             nread = read(fd, interp, phdrs[i].p_filesz);
-            if (nread == -1 || (usize)nread != phdrs[i].p_filesz) {
+            if (nread < 0 || (usize)nread != phdrs[i].p_filesz) {
                 clrksegs(segs, nldsegs);
                 free(interp);
                 close(fd);
-                return LOADPROG_ERR;
+                return LOADPROG_ERR(nread);
             }
 
             if (!streq(interp, "kernel")) {
@@ -734,7 +741,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
                 clrksegs(segs, nldsegs);
                 free(interp);
                 close(fd);
-                return LOADPROG_ERR;
+                return LOADPROG_ERR(-EBADEXE);
             }
 
             free(interp);
@@ -743,26 +750,26 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
         }
     }
 
-    if (lseek(fd, ehdr.e_shoff, SEEK_SET) < 0) {
+    if ((ret = lseek(fd, ehdr.e_shoff, SEEK_SET)) < 0) {
         clrksegs(segs, nldsegs);
         close(fd);
-        return LOADPROG_ERR;
+        return LOADPROG_ERR(ret);
     }
 
     Elf64_Shdr* shdrs = malloc(sizeof(Elf64_Shdr) * ehdr.e_shnum);
     if (!shdrs) {
         clrksegs(segs, nldsegs);
         close(fd);
-        return LOADPROG_ERR;
+        return LOADPROG_ERR(-ENOMEM);
     }
 
     for (int i = 0; i < ehdr.e_shnum; i++) {
         ssize nread = read(fd, &shdrs[i], sizeof(Elf64_Shdr));
-        if (nread == -1 || (usize)nread != ehdr.e_shentsize) {
+        if (nread < 0 || (usize)nread != ehdr.e_shentsize) {
             clrksegs(segs, nldsegs);
             free(shdrs);
             close(fd);
-            return LOADPROG_ERR;
+            return LOADPROG_ERR(nread);
         }
     }
 
@@ -774,34 +781,34 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
             clrksegs(segs, nldsegs);
             free(shdrs);
             close(fd);
-            return LOADPROG_ERR;
+            return LOADPROG_ERR(-ENOMEM);
         }
 
-        if (lseek(fd, shstrtab_shdr.sh_offset, SEEK_SET) < 0) {
+        if ((ret = lseek(fd, shstrtab_shdr.sh_offset, SEEK_SET)) < 0) {
             clrksegs(segs, nldsegs);
             close(fd);
             free(shdrs);
             free(shstrtab);
-            return LOADPROG_ERR;
+            return LOADPROG_ERR(ret);
         }
 
         nread = read(fd, shstrtab, shstrtab_shdr.sh_size);
-        if (nread == -1 || (usize)nread != shstrtab_shdr.sh_size) {
+        if (nread < 0 || (usize)nread != shstrtab_shdr.sh_size) {
             clrksegs(segs, nldsegs);
             close(fd);
             free(shdrs);
             free(shstrtab);
-            return LOADPROG_ERR;
+            return LOADPROG_ERR(nread);
         }
     }
 
     if (is_dyn) {
-        if (program_processdyn(fd, load_low, &load_high, &ehdr, shdrs, shstrtab, nasp) < 0) {
+        if ((ret = program_processdyn(fd, load_low, &load_high, &ehdr, shdrs, shstrtab, nasp)) < 0) {
             clrksegs(segs, nldsegs);
             close(fd);
             free(shdrs);
             free(shstrtab);
-            return LOADPROG_ERR;
+            return LOADPROG_ERR(ret);
         }
     }
 
@@ -816,7 +823,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
     void* stkptr = vmm_map_pages(vmm_cpml4v(), rsp - USTACK, 0, USTACKPGS, MAP_ANYPHYS | PAGE_WRITE | MAP_CONT);
     if (!stkptr) {
         printf("Loader: failed to allocate the user stack\n");
-        return LOADPROG_ERR;
+        return LOADPROG_ERR(-ENOMEM);
     }
 
     u64 rsp_cpy = rsp;
@@ -871,7 +878,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
     u64 paddr = vmm_get_phys(vmm_cpml4v(), (u64)(rsp - USTACK));
     if (!vmm_map_pages(nasp, rsp - USTACK, paddr, USTACKPGS, MAP_CONT | PAGE_USER | PAGE_WRITE)) {
         printf("Loader: failed to map stack\n");
-        return LOADPROG_ERR;
+        return LOADPROG_ERR(-ENOMEM);
     }
     vmm_unmap_pages(vmm_cpml4v(), (u64)(rsp - USTACK), USTACKPGS, UNMAP_KEEPPHYS);
 

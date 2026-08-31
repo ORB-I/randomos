@@ -16,12 +16,13 @@
 ## Known issues
 
 ## Unassigned tasks
-- [ ] EXT2 write support
 - [ ] Make a simple README.md for randomOS.
 - [ ] Change About to something more professional.
 - [ ] Remove dead codes.
 - [ ] Add safety checks (ensurance.(c|h)) to process syscalls (src/usr/syscalls/ssc_proc)
 - [ ] Add invalid flags safety checks to ensurance.(c|h) and actually use them
+- [ ] Add support for different ext2 block sizes than 1024B
+- [ ] Do errno stuff for src/drivers/storage/fs  
 
 ## Future tasks
 - [ ] Documentation for randomOS (in near future - not for now.)

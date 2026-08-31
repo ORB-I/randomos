@@ -5,7 +5,7 @@
 #include <drivers/time/clock.h>
 
 void* usbhid_poll(usb_dev_info_t* dev, u64 timeout) {
-    if (!dev->ctrl || dev->addr == -1) {
+    if (!dev->ctrl || dev->addr < 0) {
         return NULL;
     }
 

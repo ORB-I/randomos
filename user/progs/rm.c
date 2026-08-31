@@ -7,13 +7,19 @@ int main(int ac, char** av) {
         return 1;
     }
 
-    // dont tell them but
-    // inside the kernel unlink and rmdir
-    // are defined the exact same way
-    // just with different numbers
-    if (unlink(av[1]) < 0) {
-        printf("failed to remove file or directory\n");
-        return 1;
+    struct stat st;
+    if (stat(av[1], &st) < 0) return 1;
+
+    if (st.mode & S_IFDIR) {
+        if (rmdir(av[1]) < 0) {
+            printf("directory not empty\n");
+            return 1;
+        }
+    } else {
+        if (unlink(av[1]) < 0) {
+            printf("failed to remove file or directory\n");
+            return 1;
+        }
     }
 
     return 0;

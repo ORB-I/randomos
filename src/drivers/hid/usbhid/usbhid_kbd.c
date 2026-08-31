@@ -1,3 +1,4 @@
+#include "core/errno.h"
 #include <drivers/usb/uhci.h>
 #include <drivers/hid/usbhid/usbhid_kbd.h>
 #include <drivers/time/clock.h>
@@ -117,7 +118,7 @@ int usb_hid_kbd_init() {
             return 0;
         }
     }
-    return -1;
+    return -ENOEXIST;
 }
 
 extern bool shift_pressed;

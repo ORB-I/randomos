@@ -6,7 +6,29 @@
 #define O_RDWR (O_WRONLY | O_RDONLY)
 #define O_CREAT 0x10
 #define O_APPEND 0x30
-#define O_TRUNC 0x04
+#define O_TRUNC 0x80
+
+#define S_IFSOCK 0x400000
+#define S_IFLNK  0x200000
+#define S_IFREG  0x100000
+#define S_IFBLK  0x080000
+#define S_IFDIR  0x040000
+#define S_IFCHR  0x020000
+#define S_IFIFO  0x010000
+
+#define S_ISUID  0x004000
+#define S_ISGID  0x002000
+#define S_ISVTX  0x001000
+
+#define S_IRUSR  0x000400
+#define S_IWUSR  0x000200
+#define S_IXUSR  0x000100
+#define S_IRGRP  0x000040
+#define S_IWGRP  0x000020
+#define S_IXGRP  0x000010
+#define S_IROTH  0x000004
+#define S_IWOTH  0x000002
+#define S_IXOTH  0x000001
 
 #define SEEK_SET 0
 #define SEEK_CUR 1
@@ -21,12 +43,12 @@ struct stat {
     usize st_size;
 } __attribute__((packed));
 
-int creat(char* path);
+int creat(char* path, int mode);
 int unlink(char* path);
 int chdir(char* path);
 off_t lseek(int fd, off_t off, u32 whence);
 int rename(char* oldname, char* newname);
-int mkdir(char* path);
+int mkdir(char* path, int mode);
 int rmdir(char* path);
 int stat(char* path, struct stat* st);
 int readdir(int dir, struct stat* st);

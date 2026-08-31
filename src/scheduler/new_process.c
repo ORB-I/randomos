@@ -7,6 +7,7 @@
 #include <drivers/display/term.h>
 #include <lib/string.h>
 #include <drivers/hid/kbd.h>
+#include <core/errno.h>
 
 process_state_t proctbl[MAX_PROCESSES];
 
@@ -14,11 +15,11 @@ ssize copy_fds(u8 dst, u8 src) {
     process_state_t* dproc = &proctbl[dst];
     process_state_t* sproc = &proctbl[src];
 
-    if (!sproc->fds || sproc->nfds == 0) return -1;
+    if (!sproc->fds || sproc->nfds == 0) return -EBADF;
 
     struct fdinfo* new_fds = malloc(sizeof(struct fdinfo) * sproc->nfds);
     if (!new_fds) {
-        return -1;
+        return -ENOMEM;
     }
 
     // the child gets its OWN copy of the table; sharing the parent's
@@ -35,7 +36,7 @@ int kexecve(const char* path, char** argv, char** envp, u8 cpid) {
     process_state_t* proc = &proctbl[cpid];
     loadprog_res_t res = load_program(path, argv, envp);
     if (res.status < 0) {
-        return -1;
+        return res.status;
     }
 
     proc->rip = res.entry;
@@ -99,15 +100,15 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
             break;
         }
     }
-    if (!proc) return -1;
+    if (!proc) return -EFULL;
 
     loadprog_res_t res = load_program(path, argv, envp);
-    if (res.status < 0) return -1;
+    if (res.status < 0) return res.status;
 
     if (pid == 0) {
         struct fdinfo* new_fds = malloc(sizeof(struct fdinfo) * 4);
         if (!new_fds) {
-            return -1;
+            return -ENOMEM;
         }
 
         new_fds[0] = (struct fdinfo){
@@ -127,8 +128,10 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
 
         int cfb = get_currfb();
         struct fdinfo* info;
-        if (getfd(cfb, &info) < 0) {
-            return -1;
+
+        int ret = 0;
+        if ((ret = getfd(cfb, &info)) < 0) {
+            return ret;
         }
 
         new_fds[3] = (struct fdinfo){
@@ -147,17 +150,14 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
         // setpwd uses malloc and we will
         // need to use free() on it on process end
         proc->pwd = malloc(2);
-        if (!proc->pwd) return -1;
+        if (!proc->pwd) return -ENOMEM;
         proc->pwd[0] = '/';
         proc->pwd[1] = '\0';
     } else {
-        usize sz;
-        if ((sz = copy_fds(pid, ppid)) < 0) {
-            return -1;
-        }
+        copy_fds(pid, ppid);
         proc->currfb = get_currfb();
         proc->pwd = strcpy(proctbl[proc->ppid].pwd);
-        if (!proc->pwd) return -1;
+        if (!proc->pwd) return -ENOMEM;
     }
 
     proc->rip = res.entry;

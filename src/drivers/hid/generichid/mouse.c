@@ -1,3 +1,4 @@
+#include <core/errno.h>
 #include <core/std.h>
 #include <core/asmh.h>
 #include <core/idt.h>
@@ -22,7 +23,7 @@ int mouse_has_info() {
 }
 
 int get_mouse_info(mouse_info_t* buf) {
-    if (mb_type == 0) return -1;
+    if (mb_type == 0) return -EINVAL;
     while (!mouse_has_info()) {
         if (mb_type == MOUSE_USBHID) {
             usb_hid_mouse_poll();
@@ -63,11 +64,11 @@ int init_mouse(int type) {
     if (type == MOUSE_PS2) {
         if (!isps2dc()) {
             printf("MOUSE: No mouse available\n");
-            return -1;
+            return -ENOEXIST;
         }
         if (!has_ps2mouse()) {
             printf("MOUSE: No mouse available\n");
-            return -1;
+            return -ENOEXIST;
         }
         init_mouseps2();
         printf("MOUSE: Using PS/2 Mouse\n");
@@ -76,11 +77,11 @@ int init_mouse(int type) {
         if (usb_hid_mouse_init() < 0) {
             if (!isps2dc()) {
                 printf("MOUSE: No mouse available\n");
-                return -1;
+                return -ENOEXIST;
             }
             if (!has_ps2mouse()) {
                 printf("MOUSE: No mouse available\n");
-                return -1;
+                return -ENOEXIST;
             }
             init_mouseps2();
             mb_type = MOUSE_PS2;

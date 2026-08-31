@@ -1,5 +1,6 @@
 #include <core/mem/vmm.h>
 #include <core/std.h>
+#include <core/errno.h>
 
 extern u8 current_pid;
 
@@ -24,7 +25,7 @@ void* user_mmap(page_table_t* uasp, void* reqaddr, u64 npages) {
 
 int user_munmap(page_table_t* uasp, void* addr, u64 npages) {
     if (addr == 0 || !vmm_rangeinusrmap((u64)addr, npages)) {
-        return -1;
+        return -EINVAL;
     }
     vmm_unmap_pages(uasp, (u64)addr, npages, 0);
     return 0;

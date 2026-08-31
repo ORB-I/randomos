@@ -1,3 +1,4 @@
+#include "core/errno.h"
 #include <core/std.h>
 #include <core/mem/vmm.h>
 #include <core/asmh.h>
@@ -96,7 +97,7 @@ bool syscall_c(struct sysregs* args) {
     memcpy(&svargs, args, sizeof(*args));
 
     if (args->num > (sizeof(syscall_tbl)/sizeof(syscall_hdlr_t)) ||
-        !syscall_tbl[args->num]) return -1;
+        !syscall_tbl[args->num]) return -EINVAL;
     
     u64 ret = syscall_tbl[args->num](args);
     

@@ -2,6 +2,7 @@
 #include <drivers/time/hpet.h>
 #include <drivers/time/tsc.h>
 #include <core/printf.h>
+#include <core/errno.h>
 
 u64 (*getms)(void) = NULL;
 
@@ -20,6 +21,6 @@ int init_clock(int type) {
     } else if (type == CLOCK_TSC) {
         return init_tsc(&getms);
     } else {
-        return -1;
+        return -ENOEXIST;
     }
 }

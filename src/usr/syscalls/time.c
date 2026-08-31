@@ -24,7 +24,7 @@ DEFSYSCALL(sys_gettimeofday) {
 }
 
 DEFSYSCALL(sys_getmtimeofday) {
-    if (!ensure_pointer((void*)args->a0, sizeof(struct millitime), 1)) return -1;
+    if (!ensure_pointer((void*)args->a0, sizeof(struct millitime), 1)) return -EINVAL;
     getmtimeofday((struct millitime*)args->a0);
     return 0;
 }

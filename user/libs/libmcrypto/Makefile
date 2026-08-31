@@ -19,17 +19,23 @@ DRIVE ?= ../../../drive.img
 all: $(DRIVE) $(LIB) copy
 
 $(DRIVE):
-	dd if=/dev/zero of=$@ bs=1M count=16
-	mkfs.msdos -F 16 $@
-	mmd -i $(DRIVE) ::/bin
-	mmd -i $(DRIVE) ::/etc
-	mmd -i $(DRIVE) ::/lib
+	dd if=/dev/zero of=$@ bs=1M count=100
+	mkfs.ext2 $@
+	debugfs -w -R "mkdir /bin" $@
+	debugfs -w -R "mkdir /etc" $@
+	debugfs -w -R "mkdir /lib" $@
+
+	#mkfs.msdos -F 16 $@
+	#mmd -i $(DRIVE) ::/bin
+	#mmd -i $(DRIVE) ::/etc
+	#mmd -i $(DRIVE) ::/lib
 
 $(LIB): $(LIBOBJ)
 	$(CC) $(LDFLAGS) $^ -o $@
 
 copy: $(LIB)
-	mcopy -voi $(DRIVE) -s $(LIB) ::/lib/$(LIB)
+	debugfs -w -R "write $(LIB) /lib/$(LIB)" $(DRIVE)
+
 %.o: %.c
 	$(CC) $(CCFLAGS) -c $< -o $@
 clean:

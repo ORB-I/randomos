@@ -30,7 +30,7 @@ DEFSYSCALL(sys_flushscr) {
 }
 
 DEFSYSCALL(sys_getfbinf) {
-    if (!ensure_pointer((void*)args->a1, sizeof(framebuf_info_t), 1)) return -1;
+    if (!ensure_pointer((void*)args->a1, sizeof(framebuf_info_t), 1)) return -EINVAL;
     return get_fbinfo(args->a0, (framebuf_info_t*)args->a1);
 }
 
@@ -45,12 +45,12 @@ DEFSYSCALL(sys_getrawsc) {
 }
 
 DEFSYSCALL(sys_createfbwmem) {
-    if (!ensure_pointer((void*)args->a1, args->a2, 1)) return -1;
+    if (!ensure_pointer((void*)args->a1, args->a2, 1)) return -EINVAL;
     return create_fb_withmem(args->a0, (void*)args->a1, args->a2, (int*)args->a3);
 }
 
 DEFSYSCALL(sys_getmouseinfo) {
-    if (!ensure_pointer((void*)args->a0, sizeof(mouse_info_t), 1)) return -1;
+    if (!ensure_pointer((void*)args->a0, sizeof(mouse_info_t), 1)) return -EINVAL;
     return get_mouse_info((mouse_info_t*)args->a0);
 }
 
@@ -66,13 +66,13 @@ DEFSYSCALL(sys_getrawscto) {
 }
 
 DEFSYSCALL(sys_setcurs) {
-    if (!ensure_pointer((void*)args->a0, sizeof(term_pos_t), 0)) return -1;
+    if (!ensure_pointer((void*)args->a0, sizeof(term_pos_t), 0)) return -EINVAL;
     term_set_pos((term_pos_t*)args->a0, args->a1);
     return 0;
 }
 
 DEFSYSCALL(sys_getcurs) {
-    if (!ensure_pointer((void*)args->a0, sizeof(term_pos_t), 1)) return -1;
+    if (!ensure_pointer((void*)args->a0, sizeof(term_pos_t), 1)) return -EINVAL;
     term_get_pos((term_pos_t*)args->a0);
     return 0;
 }

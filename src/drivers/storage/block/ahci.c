@@ -1,5 +1,6 @@
 #include <core/std.h>
 #include <core/asmh.h>
+#include <core/errno.h>
 #include <core/panic.h>
 #include <core/printf.h>
 #include <core/mem/pmm.h>
@@ -158,7 +159,7 @@ static int ahci_find_controller(void) {
             }
         }
     }
-    return -1;
+    return -ENOEXIST;
 }
 
 static u64 ahci_read_bar5(void) {
@@ -178,7 +179,7 @@ static int ahci_wait_idle(int port, u32 timeout) {
             return 0;
         }
     }
-    return -1;
+    return -ETIME;
 }
 
 static int ahci_port_init(int port) {
@@ -194,7 +195,7 @@ static int ahci_port_init(int port) {
 
     // Wait for port idle
     if (ahci_wait_idle(port, 100000) < 0) {
-        return -1;
+        return -ETIME;
     }
 
     // Clear interrupts
@@ -222,7 +223,7 @@ static int ahci_port_init(int port) {
     }
 
     if ((p->ssts & HBA_PORT_SSTS_DET_MASK) != 0x3) {
-        return -1;
+        return 0;
     }
 
     // Start port
@@ -289,7 +290,7 @@ static int ahci_issue_cmd(int port, u64 lba, u32 count, u8* buf, int write) {
     u32 tfd = p->tfd;
     if (tfd & HBA_PORT_TFD_ERR) {
         p->serr = 0xFFFFFFFF;
-        return -1;
+        return -EHANG;
     }
 
     // Copy data for read
@@ -301,15 +302,16 @@ static int ahci_issue_cmd(int port, u64 lba, u32 count, u8* buf, int write) {
 }
 
 int ahci_init(void) {
-    if (ahci_find_controller() < 0) {
+    int ret = 0;
+    if ((ret = ahci_find_controller()) < 0) {
         printf("AHCI: No controller found\n");
-        return -1;
+        return ret;
     }
 
     u64 hba_phys = ahci_read_bar5();
     if (!hba_phys) {
         printf("AHCI: Invalid BAR5\n");
-        return -1;
+        return -EINVAL;
     }
 
     hba = (volatile hba_global_t*)(HHDM_START + hba_phys);
@@ -322,7 +324,7 @@ int ahci_init(void) {
 
     if (!cmd_list_phys || !cmd_table_phys || !fis_phys || !dma_buf_phys) {
         printf("AHCI: DMA allocation failed\n");
-        return -1;
+        return -ENOMEM;
     }
 
     cmd_list_virt = (void*)(HHDM_START + cmd_list_phys);
@@ -343,7 +345,7 @@ int ahci_init(void) {
     }
 
     printf("AHCI: No device found on any port\n");
-    return -1;
+    return -ENOEXIST;
 }
 
 void ahci_secread(u8 drv, u64 lba, u8* buf) {

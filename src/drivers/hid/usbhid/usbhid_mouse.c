@@ -1,3 +1,4 @@
+#include <core/errno.h>
 #include <drivers/usb/uhci.h>
 #include <drivers/hid/usbhid/usbhid_mouse.h>
 #include <core/mem/vmm.h>
@@ -42,7 +43,7 @@ int usb_hid_mouse_init() {
             return 0;
         }
     }
-    return -1;
+    return -ENOEXIST;
 }
 
 void usb_hid_mouse_poll() {

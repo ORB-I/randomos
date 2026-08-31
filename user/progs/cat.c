@@ -10,7 +10,7 @@ int main(int ac, char** av) {
         return 1;
     }
 
-    int fd = open(av[1], O_RDONLY);
+    int fd = open(av[1], O_RDONLY, 0);
     if (fd < 0) {
         printf("cannot open %s\n", av[1]);
         return 1;

@@ -37,11 +37,16 @@ DRIVE ?= ../../drive.img
 all: $(DRIVE) $(LIBC) $(CRT) $(LIBC_SO) copy
 
 $(DRIVE):
-	dd if=/dev/zero of=$@ bs=1M count=16
-	mkfs.msdos -F 16 $@
-	mmd -i $(DRIVE) ::/bin
-	mmd -i $(DRIVE) ::/etc
-	mmd -i $(DRIVE) ::/lib
+	dd if=/dev/zero of=$@ bs=1M count=100
+	mkfs.ext2 $@
+	debugfs -w -R "mkdir /bin" $@ 
+	debugfs -w -R "mkdir /etc" $@ 
+	debugfs -w -R "mkdir /lib" $@ 
+
+	#mkfs.msdos -F 16 $@
+	#mmd -i $(DRIVE) ::/bin
+	#mmd -i $(DRIVE) ::/etc
+	#mmd -i $(DRIVE) ::/lib
 
 $(LIBC): $(ALL_LIB_OBJS)
 	$(AR) rcs $@ $^
@@ -50,7 +55,8 @@ $(LIBC_SO): $(ALL_SOFILE_OBJS)
 # same as user/progs: copy is a separate pass so a recreated drive.img
 # still gets libc even when libc.so itself is already built
 copy: $(LIBC_SO)
-	mcopy -voi $(DRIVE) -s $(LIBC_SO) ::/lib/$(LIBC_SO)
+	debugfs -w -R "write $(LIB_SO) /lib/$(LIB_SO)" $(DRIVE)
+
 $(CRT): $(CRTSRC)
 	$(AS) $(ASFLAGS) $< -o $@
 %.so.o: %.c

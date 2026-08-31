@@ -1,6 +1,7 @@
 #include <scheduler/process.h>
 #include <scheduler/scheduler.h>
 #include <core/mem/vmm.h>
+#include <core/errno.h>
 #include "../ssc.h"
 
 // whoever was parked in SYS_WAIT on pid (or was waiting for any child)
@@ -32,13 +33,13 @@ DEFSYSCALL(sys_wait) {
     s64 pid = args->a0;
     int* code = (void*)(uintptr_t)args->a1;
     if (pid >= 0) {
-        if (pid >= MAX_PROCESSES || !proctbl[pid].used || pid == current_pid) return -1;
+        if (pid >= MAX_PROCESSES || !proctbl[pid].used || pid == current_pid) return -ENOPROC;
         if (!proctbl[pid].is_dead) {
             proctbl[current_pid].wait_pid = (u8)pid;
             proctbl[current_pid].is_blocked = 1;
             proctbl[current_pid].codeptr = code;
             preempt_pending = 1;
-            if (code) *code = -1;
+            if (code) *code = -EHANG;
         } else {
             proctbl[pid].used = 0;
             if (code) *code = proctbl[pid].code;
@@ -57,6 +58,6 @@ DEFSYSCALL(sys_wait) {
         proctbl[current_pid].wait_pid = WAIT_ANY;
         proctbl[current_pid].is_blocked = 1;
         proctbl[current_pid].codeptr = code;
-        return -1;
+        return -EHANG;
     }
 }

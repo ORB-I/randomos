@@ -1,5 +1,6 @@
 #include "../ssc.h"
 #include <scheduler/process.h>
+#include <core/errno.h>
 
 DEFSYSCALL(sys_getpid) {
     (void)args;
@@ -11,6 +12,8 @@ DEFSYSCALL(sys_getuid) {
     return (u64)proctbl[current_pid].uid;
 }
 
+// should check fsperms
+// to see if this program is setuid/setgid
 DEFSYSCALL(sys_setuid) {
     uid_t nuid = (uid_t)args->a0;
     if (proctbl[current_pid].euid == 0) {
@@ -21,7 +24,7 @@ DEFSYSCALL(sys_setuid) {
         proctbl[current_pid].euid = nuid;
         return 0;
     } else {
-        return -1;
+        return -EACCESS;
     }
 }
 
@@ -40,7 +43,7 @@ DEFSYSCALL(sys_setgid) {
         proctbl[current_pid].egid = ngid;
         return 0;
     } else {
-        return -1;
+        return -EACCESS;
     }
 }
 
@@ -57,7 +60,7 @@ DEFSYSCALL(sys_seteuid) {
         proctbl[current_pid].euid = neuid;
         return 0;
     } else {
-        return -1;
+        return -EACCESS;
     }
 }
 
@@ -74,6 +77,6 @@ DEFSYSCALL(sys_setegid) {
         proctbl[current_pid].egid = negid;
         return 0;
     } else {
-        return -1;
+        return -EACCESS;
     }
 }

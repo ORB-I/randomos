@@ -4,14 +4,15 @@
 #include <core/fd.h>
 #include <core/liballoc.h>
 #include <scheduler/process.h>
+#include <core/errno.h>
 
 fbdrv_ctx_t* fbctx = NULL;
 
 int init_fbdrv(struct limine_framebuffer* lmfb) {
-    if (!lmfb) return -1;
+    if (!lmfb) return -EFAULT;
     if (fbctx) return 0;
     fbctx = malloc(sizeof(*fbctx));
-    if (!fbctx) return -1;
+    if (!fbctx) return -ENOMEM;
 
     fbctx->backend = lmfb;
 
@@ -27,35 +28,37 @@ framebuf_t _term_fb;
 static int created_term = 0;
 int create_fb(int type) {
     if (type == FBTYPE_TERM && created_term) {
-        if (!fbctx) return -1;
+        if (!fbctx) return -EINVAL;
         struct fdinfo info = {
             .fd = -1,
             .inuse = 0,
             .type = FDTYPE_FB
         };
+
         struct fdinfo* fd = getnewfd(&info);
         if (!fd) {
-            return -1;
+            return -ENOMEM;
         }
 
         fd->data.fb = &_term_fb;
         return fd->fd;
     } else {
-        if (!fbctx) return -1;
+        if (!fbctx) return -EINVAL;
         struct fdinfo info = {
             .fd = -1,
             .inuse = 0,
             .type = FDTYPE_FB
         };
+
         struct fdinfo* fd = getnewfd(&info);
         if (!fd) {
-            return -1;
+            return -ENOMEM;
         }
 
         fd->data.fb = malloc(sizeof(framebuf_t));
         if (!fd->data.fb) {
             closefd(fd->fd);
-            return -1;
+            return -ENOMEM;
         }
 
         fd->data.fb->height = fbctx->backend->height;
@@ -68,7 +71,7 @@ int create_fb(int type) {
         if (!fd->data.fb->ptr) {
             free(fd->data.fb);
             closefd(fd->fd);
-            return -1;
+            return -ENOMEM;
         }
 
         if (type == FBTYPE_TERM) {
@@ -85,7 +88,7 @@ int create_fb(int type) {
 }
 
 usize create_fb_withmem(int type, void* ptr, usize sz, int* fbdes) {
-    if (!fbctx) return -1;
+    if (!fbctx) return -EINVAL;
     struct fdinfo info = {
         .fd = -1,
         .inuse = 0,
@@ -93,13 +96,13 @@ usize create_fb_withmem(int type, void* ptr, usize sz, int* fbdes) {
     };
     struct fdinfo* fd = getnewfd(&info);
     if (!fd) {
-        return -1;
+        return -ENOMEM;
     }
 
     fd->data.fb = malloc(sizeof(framebuf_t));
     if (!fd->data.fb) {
         closefd(fd->fd);
-        return -1;
+        return -ENOMEM;
     }
 
     fd->data.fb->height = fbctx->backend->height;
@@ -120,7 +123,7 @@ usize create_fb_withmem(int type, void* ptr, usize sz, int* fbdes) {
     if (!fd->data.fb->ptr) {
         free(fd->data.fb);
         closefd(fd->fd);
-        return -1;
+        return -ENOMEM;
     }
 
     *fbdes = fd->fd;
@@ -129,23 +132,27 @@ usize create_fb_withmem(int type, void* ptr, usize sz, int* fbdes) {
 
 int free_fb_withmem(int fb) {
     struct fdinfo* info;
-    if (getfd(fb, &info) < 0) {
-        return -1;
+
+    int ret = 0;
+    if ((ret = getfd(fb, &info)) < 0) {
+        return ret;
     }
     
-    if (!info->data.fb) return -1;
+    if (!info->data.fb) return -EINVAL;
     free(info->data.fb);
     return closefd(fb);
 }
 
 int free_fb(int fb) {
     struct fdinfo* info;
-    if (getfd(fb, &info) < 0) {
-        return -1;
+    
+    int ret = 0;
+    if ((ret = getfd(fb, &info)) < 0) {
+        return ret;
     }
 
     if (info->data.fb->type != FBTYPE_TERM) {
-        if (!info->data.fb) return -1;
+        if (!info->data.fb) return -EINVAL;
         free(info->data.fb);
         free(info->data.fb->ptr);
     }
@@ -154,13 +161,16 @@ int free_fb(int fb) {
 
 int switch_fb(int fb) {
     struct fdinfo* info;
-    if (getfd(fb, &info) < 0) {
-        return -1;
+
+    int ret = 0;
+    if ((ret = getfd(fb, &info)) < 0) {
+        return ret;
     }
 
-    if (!fbctx) return -1;
-    if (!info->data.fb) return -1;
+    if (!fbctx) return -EINVAL;
+    if (!info->data.fb) return -EINVAL;
     proctbl[current_pid].currfb = fb;
+
     return 0;
 }
 
@@ -181,14 +191,16 @@ void flush_scr() {
 }
 
 int get_fbinfo(int fb, framebuf_info_t *info) {
-    if (!info || !fbctx) return -1;
+    if (!info || !fbctx) return -EINVAL;
     struct fdinfo* finfo;
-    if (getfd(fb, &finfo) < 0) {
-        return -1;
+
+    int ret = 0;
+    if ((ret = getfd(fb, &finfo)) < 0) {
+        return ret;
     }
     
     framebuf_t* fbp = finfo->data.fb;
-    if (!fbp) return -1;
+    if (!fbp) return -EINVAL;
     struct limine_framebuffer* bep = fbctx->backend;
 
     info->ptr   = fbp->ptr;

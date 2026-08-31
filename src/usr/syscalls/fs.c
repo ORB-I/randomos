@@ -7,18 +7,18 @@
 #include "ssc.h"
 
 DEFSYSCALL(sys_read) {
-    if (!ensure_pointer((void*)args->a1, args->a2, 1)) return -1;
+    if (!ensure_pointer((void*)args->a1, args->a2, 1)) return -EINVAL;
     return read(args->a0, (u8*)args->a1, args->a2);
 }
 
 DEFSYSCALL(sys_write) {
-    if (!ensure_pointer((void*)args->a1, args->a2, 0)) return -1;
+    if (!ensure_pointer((void*)args->a1, args->a2, 0)) return -EINVAL;
     return write(args->a0, (u8*)args->a1, args->a2);
 }
 
 DEFSYSCALL(sys_open) {
-    if (!ensure_string((char*)args->a0, 256, 0)) return -1;
-    return open((char*)args->a0, args->a1);
+    if (!ensure_string((char*)args->a0, 256, 0)) return -EINVAL;
+    return open((char*)args->a0, args->a1, args->a2);
 }
 
 DEFSYSCALL(sys_close) {
@@ -26,17 +26,12 @@ DEFSYSCALL(sys_close) {
 }
 
 DEFSYSCALL(sys_creat) {
-    if (!ensure_string((char*)args->a0, 256, 0)) return -1;
-    int fd;
-    if ((fd = open((char*)args->a0, O_CREAT | O_WRONLY | O_TRUNC)) < 0) {
-        return -1;
-    } else {
-        return close(fd);
-    }
+    if (!ensure_string((char*)args->a0, 256, 0)) return -EINVAL;
+    return creat((char*)args->a0, args->a1 | S_IFREG);
 }
 
 DEFSYSCALL(sys_unlink) {
-    if (!ensure_string((char*)args->a0, 256, 0)) return -1;
+    if (!ensure_string((char*)args->a0, 256, 0)) return -EINVAL;
     return unlink((char*)args->a0);
 }
 
@@ -46,37 +41,33 @@ DEFSYSCALL(sys_lseek) {
 
 DEFSYSCALL(sys_rename) {
     if (!ensure_string((char*)args->a0, 256, 0) ||
-        !ensure_string((char*)args->a1, 256, 0)) return -1;
+        !ensure_string((char*)args->a1, 256, 0)) return -EINVAL;
     return rename((char*)args->a0, (char*)args->a1);
 }
 
 DEFSYSCALL(sys_mkdir) {
-    if (!ensure_string((char*)args->a0, 256, 0)) return -1;
-    return mkdir((char*)args->a0);
+    if (!ensure_string((char*)args->a0, 256, 0)) return -EINVAL;
+    return mkdir((char*)args->a0, (int)args->a1);
 }
 
 DEFSYSCALL(sys_rmdir) {
-    if (!ensure_string((char*)args->a0, 256, 0)) return -1;
-    return unlink((char*)args->a0);
+    if (!ensure_string((char*)args->a0, 256, 0)) return -EINVAL;
+    return rmdir((char*)args->a0);
 }
 
 DEFSYSCALL(sys_stat) {
     if (!ensure_string((char*)args->a0, 256, 0) ||
-        !ensure_pointer((void*)args->a1, sizeof(struct stat), 1)) return -1;
+        !ensure_pointer((void*)args->a1, sizeof(struct stat), 1)) return -EINVAL;
     return stat((char*)args->a0, (struct stat*)args->a1);
 }
 
 DEFSYSCALL(sys_readdir) {
-    if (!ensure_pointer((void*)args->a1, sizeof(struct stat), 1)) {
-        return -1;
-    }
+    if (!ensure_pointer((void*)args->a1, sizeof(struct stat), 1)) return -EINVAL;
     return readdir((int)args->a0, (struct stat*)args->a1);
 }
 
 DEFSYSCALL(sys_opendir) {
-    if (!ensure_string((char*)args->a0, 256, 0)) {
-        return -1;
-    }
+    if (!ensure_string((char*)args->a0, 256, 0)) return -EINVAL;
     return (u64)opendir((char*)args->a0);
 }
 
@@ -89,18 +80,20 @@ DEFSYSCALL(sys_trunc) {
 }
 
 DEFSYSCALL(sys_getpwd) {
-    if (!ensure_string((char*)args->a0, 256, 1)) return -1;
+    if (!ensure_string((char*)args->a0, 256, 1)) return -EINVAL;
     char* buf = (char*)args->a0;
     usize bufsz = args->a1;
 
     char* pwd = proctbl[current_pid].pwd;
-    if (!pwd || bufsz == 0) return -1;
+    if (!pwd || bufsz == 0) return -EINVAL;
 
-    /* bound the copy by the string, not the caller's buffer: a short
-       pwd must not drag in whatever sits past it in kernel memory */
     usize len = strlen(pwd) + 1;
-    if (bufsz < len) return -1;
-    memcpy(buf, pwd, len);
+    if (bufsz < len) {
+        memcpy(buf, pwd, bufsz-1);
+        buf[bufsz] = '\0';
+    } else {
+        memcpy(buf, pwd, len);
+    }
 
     return 0;
 }
@@ -108,15 +101,17 @@ DEFSYSCALL(sys_getpwd) {
 #define PWD_PATH_MAX 256
 
 DEFSYSCALL(sys_setpwd) {
-    if (!ensure_string((char*)args->a0, 256, 0)) return -1;
+    if (!ensure_string((char*)args->a0, 256, 0)) return -EINVAL;
 
     char canon[PWD_PATH_MAX];
-    if (chdir((char*)args->a0) != 0) return -1;
-    if (getcwd(canon, sizeof(canon)) != 0) return -1;
+
+    int ret = 0;
+    if ((ret = chdir((char*)args->a0)) < 0) return ret;
+    if ((ret = getcwd(canon, sizeof(canon))) < 0) return ret;
 
     usize len = strlen(canon) + 1;
     void* newpwd = malloc(len);
-    if (!newpwd) return -1;
+    if (!newpwd) return -ENOMEM;
     memcpy(newpwd, canon, len);
 
     free(proctbl[current_pid].pwd);
