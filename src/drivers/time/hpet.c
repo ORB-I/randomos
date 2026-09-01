@@ -171,6 +171,10 @@ int hpet_start_preemptive(preemptive_timer_t* timer) {
     return 0;
 }
 
+void hpet_pause_preemptive(preemptive_timer_t* timer) {
+    ioapic_mask_irq(timer->irq);
+}
+
 int hpet_active() {
     return (hpet_acpitbl != NULL);
 }

@@ -19,6 +19,7 @@ typedef struct {
 } preemptive_timer_t;
 int hpet_mkpreemptive_timer(preemptive_timer_t* buf, u64 ms, void(*hdlr)(void));
 int hpet_start_preemptive(preemptive_timer_t* timer);
+void hpet_pause_preemptive(preemptive_timer_t* timer);
 int hpet_active();
 
 preemptive_timer_t _schdlr_timer;
@@ -31,7 +32,7 @@ procctx_t preempt_ctx;
 
 int init_scheduler() {
     if (!hpet_active()) return -EINVAL;
-    hpet_mkpreemptive_timer(&_schdlr_timer, 20, preempt_hdlr);
+    hpet_mkpreemptive_timer(&_schdlr_timer, 100, preempt_hdlr);
     return 0; // dont start the preempt timer yet because we dont have processes yet, start_scheduler should do that
 }
 
@@ -99,6 +100,9 @@ int nextproc() {
 int scheduler_execve = 0;
 void krunpolls();
 void scheduler_switch(procctx_t* proc) {
+    hpet_pause_preemptive(&_schdlr_timer);
+    preempt_pending = 0;
+    
     krunpolls();
 
     int tgtpid = nextproc();
