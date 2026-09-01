@@ -65,3 +65,4 @@ int chdir(const char* path);
 int getcwd(char* buf, usize len);
 int rmdir(const char* path);
 int creat(const char* path, int mode);
+int canonicalize(const char* path, char* out, usize outlen);

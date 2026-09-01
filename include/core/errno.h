@@ -23,6 +23,7 @@
 #define ERANGE    21 // out of range
 #define ENOEXIST  22 // something doesnt exist
 #define EHANG     23 // will hang
+#define ETOOSMALL 24 // buffer too small
 
 #define FF_TO_ERRNO(FF)  \
     (FF == FR_OK ? EOK : \

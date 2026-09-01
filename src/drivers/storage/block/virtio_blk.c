@@ -25,7 +25,7 @@ static u8* blk_dma_virt = NULL;
 int virtio_blk_init() {
     if (blk_initialized) return 1;
 
-    if (virtio_find_pci_device(VIRTIO_DEV_BLOCK, &blk_dev) < 0) {
+    if (virtio_find_pci_device(VIRTIO_DEV_BLOCK, &blk_dev, 0) < 0) {
         return -ENOEXIST;
     }
 

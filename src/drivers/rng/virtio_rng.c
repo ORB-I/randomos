@@ -19,7 +19,7 @@ static u8* rng_dma_virt = NULL;
 int virtio_rng_init() {
     if (rng_initialized) return 0;
 
-    if (virtio_find_pci_device(VIRTIO_DEV_RNG, &rng_dev) < 0) {
+    if (virtio_find_pci_device(VIRTIO_DEV_RNG, &rng_dev, 0) < 0) {
         return -ENOEXIST;
     }
 
@@ -65,9 +65,9 @@ bool virtio_rng_available() {
     return rng_initialized;
 }
 
-int virtio_rng_read(u8* buf, usize len) {
+usize virtio_rng_read(u8* buf, usize len) {
     if (!rng_initialized || !buf || len == 0) {
-        return -EINVAL;
+        return 0;
     }
 
     usize bytes_read = 0;
@@ -76,7 +76,11 @@ int virtio_rng_read(u8* buf, usize len) {
         if (chunk > 4096) chunk = 4096;
 
         s32 desc = virtqueue_alloc_desc(&rng_vq);
-        if (desc < 0) return -EFULL;
+        if (desc < 0) {
+            return bytes_read;
+        }
+
+        memset(rng_dma_virt, 0xAA, 4096);
 
         rng_vq.desc[desc].addr = rng_dma_phys;
         rng_vq.desc[desc].len = (u32)chunk;
@@ -88,15 +92,36 @@ int virtio_rng_read(u8* buf, usize len) {
 
         u32 out_len = 0;
         int res = virtqueue_poll_used(&rng_vq, &out_len, 1000000);
+
+        serial_printf(
+            "RNG completion: res=%d len=%u used=%u last=%u\n",
+            res,
+            out_len,
+            rng_vq.used->idx,
+            rng_vq.last_used_idx
+        );
+
+        serial_printf(
+            "RNG DMA after: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+            rng_dma_virt[0],
+            rng_dma_virt[1],
+            rng_dma_virt[2],
+            rng_dma_virt[3],
+            rng_dma_virt[4],
+            rng_dma_virt[5],
+            rng_dma_virt[6],
+            rng_dma_virt[7]
+        );
+
         virtqueue_free_desc(&rng_vq, (u16)desc);
 
         if (res < 0 || out_len == 0) {
-            return -ETIME;
+            return bytes_read;
         }
 
         memcpy(buf + bytes_read, rng_dma_virt, out_len);
         bytes_read += out_len;
     }
 
-    return 0;
+    return bytes_read;
 }

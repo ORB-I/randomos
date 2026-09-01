@@ -3,76 +3,90 @@
 #include <core/std.h>
 #include <core/asmh.h>
 #include <core/kqueue.h>
+#include <core/liballoc.h>
 
-// rdrand is only executed after cpuid says it exists - qemu's default
-// cpu (qemu64) does not expose it and blindly executing it used to #UD
-// the whole kernel out of lwip's LWIP_RAND().
-static int has_rdrand = -1;
-static u64 prng_state = 0;
+#define RNG_RDRAND 1
+#define RNG_VIRTIO 2
 
-static void rng_probe() {
+static int rng_type = 0;
+static kqueue_t* entq = NULL;
+
+int rng_init() {
     u32 a, b, c, d;
     asm volatile("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(1));
-    has_rdrand = (int)((c >> 30) & 1);
+    if ((int)((c >> 30) & 1)) {
+        rng_type = RNG_RDRAND;
+    } else if (virtio_rng_available()) {
+        rng_type = RNG_VIRTIO;
+    } else {
+        return -1;
+    }
 
-    // seed the fallback from the TSC so two boots diverge
-    u32 lo, hi;
-    asm volatile("rdtsc" : "=a"(lo), "=d"(hi));
-    prng_state = ((u64)hi << 32) | lo;
-    if (prng_state == 0) prng_state = 0x9E3779B97F4A7C15ULL;
+    entq = kqueue_init(1024 * sizeof(u64));
+    if (!entq) return -1;
+
+    return 0;
 }
 
-static u64 prng_next() {
-    // stir the TSC in so callers in a tight loop do not see a fixed
-    // sequence; xorshift64* on top for diffusion
-    u32 lo, hi;
-    asm volatile("rdtsc" : "=a"(lo), "=d"(hi));
-    prng_state ^= ((u64)hi << 32) | lo;
-    prng_state ^= prng_state >> 12;
-    prng_state ^= prng_state << 25;
-    prng_state ^= prng_state >> 27;
-    return prng_state * 0x2545F4914F6CDD1DULL;
+static int rng_fillpool() {
+    if (kqueue_queued(entq) < sizeof(u64) * 32) {
+        usize n = 1024 - (kqueue_queued(entq) / sizeof(u64));
+        u64* tbuf = malloc(n * sizeof(u64));
+        if (!tbuf) return -1;
+        usize got = 0;
+
+        if (rng_type == RNG_RDRAND) {
+            for (got = 0; got < n; got++) {
+                u8 ok;
+                for (int j = 0; j < 10; j++) {
+                    u64 buf;
+                    asm volatile("rdrand %0\n\tsetc %1" : "=r"(buf), "=qm"(ok) :: "cc");
+                    if (ok) {
+                        tbuf[got] = buf;
+                        break;
+                    }
+                }
+
+                if (!ok) {
+                    break;
+                }
+            }
+        } else {
+            got = virtio_rng_read((u8*)tbuf, n * sizeof(u64)) / sizeof(u64);
+        }
+
+        kqueue_enqueue(entq, (u8*)tbuf, got * sizeof(u64));
+        free(tbuf);
+        return 0;
+    } else {
+        return 0;
+    }
+}
+
+u8 _randombyte() {
+    if (rng_fillpool() < 0) return 0;
+    u8 buf;
+    kqueue_dequeue(entq, &buf, 1);
+    return buf;
 }
 
 u64 random64() {
-    if (virtio_rng_available()) {
-        u64 val = 0;
-        if (virtio_rng_read((u8*)&val, sizeof(u64)) == 0) {
-            return val;
-        }
-    }
-
-    if (has_rdrand < 0) {
-        rng_probe();
-    }
-
-    if (has_rdrand) {
-        // SDM says to check CF and retry; give up after a few tries
-        for (int i = 0; i < 10; i++) {
-            u64 buf;
-            u8 ok;
-            asm volatile("rdrand %0\n\tsetc %1" : "=r"(buf), "=qm"(ok) :: "cc");
-            if (ok) return buf;
-        }
+    if (rng_fillpool() < 0) return 0;
+    u64 buf;
+    usize got = kqueue_dequeue(entq, (u8*)&buf, sizeof(u64));
+    if (got < sizeof(u64)) {
         return 0;
     }
-
-    return prng_next();
+    return buf;
 }
 
 int random_bytes(u8* buf, usize sz) {
-    if (virtio_rng_available()) {
-        if (virtio_rng_read(buf, sz) == 0) {
-            return 0;
-        }
-    }
-
     for (usize i = 0; i < sz; i++) {
-        u64 rb = 0;
+        u8 rb = 0;
         while (rb == 0) {
-            rb = random64();
+            rb = _randombyte();
         }
-        buf[i] = rb & 0xFF;
+        buf[i] = rb;
     }
     return 0;
 }

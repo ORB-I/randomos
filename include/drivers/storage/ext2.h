@@ -191,3 +191,4 @@ int _ext2_rename(const char* oname, const char* nname);
 int _ext2_mkdir(const char* path, u32 mode);
 int _ext2_chdir(const char* path);
 int _ext2_getcwd(char* path, usize len);
+int _ext2_canon(const char* path, char* out, usize outlen);

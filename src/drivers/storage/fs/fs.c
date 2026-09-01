@@ -84,3 +84,7 @@ int getcwd(char* buf, usize len) {
 int creat(const char* path, int mode) {
     return _ext2_creat(path, mode | S_IFREG);
 }
+
+int canonicalize(const char* path, char* out, usize outlen) {
+    return _ext2_canon(path, out, outlen);
+}

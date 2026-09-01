@@ -49,7 +49,7 @@ typedef struct {
 } virtio_dev_t;
 
 /* Core VirtIO Device API */
-int virtio_find_pci_device(u16 devid, virtio_dev_t* dev);
+int virtio_find_pci_device(u16 devid, virtio_dev_t* dev, u8 inten);
 void virtio_reset(virtio_dev_t* dev);
 u8 virtio_get_status(virtio_dev_t* dev);
 void virtio_set_status(virtio_dev_t* dev, u8 status);

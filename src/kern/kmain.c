@@ -152,6 +152,7 @@ void kmain_aftergdt() {
     }
 
     virtio_rng_init();
+    rng_init();
     virtio_net_init();
     e1000_init();
     init_lwip();

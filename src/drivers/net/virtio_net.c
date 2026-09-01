@@ -99,7 +99,7 @@ static void virtio_net_rx_populate(void) {
 int virtio_net_init() {
     if (virtio_net_initialized) return 0;
 
-    if (virtio_find_pci_device(VIRTIO_DEV_NET, &net_dev) < 0) {
+    if (virtio_find_pci_device(VIRTIO_DEV_NET, &net_dev, 1) < 0) {
         return -ENOEXIST;
     }
 

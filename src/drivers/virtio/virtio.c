@@ -4,7 +4,7 @@
 #include <drivers/pci.h>
 #include <drivers/virtio/virtio.h>
 
-int virtio_find_pci_device(u16 devid, virtio_dev_t* dev) {
+int virtio_find_pci_device(u16 devid, virtio_dev_t* dev, u8 inten) {
     if (!dev) return -1;
 
     for (u32 bus = 0; bus < 256; bus++) {
@@ -34,6 +34,7 @@ int virtio_find_pci_device(u16 devid, virtio_dev_t* dev) {
                 }
 
                 if (match) {
+                    serial_printf("Found VirtIO Device\nb%d:s%d:f%d:d%d\n", bus, slot, fn, devid);
                     u32 bar0 = pci_read_bar(bus, slot, fn, 0);
                     if (!(bar0 & 0x01)) {
                         /* BAR0 must be I/O space for legacy VirtIO */
@@ -50,7 +51,12 @@ int virtio_find_pci_device(u16 devid, virtio_dev_t* dev) {
                     /* Enable Bus Master, Memory Space, and I/O Space in PCI Command */
                     u16 pci_cmd = pci_cfg_inw(bus, slot, fn, 0x04);
                     pci_cmd |= (1 << 0) | (1 << 1) | (1 << 2);
-                    pci_cmd &= ~(1 << 10); /* Enable legacy interrupts */
+
+                    if (inten) {
+                        pci_cmd &= ~(1 << 10); /* disable legacy interrupts */
+                    } else {
+                        pci_cmd |= (1 << 10); /* disable legacy interrupts */
+                    }
                     pci_cfg_outw(bus, slot, fn, 0x04, pci_cmd);
 
                     return 0;

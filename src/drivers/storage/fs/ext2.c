@@ -1416,3 +1416,71 @@ int _ext2_getcwd(char* path, usize len) {
     lock_release(&ext2_cwdlk);
     return 0;
 }
+
+int _ext2_canon(const char* path, char* out, usize outlen) {
+    if (!path || !out || outlen == 0 || *path == '\0') return -1;
+
+    bool abs = path[0] == '/';
+    usize opos = 0;
+
+    if (abs) {
+        out[opos++] = '/';
+    }
+
+    while (*path) {
+        while (*path == '/') path++;
+        if (*path == '\0') break;
+
+        const char* st = path;
+        usize len = 0;
+
+        while (path[len] != '/' && path[len] != '\0') len++;
+
+        path += len;
+
+        if (len == 1 && st[0] == '.') {
+            continue;
+        }
+
+        if (len == 2 && st[0] == '.' && st[1] == '.') {
+            if (abs) {
+                if (opos > 1) {
+                    opos--;
+                    while (opos > 0 && out[opos - 1] != '/') {
+                        opos--;
+                    }
+                }
+            } else {
+                if (opos != 0 && out[opos-1] != '/') out[opos++] = '/';
+                if (opos + 2 >= outlen) return -1;
+                
+                out[opos++] = '.';
+                out[opos++] = '.';
+            }
+
+            continue;
+        }
+
+        if (opos > 0 && out[opos-1] != '/') {
+            if (opos + 1 >= outlen) return -1;
+            out[opos++] = '/';
+        }
+
+        if (opos + len >= outlen) return -1;
+        memcpy(out + opos, st, len);
+        opos += len;
+    }
+
+    if (opos == 0) {
+        if (abs) {
+            out[0] = '/';
+            opos = 1;
+        } else {
+            out[0] = '.';
+            opos = 1;
+        }
+    }
+
+    out[opos] = '\0';
+    return 0;
+}

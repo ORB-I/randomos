@@ -98,21 +98,27 @@ DEFSYSCALL(sys_getpwd) {
     return 0;
 }
 
-#define PWD_PATH_MAX 256
+#define PWD_PATH_MAX 1024
 
+#include <drivers/display/serial.h>
 DEFSYSCALL(sys_setpwd) {
-    if (!ensure_string((char*)args->a0, 256, 0)) return -EINVAL;
+    if (!ensure_string((char*)args->a0, 256, 0)) {
+        serial_printf("invalid string\n");
+        return -EINVAL;
+    }
 
-    char canon[PWD_PATH_MAX];
+    char newpath[1025];
+    if (canonicalize((char*)args->a0, newpath, 1025) < 0) {
+        return -ETOOSMALL;
+    }
 
-    int ret = 0;
-    if ((ret = chdir((char*)args->a0)) < 0) return ret;
-    if ((ret = getcwd(canon, sizeof(canon))) < 0) return ret;
-
-    usize len = strlen(canon) + 1;
+    usize len = strlen(newpath) + 1;
     void* newpwd = malloc(len);
-    if (!newpwd) return -ENOMEM;
-    memcpy(newpwd, canon, len);
+    if (!newpwd) {
+        serial_printf("malloc failed\n");
+        return -ENOMEM;
+    }
+    memcpy(newpwd, newpath, len);
 
     free(proctbl[current_pid].pwd);
     proctbl[current_pid].pwd = newpwd;
