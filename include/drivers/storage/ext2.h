@@ -171,6 +171,8 @@ struct ext2_entry {
     int perms;
 };
 
+extern u32 ext2_blocksz;
+
 int _ext2_mount(const char* path);
 int _ext2_unmount();
 int _ext2_trunc(int fd);
