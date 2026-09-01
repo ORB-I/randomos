@@ -1,0 +1,36 @@
+WM(1)                       RandomOS Reference Manual                      WM(1)
+
+NAME
+    wm - graphical desktop environment and window manager
+
+SYNOPSIS
+    wm
+
+DESCRIPTION
+    wm starts the RandomOS window manager. It initializes a dedicated GUI
+    framebuffer via create_fb(FBTYPE_GUI) and provides a multi-window desktop
+    interface with mouse and keyboard controls.
+
+INTERFACE FEATURES
+    Top Taskbar:
+        - Menu button: Opens the application launcher dropdown.
+        - Window Tabs: Lists open windows for quick switching and minimizing.
+        - Digital Clock: Real-time clock display in UTC.
+
+    Window Controls:
+        - Titlebar: Click and drag with left mouse button to reposition.
+        - Minimize button [-]: Hides the window to the taskbar.
+        - Close button [x]: Destroys the window and its allocated buffer.
+
+    Built-in Applications:
+        - Terminal: Command-line interface inside a window.
+        - File Manager: Graphical directory tree and file browser.
+        - System Info: Kernel, display, filesystem, and live uptime statistics.
+        - Notes: Scratchpad text editor.
+        - Calculator: 4x4 keypad arithmetic calculator.
+
+CONTROLS
+    Escape: Toggle application menu.
+    Left Mouse Button: Focus, drag, click buttons, and interact with apps.
+
+RandomOS 1.0                     September 2026                            WM(1)

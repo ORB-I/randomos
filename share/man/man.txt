@@ -1,0 +1,36 @@
+MAN(1)                      RandomOS Reference Manual                     MAN(1)
+
+NAME
+    man - view system reference manuals
+
+SYNOPSIS
+    man [options] <topic>
+
+DESCRIPTION
+    man locates and prints manual pages for user utilities, configuration
+    files, and kernel system calls.
+
+    It searches in the following paths:
+        /share/man/<topic>.txt
+        /share/man/<topic>
+        /share/doc/<topic>.txt
+        /etc/<topic>.fmt
+
+OPTIONS
+    -l, --list, list
+        Display a list of all documented topics.
+
+    -h, --help, help
+        Print general usage information.
+
+EXAMPLES
+    man sh
+        View manual for the command shell.
+
+    man passwd
+        View documentation for the user account database format.
+
+    man syscalls
+        View the kernel system call table and ABI conventions.
+
+RandomOS 1.0                     September 2026                           MAN(1)

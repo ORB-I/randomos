@@ -1,0 +1,73 @@
+SYSCALLS(2)                 RandomOS Reference Manual                 SYSCALLS(2)
+
+NAME
+    syscalls - kernel system call interface
+
+SYNOPSIS
+    #include <sys/syscall.h>
+
+DESCRIPTION
+    RandomOS provides system calls via the x86_64 `syscall` instruction.
+    Userland programs invoke these through libc wrapper functions or directly
+    via __syscall0 through __syscall5.
+
+SYSTEM CALL NUMBERS
+    Number   Name               Arguments
+    --------------------------------------------------------------------------
+    1        SYS_EXIT           int code
+    2        SYS_READ           int fd, void* buf, usize count
+    3        SYS_WRITE          int fd, const void* buf, usize count
+    4        SYS_OPEN           const char* path, int flags, int mode
+    5        SYS_CLOSE          int fd
+    6        SYS_CREAT          const char* path, int mode
+    7        SYS_UNLINK         const char* path
+    9        SYS_LSEEK          int fd, off_t offset, int whence
+    10       SYS_RENAME         const char* oldname, const char* newname
+    11       SYS_MKDIR          const char* path, int mode
+    12       SYS_RMDIR          const char* path
+    13       SYS_REBOOT         (none)
+    14       SYS_STAT           const char* path, struct stat* st
+    15       SYS_POWEROFF       (none)
+    16       SYS_SLEEP          u64 seconds
+    17       SYS_READDIR        int dd, struct stat* st
+    18       SYS_OPENDIR        const char* path
+    21       SYS_SYNC           int fd
+    22       SYS_TRUNC          int fd
+    23       SYS_TERMCTL        int cmd, int arg
+    24       SYS_CREATEFB       int type
+    26       SYS_SWITCHFB       int fbid
+    27       SYS_CLEARFB        int fbid
+    28       SYS_FLUSHSCR       (none)
+    29       SYS_GETFBINF       int fbid, framebuf_info_t* info
+    31       SYS_GETCURFB       (none)
+    32       SYS_GETTIMEOFDAY   (none)
+    34       SYS_GETTIMEMONOMS  (none)
+    35       SYS_GETTIMEMONO    (none)
+    36       SYS_MMAP           void* addr, usize len, int prot, int flags
+    37       SYS_MUNMAP         void* addr, usize len
+    38       SYS_GETRAWSC       (none)
+    41       SYS_GETMOUSEINFO   mouse_info_t* info
+    42       SYS_NEWPROC        const char* path, char** argv, char** envp
+    43       SYS_WAIT           int pid, int* status
+    44       SYS_KILL           int pid
+    45       SYS_GETPID         (none)
+    46       SYS_GETUID         (none)
+    47       SYS_SETUID         uid_t uid
+    48       SYS_GETGID         (none)
+    49       SYS_SETGID         gid_t gid
+    50       SYS_GETEUID        (none)
+    51       SYS_SETEUID        uid_t euid
+    52       SYS_GETEGID        (none)
+    53       SYS_SETEGID        gid_t egid
+    54       SYS_SERIALWRITE    const char* str
+    55       SYS_GETRAWSCTO     u64 timeout
+    56       SYS_EXECVE         const char* path, char** argv, char** envp
+    57       SYS_RANDOM64       (none)
+    58       SYS_RANDOMBYTES    void* buf, usize count
+    59       SYS_GETPWD         char* buf, usize len
+    60       SYS_SETPWD         const char* path
+
+SEE ALSO
+    abi(7), man(1)
+
+RandomOS 1.0                     September 2026                         SYSCALLS(2)

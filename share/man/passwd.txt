@@ -1,0 +1,40 @@
+PASSWD(5)                   RandomOS Reference Manual                   PASSWD(5)
+
+NAME
+    /etc/passwd - user account database
+
+DESCRIPTION
+    /etc/passwd is a colon-separated text file containing user authentication
+    and identity records. Each line represents a single user.
+
+FIELD FORMAT
+    username:password_hash:uid:gid:homedir:shell
+
+FIELDS
+    username
+        Unique alphanumeric login identifier (e.g., root, guest).
+
+    password_hash
+        Argon2id cryptographic password hash. If empty or absent, login may
+        proceed without password verification.
+
+    uid
+        User identifier (0 for root/superuser).
+
+    gid
+        Primary group identifier.
+
+    homedir
+        Path to user home directory (e.g., / or /home/username).
+
+    shell
+        Path to login shell executable (e.g., /bin/sh).
+
+EXAMPLES
+    root:$argon2id$...:0:0:/:/bin/sh
+    user:$argon2id$...:1000:1000:/home/user:/bin/sh
+
+SEE ALSO
+    login(1), id(1), whoami(1)
+
+RandomOS 1.0                     September 2026                         PASSWD(5)
