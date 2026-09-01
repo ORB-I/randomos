@@ -3,7 +3,7 @@ include mk/tools.mk
 ASFLAGS      := -Iinclude -felf64
 LDFLAGS      := -m elf_x86_64 -T share/link.ld --no-pie -O0 -nostdlib -no-pie
 
-LIBS         := -Llib -llai -lff -lflanterm -llwip
+LIBS         := -Llib -llai -lflanterm -llwip
 CCFLAGS      := -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 				-m64 -nostdlib -fno-builtin -fno-stack-protector -fno-pie -Iinclude \
 		        -nodefaultlibs -ffreestanding -Wall -Wextra -g \
