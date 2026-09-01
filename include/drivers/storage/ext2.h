@@ -86,7 +86,7 @@ typedef struct {
 #define EXT2_FT_SOCK     6
 #define EXT2_FT_SYMLINK  7
 
-#define EXT2_DIR_RECLEN(NAMELEN) (8 + NAMELEN)
+#define EXT2_DIR_RECLEN(name_len)  (((name_len) + 8 + 3) & ~3)
 
 typedef struct {
     u32 inode;

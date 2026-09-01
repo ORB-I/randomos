@@ -40,6 +40,26 @@ static int wrblk(u32 blk, const u8* in) {
     return 0;
 }
 
+static usize inosz() {
+    if (ext2_sb.sb.s_rev_level == EXT2_DYNAMIC_REV) {
+        return ext2_sb.s_inode_size;
+    } else {
+        return sizeof(ext2_ino_t);
+    }
+}
+
+static u64 getisize(ext2_ino_t* inod) {
+    if (ext2_sb.sb.s_rev_level == EXT2_DYNAMIC_REV && ext2_sb.s_feature_ro_compat & EXT2_FEATURE_RO_COMPAT_LARGE_FILE) {
+        if (inod->i_mode & S_IFDIR) {
+            return inod->i_size;
+        } else {
+            return (u64)inod->i_dir_acl << 32 | (u64)inod->i_size;
+        }
+    } else {
+        return inod->i_size;
+    }
+}
+
 #define BMP_SET 1
 #define BMP_CLR 2
 #define BMP_GET 3
@@ -66,6 +86,26 @@ static int inodeused(u32 ino) {
     int res = modbmp(ext2_bgs[(ino - 1) / ext2_sb.sb.s_inodes_per_group].bg_inode_bitmap, (ino - 1) % ext2_sb.sb.s_inodes_per_group, BMP_GET);
     if (res < 0) return -1;
     else return res != 0;
+}
+
+static int getino(u32 ino, ext2_ino_t* buf) {
+    if (!buf || ino == 0) return -1;
+    if (!inodeused(ino)) return -1;
+    usize inodsz = inosz();
+
+    u32 inobg = (ino - 1) / ext2_sb.sb.s_inodes_per_group;
+    ext2_bg_t* bg = &ext2_bgs[inobg];
+
+    usize inoidx = (ino - 1) % ext2_sb.sb.s_inodes_per_group;
+
+    usize byteoff = inoidx * inodsz;
+    usize inoblk = bg->bg_inode_table + (byteoff / 1024);
+
+    u8 blk[1024];
+    if (rdblk(inoblk, blk) != 0) return -1;
+
+    memcpy(buf, blk + (byteoff % 1024), sizeof(*buf));
+    return 0;
 }
 
 static int ispow(u32 n, u32 base) {
@@ -100,7 +140,7 @@ static int flush_sbs() {
             if (ext2_sb.sb.s_rev_level == EXT2_GOOD_OLD_REV) {
                 memcpy(buf, &ext2_sb.sb, sizeof(ext2_sb.sb));
             } else {
-                memcpy(buf, &ext2_sb.sb, sizeof(ext2_sb.sb));
+                memcpy(buf, &ext2_sb, sizeof(ext2_sb));
             }
             if (wrblk(blkid, buf) < 0) return -1;
         }
@@ -133,14 +173,23 @@ static int flush_bgs() {
 }
 
 static int flush_inode(u64 ino, ext2_ino_t* inod) {
+    if (!inod || ino == 0) return -1;
+    if (!inodeused(ino)) return -1;
+    usize inodsz = inosz();
+
+    u32 inobg = (ino - 1) / ext2_sb.sb.s_inodes_per_group;
+    ext2_bg_t* bg = &ext2_bgs[inobg];
+
     usize inoidx = (ino - 1) % ext2_sb.sb.s_inodes_per_group;
-    usize inoblk = ext2_bgs[(ino - 1) / ext2_sb.sb.s_inodes_per_group].bg_inode_table + (inoidx / 8);
 
-    ext2_ino_t inos[8];
-    if (rdblk(inoblk, (u8*)inos) != 0) return -1;
+    usize byteoff = inoidx * inodsz;
+    usize inoblk = bg->bg_inode_table + (byteoff / 1024);
 
-    memcpy(&inos[inoidx % 8], inod, sizeof(*inod));
-    if (wrblk(inoblk, (u8*)inos) != 0) return -1;
+    u8 blk[1024]; 
+    if (rdblk(inoblk, blk) != 0) return -1;
+
+    memcpy(blk + (byteoff % 1024), inod, sizeof(*inod));
+    if (wrblk(inoblk, blk) != 0) return -1;
 
     return 0;
 }
@@ -329,6 +378,8 @@ static ssize ino_allocblk(u32 ino, ext2_ino_t* inod) {
             }
         }
     }
+
+    return -1;
 }
 
 static int freeblk(u32 blkid) {
@@ -344,6 +395,8 @@ static int freeblk(u32 blkid) {
 
     if (flush_bgs() < 0) return -1;
     if (flush_sbs() < 0) return -1;
+
+    return 0;
 }
 
 static int ino_freeblk(u32 ino, ext2_ino_t* inod, usize idx) {
@@ -437,12 +490,14 @@ static int ino_freeblk(u32 ino, ext2_ino_t* inod, usize idx) {
 
         if (flush_inode(ino, inod) < 0) return -1;
     }
+
+    return 0;
 }
 
 static u8* getinodata(ext2_ino_t* inode, usize* outsz) {
     if (!inode || !outsz) return NULL;
 
-    u32 tsz = inode->i_size;
+    u32 tsz = getisize(inode);
     *outsz = tsz;
     if (tsz == 0) return NULL;
 
@@ -478,24 +533,6 @@ err:
     return NULL;
 }
 
-static int getino(u32 ino, ext2_ino_t* inod) {
-    if (!inod) return -1;
-
-    u32 inobg = (ino - 1) / ext2_sb.sb.s_inodes_per_group;
-    ext2_bg_t* bg = &ext2_bgs[inobg];
-
-    if (!inodeused(ino)) return -1;
-
-    usize inoidx = (ino - ext2_sb.sb.s_first_data_block) % ext2_sb.sb.s_inodes_per_group;
-    usize inoblk = bg->bg_inode_table + (inoidx / 8);
-
-    ext2_ino_t inos[8];
-    if (rdblk(inoblk, (u8*)inos) != 0) return -1;
-
-    memcpy(inod, &inos[inoidx % 8], sizeof(*inod));
-    return 0;
-}
-
 static u32 searchdir(u32 dino, const char* name, ext2_ino_t* ino) {
     ext2_ino_t dinod;
     if (getino(dino, &dinod) < 0) return -1;
@@ -510,8 +547,9 @@ static u32 searchdir(u32 dino, const char* name, ext2_ino_t* ino) {
         ext2_dir1_t* dir = (ext2_dir1_t*)&ddata[i];
         if (dir->name_len == strlen(name) && memcmp(dir->name, name, dir->name_len) == 0) {
             if (getino(dir->inode, ino) < 0) return EXT2_BAD_INO;
+            u32 inode = dir->inode;
             free(ddata);
-            return dir->inode;
+            return inode;
         }
 
         i += dir->rec_len;
@@ -612,51 +650,76 @@ static ssize newino(u32 bg, u16 mode, u16 uid, u16 gid) {
     return -1;
 }
 
-static int path_nameprts(const char* path, char* base, usize baselen, char* dir, usize dirlen) {
+static int path_dirname(const char* path, char* dir, usize dirlen) {
+    if (!path || !dir || dirlen == 0) return -1;
     usize len = strlen(path);
-    while (len > 0 && path[len - 1] == '/') len--;
 
-    if (len == 0) return -1;
+    while (len > 0 && path[len-1] == '/') len--;
+    if (len == 0) {
+        if (dirlen < 2) return -1;
+        dir[0] = '/'; dir[1] = '\0';
+        return 0;
+    }
 
     usize slash = len;
-    while (slash > 0 && path[slash - 1] != '/') slash--;
+    while (slash > 0 && path[slash-1] != '/') slash--;
 
-    char* fpath = strcpy(path);
-    if (!fpath) return -1;
+    if (slash == 0) {
+        if (dirlen < 2) return -1;
+        dir[0] = '.'; dir[1] = '\0';
+        return 0;
+    }
 
-    char* bname = &fpath[slash];
+    if (slash == 1 && path[0] == '/') {
+        if (dirlen < 2) return -1;
+        dir[0] = '/'; dir[1] = '\0';
+        return 0;
+    }
+
+    usize dlen = slash - 1;
+    if (dirlen <= dlen) return -1;
+
+    memcpy(dir, path, dlen);
+    dir[dlen] = '\0';
+    return 0;
+}
+
+static int path_basename(const char* path, char* base, usize baselen) {
+    if (!path || !base || baselen == 0) return -1;
+    usize len = strlen(path);
+
+    while (len > 0 && path[len-1] == '/')
+        len--;
+
+    if (len == 0) {
+        if (baselen < 1) return -1;
+        base[0] = '\0';
+        return 0;
+    }
+
+    usize slash = len;
+    while (slash > 0 && path[slash-1] != '/') slash--;
+
+    const char* bname = path + slash;
     usize bnamlen = len - slash;
 
-    fpath[slash] = '\0';
-    char* parname = fpath;
-    usize parlen = strlen(parname);
+    if (baselen <= bnamlen) return -1;
 
-    if (dirlen > parlen + 1) {
-        memcpy(dir, parname, parlen + 1);
-    } else {
-        memcpy(dir, parname, dirlen-1);
-        dir[dirlen] = '\0';
-    }
-
-    if (baselen > bnamlen + 1) {
-        memcpy(base, bname, bnamlen + 1);
-    } else {
-        memcpy(base, bname, baselen-1);
-        base[baselen] = '\0';
-    }
-
-    free(fpath);
+    memcpy(base, bname, bnamlen);
+    base[bnamlen] = '\0';
     return 0;
 }
 
 static int rmlink(const char* path) {
     char dir[1024], name[1024];
-    if (path_nameprts(path, name, 1024, dir, 1024) < 0) return -1;
+    if (path_dirname(path, dir, 1024) < 0) return -1;
+    if (path_basename(path, dir, 1024) < 0) return -1;
+
     ext2_ino_t dinod;
     u32 dino = findino(dir, &dinod);
     if (dino == EXT2_BAD_INO) return -1;
 
-    usize nblks = (dinod.i_size + 1023) / 1024;
+    usize nblks = (getisize(&dinod) + 1023) / 1024;
     for (usize b = 0; b < nblks; b++) {
         ssize blk = ino_getblkid(&dinod, b);
         if (blk < 0) {
@@ -684,14 +747,26 @@ static int rmlink(const char* path) {
 
 static int mklink(const char* path, u32 ino, u16 mode) {
     char dir[1024], base[1204];
-    if (path_nameprts(path, base, 1024, dir, 1024) < 0) return -1;
+
+    if (path_dirname(path, dir, 1024) < 0) {
+        serial_printf("mklink failure (dirname)\n");
+        return -1;
+    }
+
+    if (path_basename(path, base, 1024) < 0) {
+        serial_printf("mklink failure (basename)\n");
+        return -1;
+    }
 
     ext2_ino_t parinod;
     u32 parino = findino(dir, &parinod);
-    if (parino == EXT2_BAD_INO) return -1;
+    if (parino == EXT2_BAD_INO) {
+        serial_printf("mklink failure (find parent (dir: \"%s\" base: \"%s\"))\n", dir, base);
+        return -1;
+    }
 
     usize newsz = EXT2_DIR_RECLEN(strlen(base));
-    usize nblks = (parinod.i_size + 1023) / 1024;
+    usize nblks = (getisize(&parinod) + 1023) / 1024;
 
     ext2_dir1_t newent = {
         ino, 0, strlen(base), 0, {0}
@@ -720,13 +795,19 @@ static int mklink(const char* path, u32 ino, u16 mode) {
 
     for (usize b = 0; b < nblks; b++) {
         ssize blk = ino_getblkid(&parinod, b);
-        if (blk < 0) return -1;
+        if (blk < 0) {
+            serial_printf("mklink failure (getblkid)\n");
+            return -1;
+        }
 
         u8 blkd[1024];
         if (rdblk(blk, blkd) < 0) return -1;
         for (usize i = 0; i < 1024;) {
             ext2_dir1_t* ent = (ext2_dir1_t*)&blkd[i];
-            if (ent->rec_len < 8 || i + ent->rec_len > 1024) return -1;
+            if (ent->rec_len < 8 || i + ent->rec_len > 1024) {
+                serial_printf("mklink failure (entsiz)\n");
+                return -1;
+            }
             usize oldsz = EXT2_DIR_RECLEN(ent->name_len);
 
             if (ent->inode == 0) {
@@ -734,7 +815,10 @@ static int mklink(const char* path, u32 ino, u16 mode) {
                     newent.rec_len = ent->rec_len;
                     memcpy(&blkd[i], &newent, newsz);
 
-                    if (wrblk(blk, blkd) < 0) return -1;
+                    if (wrblk(blk, blkd) < 0) {
+                        serial_printf("mklink failure (wrblk)\n");
+                        return -1;
+                    }
                     return 0;
                 }
             } else if (ent->rec_len >= oldsz && ent->rec_len - oldsz >= newsz) {
@@ -742,7 +826,10 @@ static int mklink(const char* path, u32 ino, u16 mode) {
                 ent->rec_len = oldsz;
                 memcpy(&blkd[i + oldsz], &newent, newsz);
 
-                if (wrblk(blk, blkd) < 0) return -1;
+                if (wrblk(blk, blkd) < 0) {
+                    serial_printf("mklink failure (wrblk)\n");
+                    return -1;
+                }
                 return 0;
             }
 
@@ -834,11 +921,35 @@ int _ext2_mount(const char* path) {
     ext2_sb_t* sb = (ext2_sb_t*)rawsb;
 
     if (sb->s_magic != EXT2_SUPER_MAGIC) return -1;
-
     if (sb->s_errors != EXT2_ERRORS_CONTINUE) return -1;
 
-    ext2_nbgs = ext2_sb.sb.s_blocks_count / ext2_sb.sb.s_blocks_per_group;
-    if (ext2_sb.sb.s_blocks_count % ext2_sb.sb.s_blocks_per_group != 0) ext2_nbgs++;
+    if (sb->s_rev_level == EXT2_GOOD_OLD_REV) {
+        memcpy(&ext2_sb.sb, sb, sizeof(*sb));
+        ext2_isdyn = 0;
+        ext2_ismnt = 1;
+    } else if (sb->s_rev_level == EXT2_DYNAMIC_REV) {
+        ext2_dynrev_sb_t* dynsb = (ext2_dynrev_sb_t*)rawsb;
+        memcpy(&ext2_sb, dynsb, sizeof(*dynsb));
+
+        if (dynsb->s_feature_incompat & ~(EXT2_FEATURE_INCOMPAT_FILETYPE)) {
+            free(ext2_bgs);
+            return -1;
+        }
+        
+        if (dynsb->s_feature_ro_compat & ~(EXT2_FEATURE_RO_COMPAT_SPARSE_SUPER | EXT2_FEATURE_RO_COMPAT_LARGE_FILE)) {
+            free(ext2_bgs);
+            return -1;
+        }
+
+        ext2_isdyn = 1;
+        ext2_ismnt = 1;
+    } else {
+        free(ext2_bgs);
+        return -1;
+    }
+
+    ext2_nbgs = sb->s_blocks_count / sb->s_blocks_per_group;
+    if (sb->s_blocks_count % sb->s_blocks_per_group != 0) ext2_nbgs++;
 
     ext2_bgtbln = (ext2_nbgs * sizeof(*ext2_bgs)) / 1024;
     if ((ext2_nbgs * sizeof(*ext2_bgs)) % 1024 != 0) ext2_bgtbln++;
@@ -862,31 +973,6 @@ int _ext2_mount(const char* path) {
         ptr += descs_ib;
         nbgsp += descs_ib;
         cblk++;
-    }
-
-    if (sb->s_rev_level == EXT2_GOOD_OLD_REV) {
-        memcpy(&ext2_sb.sb, sb, sizeof(*sb));
-        ext2_isdyn = 0;
-        ext2_ismnt = 1;
-    } else if (sb->s_rev_level == EXT2_DYNAMIC_REV) {
-        ext2_dynrev_sb_t* dynsb = (ext2_dynrev_sb_t*)rawsb;
-        memcpy(&ext2_sb, dynsb, sizeof(*dynsb));
-
-        if (dynsb->s_feature_incompat & ~(EXT2_FEATURE_INCOMPAT_FILETYPE)) {
-            free(ext2_bgs);
-            return -1;
-        }
-        
-        if (dynsb->s_feature_ro_compat & ~(EXT2_FEATURE_RO_COMPAT_SPARSE_SUPER)) {
-            free(ext2_bgs);
-            return -1;
-        }
-
-        ext2_isdyn = 1;
-        ext2_ismnt = 1;
-    } else {
-        free(ext2_bgs);
-        return -1;
     }
     
     lock_acquire(&ext2_cwdlk);
@@ -919,6 +1005,8 @@ int _ext2_trunc(int fd) {
     for (usize i = 0; i < ent->inod.i_blocks / 2; i++) {
         if (ino_freeblk(ent->ino, &ent->inod, i) < 0) return -1;
     }
+
+    return 0;
 }
 
 int _ext2_creat(const char* path, u16 mode) {
@@ -957,7 +1045,7 @@ int _ext2_open(const char* path, int flags, u16 mode) {
     };
 
     if (flags & O_APPEND) {
-        info.data.e2ent.pos = inod.i_size;
+        info.data.e2ent.pos = getisize(&inod);
     }
 
     struct fdinfo* ninfo = NULL;
@@ -976,7 +1064,7 @@ int _ext2_open(const char* path, int flags, u16 mode) {
 }
 
 int _ext2_close(int fd) {
-    closefd(fd);
+    return closefd(fd);
 }
 
 ssize _ext2_read(int fd, void* buf, usize size) {
@@ -988,7 +1076,7 @@ ssize _ext2_read(int fd, void* buf, usize size) {
     }
 
     struct ext2_entry* ent = &info->data.e2ent;
-    if (size > ent->inod.i_size - ent->pos) size = ent->inod.i_size - ent->pos;
+    if (size > getisize(&ent->inod) - ent->pos) size = getisize(&ent->inod) - ent->pos;
 
     usize nread = 0;
     while (nread < size) {
@@ -1058,17 +1146,17 @@ off_t _ext2_lseek(int fd, off_t off, int whence) {
     struct ext2_entry* ent = &fdinfo->data.e2ent;
 
     if (whence == SEEK_SET) {
-        if (off > ent->inod.i_size) return -1;
+        if ((u64)off > getisize(&ent->inod)) return -1;
         ent->pos = off;
         return ent->pos;
     } else if (whence == SEEK_CUR) {
-        if (ent->pos + off > ent->inod.i_size) return -1;
+        if (ent->pos + off > getisize(&ent->inod)) return -1;
         ent->pos += off;
         return ent->pos;
     } else if (whence == SEEK_END) {
         if (off > 0) return -1;
-        if (ent->inod.i_size + off < 0) return -1;
-        ent->pos = ent->inod.i_size + off;
+        if (getisize(&ent->inod) + off < 0) return -1;
+        ent->pos = getisize(&ent->inod) + off;
         return ent->pos;
     } else {
         return -1;
@@ -1104,7 +1192,7 @@ int _ext2_opendir(const char* path) {
 }
 
 int _ext2_closedir(int dd) {
-    closefd(dd);
+    return closefd(dd);
 }
 
 int _ext2_readdir(int dd, struct stat* st) {
@@ -1116,7 +1204,7 @@ int _ext2_readdir(int dd, struct stat* st) {
     }
 
     struct ext2_entry* ent = &info->data.e2ent;
-    usize nblks = (ent->inod.i_size + 1023) / 1024;
+    usize nblks = (getisize(&ent->inod) + 1023) / 1024;
     usize pos = 0;
 
     for (usize b = 0; b < nblks; b++) {
@@ -1143,7 +1231,7 @@ int _ext2_readdir(int dd, struct stat* st) {
                     memcpy(st->st_name, dir->name, dir->name_len);
                     st->st_name[dir->name_len] = '\0';
 
-                    st->st_size = inod.i_size;
+                    st->st_size = getisize(&inod);
 
                     ent->pos++;
                     return 0;
@@ -1165,7 +1253,7 @@ int _ext2_stat(const char* path, struct stat* st) {
 
     st->mode = e2mode_conv(inod.i_mode);
     st->st_attrib = 0;
-    st->st_size = inod.i_size;
+    st->st_size = getisize(&inod);
 
     usize len = strlen(path);
     while (len > 0 && path[len - 1] == '/') len--;
@@ -1188,8 +1276,8 @@ int _ext2_unlink(const char* path) {
     u32 ino = findino(path, &inod);
     if (ino == EXT2_BAD_INO) return -1;
 
-    char dir[1024], base[1024];
-    if (path_nameprts(path, base, 1024, dir, 1024) < 0) return -1;
+    char dir[1024];
+    if (path_dirname(path, dir, 1024) < 0) return -1;
 
     if (inod.i_links_count > 1) {
         if (rmlink(path) < 0) return -1;
@@ -1216,8 +1304,8 @@ int _ext2_unlink(const char* path) {
         flush_inode(ino, &inod);
         flush_bgs();
         flush_sbs();
+        return 0;
     }
-    
 }
 
 int _ext2_rmdir(const char* path) {
@@ -1225,8 +1313,8 @@ int _ext2_rmdir(const char* path) {
     u32 ino = findino(path, &inod);
     if (ino == EXT2_BAD_INO) return -1;
 
-    char dir[1024], base[1024];
-    if (path_nameprts(path, base, 1024, dir, 1024) < 0) return -1;
+    char dir[1024];
+    if (path_dirname(path, dir, 1024) < 0) return -1;
 
     usize dirsz = 0;
     u8* ddata = getinodata(&inod, &dirsz);
@@ -1255,21 +1343,34 @@ int _ext2_rename(const char* oname, const char* nname) {
 }
 
 int _ext2_mkdir(const char* path, u16 mode) {
-    if (_ext2_creat(path, S_IFDIR | mode) < 0) return -1;
+    serial_printf("mkdir %s (mode %d) requested\n", path, mode);
+    ext2_ino_t inod;
+    if (findino(path, &inod) != EXT2_BAD_INO) {
+        return -1;
+    }
 
-    char dir[1024], name[1024];
-    if (path_nameprts(path, name, 1024, dir, 1024) < 0) return -1;
+    u32 e2mod = sysmode_conv(mode | S_IFDIR);
+
+    u64 ino = 0;
+    if ((ino = newino(0, e2mod, proctbl[current_pid].euid, proctbl[current_pid].egid)) < 0) return -1;
+    if (mklink(path, ino, e2mod) < 0) return -1;
+
+    char dir[1024];
+    if (path_dirname(path, dir, 1024) < 0) {
+        serial_printf("mkdir failure (dirname)\n");
+        return -1;
+    }
 
     ext2_ino_t dinod;
     u32 dino = findino(dir, &dinod);
     if (dino == EXT2_BAD_INO) {
+        serial_printf("mkdir failure (find parent)\n");
         _ext2_unlink(path);
         return -1;
     }
 
-    ext2_ino_t inod;
-    u32 ino = findino(path, &inod);
-    if (ino == EXT2_BAD_INO) {
+    if (getino(ino, &inod) < 0) {
+        serial_printf("mkdir failure (find new)\n");
         _ext2_unlink(path);
         return -1;
     }
@@ -1277,22 +1378,26 @@ int _ext2_mkdir(const char* path, u16 mode) {
     char dot[1024], dotdot[1024];
     int ret = snprintf(dot, 1024, "%s/.", path);
     if (ret >= 1024 || ret < 0) {
+        serial_printf("mkdir failure (snprintf1)\n");
         _ext2_unlink(path);
         return -1;
     }
 
     ret = snprintf(dotdot, 1024, "%s/..", path);
     if (ret >= 1024 || ret < 0) {
+        serial_printf("mkdir failure (snprintf2)\n");
         _ext2_unlink(path);
         return -1;
     }
 
     if (mklink(dot, ino, inod.i_mode) < 0) {
+        serial_printf("mkdir failure (mkdot)\n");
         _ext2_rmdir(path);
         return -1;
     }
 
     if (mklink(dotdot, dino, dinod.i_mode) < 0) {
+        serial_printf("mkdir failure (mkdotdot)\n");
         _ext2_rmdir(path);
         return -1;
     }
@@ -1301,18 +1406,30 @@ int _ext2_mkdir(const char* path, u16 mode) {
 }
 
 int _ext2_chdir(const char* path) {
-    if (strlen(path) >= CWD_MAX) return -1;
+    if (strlen(path) >= CWD_MAX) {
+        serial_printf("chdir to %s failed (size)\n", path);
+        return -1;
+    }
 
     char dir[1024];
-    if (path_nameprts(path, NULL, 0, dir, 1024) < 0) return -1;
+    if (path_dirname(path, dir, 1024) < 0) {
+        serial_printf("chdir to %s failed (seperate)\n", path);
+        return -1;
+    }
 
     ext2_ino_t dinod;
     u32 dino = findino(dir, &dinod);
-    if (dino == EXT2_BAD_INO) return -1;
+    if (dino == EXT2_BAD_INO) {
+        serial_printf("chdir to %s failed (find parent)\n", path);
+        return -1;
+    }
 
     ext2_ino_t inod;
     u32 ino = findino(path, &inod);
-    if (ino == EXT2_BAD_INO) return -1;
+    if (ino == EXT2_BAD_INO) {
+        serial_printf("chdir to %s failed (find directory)\n", path);
+        return -1;
+    }
 
     lock_acquire(&ext2_cwdlk);
     memcpy(ext2_cwd, path, strlen(path)+1);

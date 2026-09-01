@@ -126,7 +126,6 @@ void scheduler_switch(procctx_t* proc) {
     ctx2proc(currproc, proc);
     current_pid = (u8)tgtpid;
 
-    hpet_start_preemptive(&_schdlr_timer);
     reset_kgsb();
     procctx_t ctx;
     proc2ctx(&ctx, tgtproc);
@@ -134,5 +133,10 @@ void scheduler_switch(procctx_t* proc) {
     chdir(tgtproc->pwd);
     
     switch_fb(tgtproc->currfb);
+
+    // we have no idea how long the previous stuff took
+    // and _schdlr_timer is mapped to all address spaces the same
+    // so its safer to start the preempt timer here
+    hpet_start_preemptive(&_schdlr_timer);
     switch_ctx(&ctx);
 }

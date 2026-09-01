@@ -34,6 +34,7 @@ $(LIB): $(LIBOBJ)
 	$(CC) $(LDFLAGS) $^ -o $@
 
 copy: $(LIB)
+	debugfs -w -R "rm /lib/$(LIB)" $(DRIVE)
 	debugfs -w -R "write $(LIB) /lib/$(LIB)" $(DRIVE)
 
 %.o: %.c

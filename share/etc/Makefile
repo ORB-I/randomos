@@ -17,6 +17,7 @@ $(DRIVE):
 
 copy_etc: $(FILES)
 	for file in $(FILES); do \
+		debugfs -w -R "rm /etc/$$file" $(DRIVE); \
 		debugfs -w -R "write $$file /etc/$$file" $(DRIVE); \
 	done
 

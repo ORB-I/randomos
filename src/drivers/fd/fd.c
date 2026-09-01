@@ -134,6 +134,9 @@ ssize read(int fd, void* buf, usize size) {
                 return -EBADF;
             }
         }
+        case FDTYPE_E2ENT: {
+            return _ext2_read(fd, buf, size);
+        }
         default: return -EINVAL;
     }
 }

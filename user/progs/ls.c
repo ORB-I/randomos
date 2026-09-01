@@ -14,6 +14,7 @@ int list_dir(char* path) {
     struct stat st;
     termctl(TCTL_AFLSH, 0);
     while ((readdir(d, &st)) != -1) {
+        serial_printf("printing entry \"%s\"\n", st.st_name);
         printf("\t%s\n", st.st_name);
     }
     termctl(TCTL_AFLSH, 1);

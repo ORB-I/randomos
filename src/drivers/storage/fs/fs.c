@@ -11,10 +11,6 @@
 
 int fs_backend = FS_BACKEND_FAT;
 
-/* figure out what's actually on the drive before anything gets mounted.
-   ext2 wins if its superblock checks out, fat is the fallback. ordering
-   matters here: mount() with MNT_FORMAT would happily format over a
-   filesystem we just failed to recognize */
 int fs_probe_mount(void) {
     // we are going to start removing fat support
     if (_ext2_mount("/") < 0) {
@@ -32,7 +28,7 @@ int fs_probe_mount(void) {
         fs_backend = FS_BACKEND_FAT;
         return 0;
     }*/
-    return -1;
+    return 0;
 }
 
 /*FATFS fs;

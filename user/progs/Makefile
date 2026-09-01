@@ -73,7 +73,8 @@ $(PROGFILES_C): %.elf: %.c $(DEPLIBS) $(DEPLIBS_C)
 # link rules and up-to-date targets skipped it, leaving /bin half empty
 copy: $(PROGFILES) $(PROGFILES_C)
 	for f in $(PROGFILES) $(PROGFILES_C); do \
-		debugfs -w -R "write $$f /bin/$(basename $$f .elf)" $(DRIVE); \
+		debugfs -w -R "rm /bin/$$(basename $$f .elf)" $(DRIVE); \
+		debugfs -w -R "write $$f /bin/$$(basename $$f .elf)" $(DRIVE); \
 	done
 
 clean:

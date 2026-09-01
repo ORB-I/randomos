@@ -14,6 +14,7 @@ int main() {
         }
         int exit;
         wait(pid, &exit);
+        printf("login exited with code %d\n", exit);
     }
     for (;;);
 }

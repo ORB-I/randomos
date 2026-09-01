@@ -55,7 +55,8 @@ $(LIBC_SO): $(ALL_SOFILE_OBJS)
 # same as user/progs: copy is a separate pass so a recreated drive.img
 # still gets libc even when libc.so itself is already built
 copy: $(LIBC_SO)
-	debugfs -w -R "write $(LIB_SO) /lib/$(LIB_SO)" $(DRIVE)
+	debugfs -w -R "rm /lib/$(LIBC_SO)" $(DRIVE)
+	debugfs -w -R "write $(LIBC_SO) /lib/$(LIBC_SO)" $(DRIVE)
 
 $(CRT): $(CRTSRC)
 	$(AS) $(ASFLAGS) $< -o $@

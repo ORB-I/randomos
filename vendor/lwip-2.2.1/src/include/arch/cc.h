@@ -29,7 +29,7 @@ typedef uint64_t u64_t;
 #define S32_F "%d"
 #define SZT_F "%p"
 
-#define LWIP_DEBUG 1
+//#define LWIP_DEBUG 1
 
 /* Compiler */
 

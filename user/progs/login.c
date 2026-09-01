@@ -284,10 +284,12 @@ void ensure_home(char* home) {
 
         free(tmp);
         return;
+    } else {
     }
 }
 
 int main() {
+    serial_printf("Login started\n");
     while (1) {
         char *uname, *pwd;
         if (get_info(&uname, &pwd) < 0) {

@@ -34,8 +34,10 @@ ssize copy_fds(u8 dst, u8 src) {
 int kexecve(const char* path, char** argv, char** envp, u8 cpid) {
     serial_printf("New process %s requested\n", path);
     process_state_t* proc = &proctbl[cpid];
+
     loadprog_res_t res = load_program(path, argv, envp);
     if (res.status < 0) {
+        serial_printf("failed to load program with code %d\n", res.status);
         return res.status;
     }
 
@@ -103,7 +105,10 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
     if (!proc) return -EFULL;
 
     loadprog_res_t res = load_program(path, argv, envp);
-    if (res.status < 0) return res.status;
+    if (res.status < 0) {
+        serial_printf("failed to load program with code %d\n", res.status);
+        return res.status;
+    }
 
     if (pid == 0) {
         struct fdinfo* new_fds = malloc(sizeof(struct fdinfo) * 4);
@@ -208,5 +213,6 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
 
     vmm_setumapbase(proc->pid, res.load_high);
 
+    serial_printf("created new process %s with PID %d\n", path, proc->pid);
     return proc->pid;
 }
