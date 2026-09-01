@@ -40,6 +40,8 @@ Newest entries go at the bottom of each section.
       slashes, lseek SEEK_END s32 overflow. setpwd now stores validated canonical
       paths and getpwd stops reading past the string. added cat
 - [x] Implement VirtIO support (VirtIO Core, VirtQueue, virtio-blk, virtio-net, and virtio-rng)
+- [x] Add support for variable ext2 block sizes (1024B, 2048B, 4096B)
+- [x] Fix bugs in WM and implement full desktop environment with interactive apps (Terminal, Files, SysInfo, Notes, Calculator), mouse window dragging, and double buffering
 
 ## @Wdboyes13
 

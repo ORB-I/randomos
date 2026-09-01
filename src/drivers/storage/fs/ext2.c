@@ -27,16 +27,20 @@ u32 ext2_nbgs = 0;
 u32 ext2_bgtbln = 0;
 ext2_bg_t* ext2_bgs = NULL;
 
-// TODO: add support for different block sizes
+u32 ext2_blocksz = 1024;
+u32 ext2_sectors_per_block = 2;
+u32 ext2_ppb = 256;
+u32 ext2_gpb = 32;
+
 static int rdblk(u32 blk, u8* out) {
     if (blk >= ext2_sb.sb.s_blocks_count) return -1;
-    if (block_read(0, out, blk * 2, 2) != 0) return -1;
+    if (block_read(0, out, blk * ext2_sectors_per_block, ext2_sectors_per_block) != 0) return -1;
     return 0;
 }
 
 static int wrblk(u32 blk, const u8* in) {
     if (blk >= ext2_sb.sb.s_blocks_count) return -1;
-    if (block_write(0, in, blk * 2, 2) != 0) return -1;
+    if (block_write(0, in, blk * ext2_sectors_per_block, ext2_sectors_per_block) != 0) return -1;
     return 0;
 }
 
@@ -64,7 +68,7 @@ static u64 getisize(ext2_ino_t* inod) {
 #define BMP_CLR 2
 #define BMP_GET 3
 static int modbmp(usize blkid, usize idx, int op) {
-    u8 bmp[1024];
+    u8 bmp[ext2_blocksz];
 
     if (rdblk(blkid, bmp) < 0) return -1;
 
@@ -99,12 +103,12 @@ static int getino(u32 ino, ext2_ino_t* buf) {
     usize inoidx = (ino - 1) % ext2_sb.sb.s_inodes_per_group;
 
     usize byteoff = inoidx * inodsz;
-    usize inoblk = bg->bg_inode_table + (byteoff / 1024);
+    usize inoblk = bg->bg_inode_table + (byteoff / ext2_blocksz);
 
-    u8 blk[1024];
+    u8 blk[ext2_blocksz];
     if (rdblk(inoblk, blk) != 0) return -1;
 
-    memcpy(buf, blk + (byteoff % 1024), sizeof(*buf));
+    memcpy(buf, blk + (byteoff % ext2_blocksz), sizeof(*buf));
     return 0;
 }
 
@@ -136,13 +140,25 @@ static int flush_sbs() {
     for (usize i = 0; i < ext2_nbgs; i++) {
         if (has_sparse(i)) {
             u32 blkid = ext2_sb.sb.s_first_data_block + i * ext2_sb.sb.s_blocks_per_group;
-            u8 buf[1024] = {0};
-            if (ext2_sb.sb.s_rev_level == EXT2_GOOD_OLD_REV) {
-                memcpy(buf, &ext2_sb.sb, sizeof(ext2_sb.sb));
+            u8 buf[ext2_blocksz];
+            memset(buf, 0, ext2_blocksz);
+
+            if (i == 0 && ext2_blocksz > 1024) {
+                if (rdblk(0, buf) < 0) return -1;
+                if (ext2_sb.sb.s_rev_level == EXT2_GOOD_OLD_REV) {
+                    memcpy(buf + 1024, &ext2_sb.sb, sizeof(ext2_sb.sb));
+                } else {
+                    memcpy(buf + 1024, &ext2_sb, sizeof(ext2_sb));
+                }
+                if (wrblk(0, buf) < 0) return -1;
             } else {
-                memcpy(buf, &ext2_sb, sizeof(ext2_sb));
+                if (ext2_sb.sb.s_rev_level == EXT2_GOOD_OLD_REV) {
+                    memcpy(buf, &ext2_sb.sb, sizeof(ext2_sb.sb));
+                } else {
+                    memcpy(buf, &ext2_sb, sizeof(ext2_sb));
+                }
+                if (wrblk(blkid, buf) < 0) return -1;
             }
-            if (wrblk(blkid, buf) < 0) return -1;
         }
     }
 
@@ -152,17 +168,17 @@ static int flush_sbs() {
 static int flush_bgs() {
     for (usize grp = 0; grp < ext2_nbgs; grp++) {
         if (has_sparse(grp)) {
-            u32 grpst = ext2_sb.sb.s_first_data_block + grp * ext2_sb.sb.s_blocks_per_group;
-            u32 bgtst = grpst + 1;
+            u32 bgtst = ext2_sb.sb.s_first_data_block + grp * ext2_sb.sb.s_blocks_per_group + 1;
 
-            usize gpb = 1024 / sizeof(ext2_bg_t);
+            usize gpb = ext2_gpb;
             for (usize blk = 0; blk < ext2_bgtbln; blk++) {
                 usize fst = blk * gpb;
                 if (fst >= ext2_nbgs) break;
 
                 usize cnt = ext2_nbgs - fst;
                 if (cnt > gpb) cnt = gpb;
-                u8 buf[1024] = {0};
+                u8 buf[ext2_blocksz];
+                memset(buf, 0, ext2_blocksz);
                 memcpy(buf, &ext2_bgs[fst], cnt * sizeof(ext2_bg_t));
                 if (wrblk(bgtst + blk, buf) < 0) return -1;
             }
@@ -183,12 +199,12 @@ static int flush_inode(u64 ino, ext2_ino_t* inod) {
     usize inoidx = (ino - 1) % ext2_sb.sb.s_inodes_per_group;
 
     usize byteoff = inoidx * inodsz;
-    usize inoblk = bg->bg_inode_table + (byteoff / 1024);
+    usize inoblk = bg->bg_inode_table + (byteoff / ext2_blocksz);
 
-    u8 blk[1024]; 
+    u8 blk[ext2_blocksz]; 
     if (rdblk(inoblk, blk) != 0) return -1;
 
-    memcpy(blk + (byteoff % 1024), inod, sizeof(*inod));
+    memcpy(blk + (byteoff % ext2_blocksz), inod, sizeof(*inod));
     if (wrblk(inoblk, blk) != 0) return -1;
 
     return 0;
@@ -196,7 +212,7 @@ static int flush_inode(u64 ino, ext2_ino_t* inod) {
 
 static int read_indr(u32 blkn, u32* obuf) {
     if (blkn == 0) {
-        memset(obuf, 0, 1024);
+        memset(obuf, 0, ext2_blocksz);
         return 0;
     }
     return rdblk(blkn, (u8*)obuf);
@@ -205,8 +221,8 @@ static int read_indr(u32 blkn, u32* obuf) {
 static ssize ino_getblkid(ext2_ino_t* inod, usize idx) {
     if (!inod) return -1;
 
-    const u32 ppb = 1024 / 4;
-    u32 indrs[3][ppb];
+    const u32 ppb = ext2_ppb;
+    u32 indrs[3][ext2_ppb];
 
     if (idx < 12) {
         return inod->i_block[idx];
@@ -240,14 +256,15 @@ static ssize allocblk(u32 bg) {
     if (bg >= ext2_nbgs) return -1;
     for (usize n = 0; n < ext2_nbgs; n++) {
         u32 grp = (bg + n) % ext2_nbgs;
-        u8 bmp[1024];
+        u8 bmp[ext2_blocksz];
         if (ext2_bgs[grp].bg_free_blocks_count == 0) continue;
         if (rdblk(ext2_bgs[grp].bg_block_bitmap, bmp) < 0) return -1;
     
-        for (usize i = 0; i < 1024; i++) {
+        for (usize i = 0; i < (ext2_sb.sb.s_blocks_per_group + 7) / 8 && i < ext2_blocksz; i++) {
             for (usize b = 0; b < 8; b++) {
+                usize idx = i * 8 + b;
+                if (idx >= ext2_sb.sb.s_blocks_per_group) break;
                 if (!(bmp[i] & (1 << b))) {
-                    usize idx = i * 8 + b;
                     bmp[i] |= (1 << b);
                     if (wrblk(ext2_bgs[grp].bg_block_bitmap, bmp) < 0) return -1;
 
@@ -266,25 +283,26 @@ static ssize allocblk(u32 bg) {
 
 static ssize ino_allocblk(u32 ino, ext2_ino_t* inod) {
     u32 inobg = (ino - 1) / ext2_sb.sb.s_inodes_per_group;
+    u32 spb = ext2_sectors_per_block;
     for (usize i = 0; i < 12; i++) {
         if (inod->i_block[i] == 0) {
             ssize ret = allocblk(inobg);
             if (ret < 0) return -1;
             inod->i_block[i] = ret;
-            inod->i_blocks += 2;
+            inod->i_blocks += spb;
             if (flush_inode(ino, inod) < 0) return -1;
             return ret;
         }
     }
 
-    const u32 ppb = 1024 / 4;
-    u32 indrs[3][ppb];
+    const u32 ppb = ext2_ppb;
+    u32 indrs[3][ext2_ppb];
 
     if (inod->i_block[12] == 0) {
         ssize ret = allocblk(inobg);
         if (ret < 0) return -1;
         inod->i_block[12] = ret;
-        inod->i_blocks += 2;
+        inod->i_blocks += spb;
         if (flush_inode(ino, inod) < 0) return -1;
     }
 
@@ -294,7 +312,7 @@ static ssize ino_allocblk(u32 ino, ext2_ino_t* inod) {
             ssize ret = allocblk(inobg);
             if (ret < 0) return -1;
             indrs[0][i] = ret;
-            inod->i_blocks += 2;
+            inod->i_blocks += spb;
             if (wrblk(inod->i_block[12], (u8*)indrs[0]) < 0) return -1;
             if (flush_inode(ino, inod) < 0) return -1;
             return ret;
@@ -305,7 +323,7 @@ static ssize ino_allocblk(u32 ino, ext2_ino_t* inod) {
         ssize ret = allocblk(inobg);
         if (ret < 0) return -1;
         inod->i_block[13] = ret;
-        inod->i_blocks += 2;
+        inod->i_blocks += spb;
         if (flush_inode(ino, inod) < 0) return -1;
     }
 
@@ -315,7 +333,7 @@ static ssize ino_allocblk(u32 ino, ext2_ino_t* inod) {
             ssize ret = allocblk(inobg);
             if (ret < 0) return -1;
             indrs[0][i] = ret;
-            inod->i_blocks += 2;
+            inod->i_blocks += spb;
             if (wrblk(inod->i_block[13], (u8*)indrs[0]) < 0) return -1;
             if (flush_inode(ino, inod) < 0) return -1;
         }
@@ -326,7 +344,7 @@ static ssize ino_allocblk(u32 ino, ext2_ino_t* inod) {
                 ssize ret = allocblk(inobg);
                 if (ret < 0) return -1;
                 indrs[1][j] = ret;
-                inod->i_blocks += 2;
+                inod->i_blocks += spb;
                 if (wrblk(indrs[0][i], (u8*)indrs[1]) < 0) return -1;
                 if (flush_inode(ino, inod) < 0) return -1;
                 return ret;
@@ -338,7 +356,7 @@ static ssize ino_allocblk(u32 ino, ext2_ino_t* inod) {
         ssize ret = allocblk(inobg);
         if (ret < 0) return -1;
         inod->i_block[14] = ret;
-        inod->i_blocks += 2;
+        inod->i_blocks += spb;
         if (flush_inode(ino, inod) < 0) return -1;
     }
 
@@ -348,7 +366,7 @@ static ssize ino_allocblk(u32 ino, ext2_ino_t* inod) {
             ssize ret = allocblk(inobg);
             if (ret < 0) return -1;
             indrs[0][i] = ret;
-            inod->i_blocks += 2;
+            inod->i_blocks += spb;
             if (wrblk(inod->i_block[14], (u8*)indrs[0]) < 0) return -1;
             if (flush_inode(ino, inod) < 0) return -1;
         }
@@ -359,7 +377,7 @@ static ssize ino_allocblk(u32 ino, ext2_ino_t* inod) {
                 ssize ret = allocblk(inobg);
                 if (ret < 0) return -1;
                 indrs[1][j] = ret;
-                inod->i_blocks += 2;
+                inod->i_blocks += spb;
                 if (wrblk(indrs[0][j], (u8*)indrs[1]) < 0) return -1;
                 if (flush_inode(ino, inod) < 0) return -1;
             }
@@ -370,7 +388,7 @@ static ssize ino_allocblk(u32 ino, ext2_ino_t* inod) {
                     ssize ret = allocblk(inobg);
                     if (ret < 0) return -1;
                     indrs[2][k] = ret;
-                    inod->i_blocks += 2;
+                    inod->i_blocks += spb;
                     if (wrblk(indrs[1][j], (u8*)indrs[2]) < 0) return -1;
                     if (flush_inode(ino, inod) < 0) return -1;
                     return ret;
@@ -383,10 +401,12 @@ static ssize ino_allocblk(u32 ino, ext2_ino_t* inod) {
 }
 
 static int freeblk(u32 blkid) {
-    u32 bg = (blkid - ext2_sb.sb.s_first_data_block) /  ext2_sb.sb.s_blocks_per_group;
+    if (blkid == 0) return 0;
+    u32 bg = (blkid - ext2_sb.sb.s_first_data_block) / ext2_sb.sb.s_blocks_per_group;
     u32 bmpidx = (blkid - ext2_sb.sb.s_first_data_block) % ext2_sb.sb.s_blocks_per_group;
 
-    u8 zero[1024] = {0};
+    u8 zero[ext2_blocksz];
+    memset(zero, 0, ext2_blocksz);
     wrblk(blkid, zero);
 
     if (modbmp(ext2_bgs[bg].bg_block_bitmap, bmpidx, BMP_CLR) < 0) return -1;
@@ -400,58 +420,71 @@ static int freeblk(u32 blkid) {
 }
 
 static int ino_freeblk(u32 ino, ext2_ino_t* inod, usize idx) {
-    const u32 ppb = 1024 / 4;
-    u32 indrs[3][ppb];
+    const u32 ppb = ext2_ppb;
+    u32 spb = ext2_sectors_per_block;
+    u32 indrs[3][ext2_ppb];
 
     if (idx < 12) {
-        if (freeblk(inod->i_block[idx]) < 0) return -1;
-        inod->i_block[idx] = 0;
-        inod->i_blocks--;
-        if (flush_inode(ino, inod) < 0) return -1;
+        if (inod->i_block[idx] != 0) {
+            if (freeblk(inod->i_block[idx]) < 0) return -1;
+            inod->i_block[idx] = 0;
+            if (inod->i_blocks >= spb) inod->i_blocks -= spb;
+            else inod->i_blocks = 0;
+            if (flush_inode(ino, inod) < 0) return -1;
+        }
     } else if (idx < 12 + ppb) {
         if (read_indr(inod->i_block[12], indrs[0]) != 0) return -1;
         usize pblk = indrs[0][idx-12];
 
-        if (freeblk(pblk) < 0) return -1;
-        indrs[0][idx-12] = 0;
-        inod->i_blocks--;
+        if (pblk != 0) {
+            if (freeblk(pblk) < 0) return -1;
+            indrs[0][idx-12] = 0;
+            if (inod->i_blocks >= spb) inod->i_blocks -= spb;
+            else inod->i_blocks = 0;
 
-        if (membeq(indrs[0], 0, 1024)) {
-            if (freeblk(inod->i_block[12]) < 0) return -1;
-            inod->i_block[12] = 0;
-            inod->i_blocks--;
-        } else {
-            if (wrblk(inod->i_block[12], (u8*)indrs[0]) < 0) return -1;
+            if (membeq(indrs[0], 0, ext2_blocksz)) {
+                if (freeblk(inod->i_block[12]) < 0) return -1;
+                inod->i_block[12] = 0;
+                if (inod->i_blocks >= spb) inod->i_blocks -= spb;
+                else inod->i_blocks = 0;
+            } else {
+                if (wrblk(inod->i_block[12], (u8*)indrs[0]) < 0) return -1;
+            }
+
+            if (flush_inode(ino, inod) < 0) return -1;
         }
-
-        if (flush_inode(ino, inod) < 0) return -1;
     } else if (idx < 12 + ppb + (ppb * ppb)) {
         u32 ridx = idx - 12 - ppb;
         if (read_indr(inod->i_block[13], indrs[0]) != 0) return -1;
         if (read_indr(indrs[0][ridx / ppb], indrs[1]) != 0) return -1;
 
         usize pblk = indrs[1][ridx % ppb];
-        if (freeblk(pblk) < 0) return -1;
-        indrs[1][ridx % ppb] = 0;
-        inod->i_blocks--;
+        if (pblk != 0) {
+            if (freeblk(pblk) < 0) return -1;
+            indrs[1][ridx % ppb] = 0;
+            if (inod->i_blocks >= spb) inod->i_blocks -= spb;
+            else inod->i_blocks = 0;
 
-        if (membeq(indrs[1], 0, 1024)) {
-            if (freeblk(indrs[0][ridx / ppb]) < 0) return -1;
-            indrs[0][ridx / ppb] = 0;
-            inod->i_blocks--;
+            if (membeq(indrs[1], 0, ext2_blocksz)) {
+                if (freeblk(indrs[0][ridx / ppb]) < 0) return -1;
+                indrs[0][ridx / ppb] = 0;
+                if (inod->i_blocks >= spb) inod->i_blocks -= spb;
+                else inod->i_blocks = 0;
 
-            if (membeq(indrs[0], 0, 1024)) {
-                if (freeblk(inod->i_block[13]) < 0) return -1;
-                inod->i_block[13] = 0;
-                inod->i_blocks--;
+                if (membeq(indrs[0], 0, ext2_blocksz)) {
+                    if (freeblk(inod->i_block[13]) < 0) return -1;
+                    inod->i_block[13] = 0;
+                    if (inod->i_blocks >= spb) inod->i_blocks -= spb;
+                    else inod->i_blocks = 0;
+                } else {
+                    if (wrblk(inod->i_block[13], (u8*)indrs[0]) < 0) return -1;
+                }
             } else {
-                if (wrblk(inod->i_block[13], (u8*)indrs[0]) < 0) return -1;
+                if (wrblk(indrs[0][ridx / ppb], (u8*)indrs[1]) < 0) return -1;
             }
-        } else {
-            if (wrblk(indrs[0][ridx / ppb], (u8*)indrs[1]) < 0) return -1;
-        }
 
-        if (flush_inode(ino, inod) < 0) return -1;
+            if (flush_inode(ino, inod) < 0) return -1;
+        }
     } else {
         u32 ridx = idx - 12 - ppb - (ppb * ppb);
 
@@ -460,35 +493,41 @@ static int ino_freeblk(u32 ino, ext2_ino_t* inod, usize idx) {
         if (read_indr(indrs[1][(ridx / ppb) % ppb], indrs[2]) != 0) return -1;
 
         usize pblk = indrs[2][ridx % ppb];
-        if (freeblk(pblk) < 0) return -1;
-        indrs[2][ridx % ppb] = 0;
-        inod->i_blocks--;
+        if (pblk != 0) {
+            if (freeblk(pblk) < 0) return -1;
+            indrs[2][ridx % ppb] = 0;
+            if (inod->i_blocks >= spb) inod->i_blocks -= spb;
+            else inod->i_blocks = 0;
 
-        if (membeq(indrs[2], 0, 1024)) {
-            if (freeblk(indrs[1][(ridx / ppb) % ppb]) < 0) return -1;
-            indrs[1][(ridx / ppb) % ppb] = 0;
-            inod->i_blocks--;
+            if (membeq(indrs[2], 0, ext2_blocksz)) {
+                if (freeblk(indrs[1][(ridx / ppb) % ppb]) < 0) return -1;
+                indrs[1][(ridx / ppb) % ppb] = 0;
+                if (inod->i_blocks >= spb) inod->i_blocks -= spb;
+                else inod->i_blocks = 0;
 
-            if (membeq(indrs[1], 0, 1024)) {
-                if (freeblk(indrs[0][ridx / (ppb * ppb)]) < 0) return -1;
-                indrs[0][ridx / (ppb * ppb)] = 0;
-                inod->i_blocks--;
+                if (membeq(indrs[1], 0, ext2_blocksz)) {
+                    if (freeblk(indrs[0][ridx / (ppb * ppb)]) < 0) return -1;
+                    indrs[0][ridx / (ppb * ppb)] = 0;
+                    if (inod->i_blocks >= spb) inod->i_blocks -= spb;
+                    else inod->i_blocks = 0;
 
-                if (membeq(indrs[0], 0, 1024)) {
-                    if (freeblk(inod->i_block[14]) < 0) return -1;
-                    inod->i_block[14] = 0;
-                    inod->i_blocks--;
+                    if (membeq(indrs[0], 0, ext2_blocksz)) {
+                        if (freeblk(inod->i_block[14]) < 0) return -1;
+                        inod->i_block[14] = 0;
+                        if (inod->i_blocks >= spb) inod->i_blocks -= spb;
+                        else inod->i_blocks = 0;
+                    } else {
+                        if (wrblk(inod->i_block[14], (u8*)indrs[0]) < 0) return -1;
+                    }
                 } else {
-                    if (wrblk(inod->i_block[14], (u8*)indrs[0]) < 0) return -1;
+                    if (wrblk(indrs[0][ridx / (ppb * ppb)], (u8*)indrs[1]) < 0) return -1;
                 }
             } else {
-                if (wrblk(indrs[0][ridx / (ppb * ppb)], (u8*)indrs[1]) < 0) return -1;
+                if (wrblk(indrs[1][(ridx / ppb) % ppb], (u8*)indrs[2]) < 0) return -1;
             }
-        } else {
-            if (wrblk(indrs[1][(ridx / ppb) % ppb], (u8*)indrs[2]) < 0) return -1;
-        }
 
-        if (flush_inode(ino, inod) < 0) return -1;
+            if (flush_inode(ino, inod) < 0) return -1;
+        }
     }
 
     return 0;
@@ -504,23 +543,23 @@ static u8* getinodata(ext2_ino_t* inode, usize* outsz) {
     u8* obuf = malloc(tsz);
     if (!obuf) return NULL;
 
-    u32 tblks = (tsz + 1024 - ext2_sb.sb.s_first_data_block) / 1024;
+    u32 tblks = (tsz + ext2_blocksz - 1) / ext2_blocksz;
 
     u32 bidx = 0;
     while (bidx < tblks) {
         ssize pblk = ino_getblkid(inode, bidx++);
         if (pblk < 0) goto err;
 
-        usize blft = tsz - ((bidx - 1) * 1024);
-        usize b2cp = (blft > 1024) ? 1024 : blft;
-        u8* dptr = obuf + ((bidx - 1) * 1024);
+        usize blft = tsz - ((bidx - 1) * ext2_blocksz);
+        usize b2cp = (blft > ext2_blocksz) ? ext2_blocksz : blft;
+        u8* dptr = obuf + ((bidx - 1) * ext2_blocksz);
 
         if (pblk == 0) {
             memset(dptr, 0, b2cp);
-        } else if (b2cp == 1024) {
+        } else if (b2cp == ext2_blocksz) {
             if (rdblk(pblk, dptr) != 0) goto err;
         } else {
-            u8 tmp[1024];
+            u8 tmp[ext2_blocksz];
             if (rdblk(pblk, tmp) != 0) goto err;
             memcpy(dptr, tmp, b2cp);
         }
@@ -611,14 +650,15 @@ static ssize newino(u32 bg, u16 mode, u16 uid, u16 gid) {
     if (bg >= ext2_nbgs) return -1;
     for (usize n = 0; n < ext2_nbgs; n++) {
         u32 grp = (bg + n) % ext2_nbgs;
-        u8 bmp[1024];
+        u8 bmp[ext2_blocksz];
         if (ext2_bgs[grp].bg_free_inodes_count == 0) continue;
         if (rdblk(ext2_bgs[grp].bg_inode_bitmap, bmp) < 0) return -1;
 
-        for (usize i = 0; i < 1024; i++) {
+        for (usize i = 0; i < (ext2_sb.sb.s_inodes_per_group + 7) / 8 && i < ext2_blocksz; i++) {
             for (usize b = 0; b < 8; b++) {
                 if (!(bmp[i] & (1 << b))) {
                     usize idx = i * 8 + b;
+                    if (idx >= ext2_sb.sb.s_inodes_per_group) break;
                     bmp[i] |= (1 << b);
                     if (wrblk(ext2_bgs[grp].bg_inode_bitmap, bmp) < 0) return -1;
 
@@ -638,7 +678,7 @@ static ssize newino(u32 bg, u16 mode, u16 uid, u16 gid) {
                         0, 0, {0}
                     };
 
-                    u32 ino = grp * ext2_sb.sb.s_inodes_per_group + idx;
+                    u32 ino = grp * ext2_sb.sb.s_inodes_per_group + idx + 1;
                     if (flush_inode(ino, &inode) < 0) return -1;
 
                     return ino;
@@ -712,33 +752,36 @@ static int path_basename(const char* path, char* base, usize baselen) {
 
 static int rmlink(const char* path) {
     char dir[1024], name[1024];
-    if (path_dirname(path, dir, 1024) < 0) return -1;
-    if (path_basename(path, dir, 1024) < 0) return -1;
+    if (path_dirname(path, dir, sizeof(dir)) < 0) return -1;
+    if (path_basename(path, name, sizeof(name)) < 0) return -1;
 
     ext2_ino_t dinod;
     u32 dino = findino(dir, &dinod);
     if (dino == EXT2_BAD_INO) return -1;
 
-    usize nblks = (getisize(&dinod) + 1023) / 1024;
+    usize nblks = (getisize(&dinod) + ext2_blocksz - 1) / ext2_blocksz;
     for (usize b = 0; b < nblks; b++) {
         ssize blk = ino_getblkid(&dinod, b);
         if (blk < 0) {
             return -1;
         }
 
-        u8 blkd[1024];
+        u8 blkd[ext2_blocksz];
         if (rdblk(blk, blkd) < 0) return -1;
         ext2_dir1_t* pdir = NULL;
-        for (usize i = 0; i < 1024;) {
-            ext2_dir1_t* dir = (ext2_dir1_t*)&blkd[i];
-            if (dir->name_len == strlen(name) && memcmp(dir->name, name, dir->name_len) == 0) {
-                pdir->rec_len += dir->rec_len;
-                memset(dir, 0, dir->rec_len);
+        for (usize i = 0; i < ext2_blocksz;) {
+            ext2_dir1_t* dir_entry = (ext2_dir1_t*)&blkd[i];
+            if (dir_entry->rec_len < 8 || i + dir_entry->rec_len > ext2_blocksz) return -1;
+            if (dir_entry->name_len == strlen(name) && memcmp(dir_entry->name, name, dir_entry->name_len) == 0) {
+                if (pdir) {
+                    pdir->rec_len += dir_entry->rec_len;
+                }
+                memset(dir_entry, 0, dir_entry->rec_len);
                 if (wrblk(blk, blkd) < 0) return -1;
                 return 0;
             }
-            pdir = dir;
-            i += dir->rec_len;
+            pdir = dir_entry;
+            i += dir_entry->rec_len;
         }
     }
 
@@ -746,21 +789,20 @@ static int rmlink(const char* path) {
 }
 
 static int mklink(const char* path, u32 ino, u16 mode) {
-    char dir[1024], base[1204];
+    char dir[1024], base[1024];
 
-    if (path_dirname(path, dir, 1024) < 0) return -1;
-
-    if (path_basename(path, base, 1024) < 0) return -1;
+    if (path_dirname(path, dir, sizeof(dir)) < 0) return -1;
+    if (path_basename(path, base, sizeof(base)) < 0) return -1;
 
     ext2_ino_t parinod;
     u32 parino = findino(dir, &parinod);
     if (parino == EXT2_BAD_INO) return -1;
 
     usize newsz = EXT2_DIR_RECLEN(strlen(base));
-    usize nblks = (getisize(&parinod) + 1023) / 1024;
+    usize nblks = (getisize(&parinod) + ext2_blocksz - 1) / ext2_blocksz;
 
     ext2_dir1_t newent = {
-        ino, 0, strlen(base), 0, {0}
+        ino, 0, (u8)strlen(base), 0, {0}
     };
     memcpy(newent.name, base, strlen(base));
 
@@ -789,11 +831,11 @@ static int mklink(const char* path, u32 ino, u16 mode) {
         ssize blk = ino_getblkid(&parinod, b);
         if (blk < 0) return -1;
 
-        u8 blkd[1024];
+        u8 blkd[ext2_blocksz];
         if (rdblk(blk, blkd) < 0) return -1;
-        for (usize i = 0; i < 1024;) {
+        for (usize i = 0; i < ext2_blocksz;) {
             ext2_dir1_t* ent = (ext2_dir1_t*)&blkd[i];
-            if (ent->rec_len < 8 || i + ent->rec_len > 1024) return -1;
+            if (ent->rec_len < 8 || i + ent->rec_len > ext2_blocksz) return -1;
             usize oldsz = EXT2_DIR_RECLEN(ent->name_len);
 
             if (ent->inode == 0) {
@@ -820,10 +862,11 @@ static int mklink(const char* path, u32 ino, u16 mode) {
     ssize nblk = ino_allocblk(parino, &parinod);
     if (nblk < 0) return -1;
 
-    u8 blkd[1024] = {0};
-    newent.rec_len = 1024;
+    u8 blkd[ext2_blocksz];
+    memset(blkd, 0, ext2_blocksz);
+    newent.rec_len = (u16)ext2_blocksz;
     memcpy(blkd, &newent, EXT2_DIR_RECLEN(strlen(base)));
-    parinod.i_size += 1024;
+    parinod.i_size += ext2_blocksz;
     if (wrblk(nblk, blkd) < 0) return -1;
     flush_inode(parino, &parinod);
     return 0;
@@ -910,39 +953,44 @@ int _ext2_mount(const char* path) {
         memcpy(&ext2_sb, dynsb, sizeof(*dynsb));
 
         if (dynsb->s_feature_incompat & ~(EXT2_FEATURE_INCOMPAT_FILETYPE)) {
-            free(ext2_bgs);
+            if (ext2_bgs) free(ext2_bgs);
             return -1;
         }
         
         if (dynsb->s_feature_ro_compat & ~(EXT2_FEATURE_RO_COMPAT_SPARSE_SUPER | EXT2_FEATURE_RO_COMPAT_LARGE_FILE)) {
-            free(ext2_bgs);
+            if (ext2_bgs) free(ext2_bgs);
             return -1;
         }
 
         ext2_isdyn = 1;
         ext2_ismnt = 1;
     } else {
-        free(ext2_bgs);
+        if (ext2_bgs) free(ext2_bgs);
         return -1;
     }
+
+    ext2_blocksz = 1024 << sb->s_log_block_size;
+    ext2_sectors_per_block = ext2_blocksz / 512;
+    ext2_ppb = ext2_blocksz / sizeof(u32);
+    ext2_gpb = ext2_blocksz / sizeof(ext2_bg_t);
 
     ext2_nbgs = sb->s_blocks_count / sb->s_blocks_per_group;
     if (sb->s_blocks_count % sb->s_blocks_per_group != 0) ext2_nbgs++;
 
-    ext2_bgtbln = (ext2_nbgs * sizeof(*ext2_bgs)) / 1024;
-    if ((ext2_nbgs * sizeof(*ext2_bgs)) % 1024 != 0) ext2_bgtbln++;
+    ext2_bgtbln = (ext2_nbgs * sizeof(*ext2_bgs)) / ext2_blocksz;
+    if ((ext2_nbgs * sizeof(*ext2_bgs)) % ext2_blocksz != 0) ext2_bgtbln++;
 
     ext2_bgs = malloc(sizeof(*ext2_bgs) * ext2_nbgs);
     if (!ext2_bgs) return -1;
 
-    u8 rawdscblk[1024];
+    u8 rawdscblk[ext2_blocksz];
     u32 nbgsp = 0;
     ext2_bg_t* ptr = ext2_bgs;
     u32 cblk = sb->s_first_data_block + 1;
     for (usize i = 0; i < ext2_bgtbln; i++) {
         if (rdblk(cblk, rawdscblk) != 0) return -1;
 
-        u32 descs_ib = 1024 / sizeof(*ext2_bgs);
+        u32 descs_ib = ext2_gpb;
         if (nbgsp + descs_ib > ext2_nbgs) {
             descs_ib = ext2_nbgs - nbgsp;
         }
@@ -952,6 +1000,9 @@ int _ext2_mount(const char* path) {
         nbgsp += descs_ib;
         cblk++;
     }
+
+    serial_printf("EXT2: Mounted block size %u, %u blocks, %u groups\n",
+                  ext2_blocksz, sb->s_blocks_count, ext2_nbgs);
     
     return _ext2_chdir(path);
 }
@@ -964,7 +1015,16 @@ int _ext2_unmount() {
     memset(ext2_cwd, 0, sizeof(ext2_cwd));
     lock_release(&ext2_cwdlk);
 
+    if (ext2_bgs) {
+        free(ext2_bgs);
+        ext2_bgs = NULL;
+    }
+
     memset(&ext2_sb, 0, sizeof(ext2_sb));
+    ext2_blocksz = 1024;
+    ext2_sectors_per_block = 2;
+    ext2_ppb = 256;
+    ext2_gpb = 32;
 
     return 0;
 }
@@ -976,7 +1036,8 @@ int _ext2_trunc(int fd) {
     if (fdinfo->type != FDTYPE_E2ENT) return -1;
     struct ext2_entry* ent = &fdinfo->data.e2ent;
 
-    for (usize i = 0; i < ent->inod.i_blocks / 2; i++) {
+    usize nblks = (getisize(&ent->inod) + ext2_blocksz - 1) / ext2_blocksz;
+    for (usize i = 0; i < nblks; i++) {
         if (ino_freeblk(ent->ino, &ent->inod, i) < 0) return -1;
     }
 
@@ -1055,16 +1116,16 @@ ssize _ext2_read(int fd, void* buf, usize size) {
     usize nread = 0;
     while (nread < size) {
         usize pos = ent->pos + nread;
-        usize blk = pos / 1024;
-        usize off = pos % 1024;
+        usize blk = pos / ext2_blocksz;
+        usize off = pos % ext2_blocksz;
 
         ssize blkid = ino_getblkid(&ent->inod, blk);
         if (blkid < 0) return nread;
 
-        u8 blkd[1024];
+        u8 blkd[ext2_blocksz];
         if (rdblk(blkid, blkd) < 0) return -1;
 
-        usize n = 1024 - off;
+        usize n = ext2_blocksz - off;
         if (n > size - nread) n = size - nread;
         memcpy((u8*)buf + nread, blkd + off, n);
         nread += n;
@@ -1087,8 +1148,8 @@ ssize _ext2_write(int fd, void* buf, usize size) {
     usize nwriten = 0;
     while (nwriten < size) {
         usize pos = ent->pos + nwriten;
-        usize blk = pos / 1024;
-        usize off = pos % 1024;
+        usize blk = pos / ext2_blocksz;
+        usize off = pos % ext2_blocksz;
 
         ssize blkid = ino_getblkid(&ent->inod, blk);
         if (blkid < 0) {
@@ -1097,10 +1158,10 @@ ssize _ext2_write(int fd, void* buf, usize size) {
             }
         }
 
-        u8 blkd[1024];
+        u8 blkd[ext2_blocksz];
         if (rdblk(blkid, blkd) < 0) return -1;
 
-        usize n = 1024 - off;
+        usize n = ext2_blocksz - off;
         if (n > size - nwriten) n = size - nwriten;
         memcpy(blkd + off, (u8*)buf + nwriten, n);
         if (wrblk(blkid, blkd) < 0) return -1;
@@ -1178,18 +1239,18 @@ int _ext2_readdir(int dd, struct stat* st) {
     }
 
     struct ext2_entry* ent = &info->data.e2ent;
-    usize nblks = (getisize(&ent->inod) + 1023) / 1024;
+    usize nblks = (getisize(&ent->inod) + ext2_blocksz - 1) / ext2_blocksz;
     usize pos = 0;
 
     for (usize b = 0; b < nblks; b++) {
         ssize blk = ino_getblkid(&ent->inod, b);
         if (blk == EXT2_BAD_INO) return -1;
 
-        u8 blkd[1024];
+        u8 blkd[ext2_blocksz];
         if (rdblk(blk, blkd) < 0) return -1;
-        for (usize i = 0; i < 1024;) {
+        for (usize i = 0; i < ext2_blocksz;) {
             ext2_dir1_t* dir = (ext2_dir1_t*)&blkd[i];
-            if (dir->rec_len < 8 || i + dir->rec_len > 1024) return -1;
+            if (dir->rec_len < 8 || i + dir->rec_len > ext2_blocksz) return -1;
             
             if (pos == ent->pos) {
                 if (dir->inode == 0) {
@@ -1251,7 +1312,7 @@ int _ext2_unlink(const char* path) {
     if (ino == EXT2_BAD_INO) return -1;
 
     char dir[1024];
-    if (path_dirname(path, dir, 1024) < 0) return -1;
+    if (path_dirname(path, dir, sizeof(dir)) < 0) return -1;
 
     if (inod.i_links_count > 1) {
         if (rmlink(path) < 0) return -1;
@@ -1262,7 +1323,8 @@ int _ext2_unlink(const char* path) {
         // now since theres no more links were gonna like actually
         // destroy the data and link
 
-        for (usize i = 0; i < inod.i_blocks / 2; i++) {
+        usize nblks = (getisize(&inod) + ext2_blocksz - 1) / ext2_blocksz;
+        for (usize i = 0; i < nblks; i++) {
             if (ino_freeblk(ino, &inod, i) < 0) return -1;
         }
 
@@ -1288,7 +1350,7 @@ int _ext2_rmdir(const char* path) {
     if (ino == EXT2_BAD_INO) return -1;
 
     char dir[1024];
-    if (path_dirname(path, dir, 1024) < 0) return -1;
+    if (path_dirname(path, dir, sizeof(dir)) < 0) return -1;
 
     usize dirsz = 0;
     u8* ddata = getinodata(&inod, &dirsz);
@@ -1331,7 +1393,7 @@ int _ext2_mkdir(const char* path, u32 mode) {
     if (mklink(path, ino, e2mod) < 0) return -1;
 
     char dir[1024];
-    if (path_dirname(path, dir, 1024) < 0) return -1;
+    if (path_dirname(path, dir, sizeof(dir)) < 0) return -1;
 
     ext2_ino_t dinod;
     u32 dino = findino(dir, &dinod);
@@ -1346,13 +1408,13 @@ int _ext2_mkdir(const char* path, u32 mode) {
     }
 
     char dot[1024], dotdot[1024];
-    int ret = snprintf(dot, 1024, "%s/.", path);
+    int ret = snprintf(dot, sizeof(dot), "%s/.", path);
     if (ret >= 1024 || ret < 0) {
         _ext2_unlink(path);
         return -1;
     }
 
-    ret = snprintf(dotdot, 1024, "%s/..", path);
+    ret = snprintf(dotdot, sizeof(dotdot), "%s/..", path);
     if (ret >= 1024 || ret < 0) {
         _ext2_unlink(path);
         return -1;
@@ -1379,7 +1441,7 @@ int _ext2_chdir(const char* path) {
     }
 
     char dir[1024];
-    if (path_dirname(path, dir, 1024) < 0) {
+    if (path_dirname(path, dir, sizeof(dir)) < 0) {
         return -1;
     }
 
