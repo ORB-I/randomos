@@ -15,8 +15,7 @@
 
 ## Known issues
 - [ ] Sometimes AP RUN hangs, though it reaches the "AP 1 received RUN request" print
-      usually a re-link fixes it  
-- [ ] _ext2_readdir sometimes returns an empty name  
+      usually a re-link fixes it   
 ## Unassigned tasks
 - [ ] Make a simple README.md for randomOS.
 - [ ] Change About to something more professional.
