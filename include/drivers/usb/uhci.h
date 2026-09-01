@@ -166,4 +166,5 @@ int uhci_portcon(uhci_controller_t* hc, uint8_t port);
 #define UHCI_REG_NTYPE -3
 #define UHCI_REG_NSADR -4
 #define UHCI_REG_NSCFG -5
-int uhci_regdev(uhci_controller_t* hc, int port, int low_speed, u8 class, u8 proto);
+
+int uhci_regdev(uhci_controller_t* hc, int port, int low_speed, u8 cls, u8 proto);

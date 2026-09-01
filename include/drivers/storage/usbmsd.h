@@ -34,5 +34,5 @@ typedef struct {
 } __attribute__((packed)) usbmsd_csw_t;
 
 int usbmsd_init(void);
-void usbmsd_secread(u8 drv, u32 lba, u8* buf);
-void usbmsd_secwrite(u8 drv, u32 lba, u8* buf);
+int usbmsd_secread(u8 drv, u32 lba, u8* buf);
+int usbmsd_secwrite(u8 drv, u32 lba, u8* buf);

@@ -35,6 +35,6 @@ typedef struct {
 } __attribute__((packed)) virtio_blk_config_t;
 
 int virtio_blk_init();
-void virtio_blk_secread(u8 id, u32 lba, u8* buf);
-void virtio_blk_secwrite(u8 id, u32 lba, u8* buf);
+int virtio_blk_secread(u8 id, u32 lba, u8* buf);
+int virtio_blk_secwrite(u8 id, u32 lba, u8* buf);
 u64 virtio_blk_get_capacity();

@@ -133,7 +133,7 @@ void ata_poll(u8 drv) {
     else if (!(stat & 0x08)) panic("ATA DRQ not set");
 }
 
-void ata_secread(u8 drv, u32 lba, u8* buf) {
+int ata_secread(u8 drv, u32 lba, u8* buf) {
     ata_outb(drv, RTCTRL, 0, 0);
     ata_outb(drv, RTIO, 6, 0xE0 | ((lba >> 24) & 0x0F));
     for (int i = 0; i < 4; i++) ata_inb(drv, RTCTRL, 0);
@@ -151,9 +151,11 @@ void ata_secread(u8 drv, u32 lba, u8* buf) {
         buf[i*2] = (u8)(dt & 0xFF);
         buf[(i*2)+1] = (u8)(dt >> 8);
     }
+
+    return 0;
 }
 
-void ata_secwrite(u8 drv, u32 lba, u8* buf) {
+int ata_secwrite(u8 drv, u32 lba, u8* buf) {
     ata_outb(drv, RTCTRL, 0, 0);
 
     ata_outb(drv, RTIO, 6, 0xE0 | ((lba >> 24) & 0x0F));
@@ -172,4 +174,6 @@ void ata_secwrite(u8 drv, u32 lba, u8* buf) {
 
     ata_outb(drv, RTIO, 7, 0xE7);
     while (ata_inb(drv, RTIO, 7) & 0x80);
+
+    return 0;
 }

@@ -247,9 +247,9 @@ int usbmsd_init(void) {
     return -ENOEXIST;
 }
 
-void usbmsd_secread(u8 drv, u32 lba, u8* buf) {
+int usbmsd_secread(u8 drv, u32 lba, u8* buf) {
     (void)drv;
-    if (usbmsd_dev.addr == 0) return;
+    if (usbmsd_dev.addr == 0) return -ENOEXIST;
 
     usbmsd_cbw_t cbw;
     memset(&cbw, 0, sizeof(cbw));
@@ -267,14 +267,16 @@ void usbmsd_secread(u8 drv, u32 lba, u8* buf) {
     cbw.cdb[7] = 0x00;
     cbw.cdb[8] = 1;
 
-    if (usbmsd_do_bot(&cbw, buf, 512) < 0) {
+    int ret = 0;
+    if ((ret = usbmsd_do_bot(&cbw, buf, 512)) < 0) {
         printf("USBMSD: Read error at LBA %d\n", lba);
     }
+    return ret;
 }
 
-void usbmsd_secwrite(u8 drv, u32 lba, u8* buf) {
+int usbmsd_secwrite(u8 drv, u32 lba, u8* buf) {
     (void)drv;
-    if (usbmsd_dev.addr == 0) return;
+    if (usbmsd_dev.addr == 0) return -ENOEXIST;
 
     usbmsd_cbw_t cbw;
     memset(&cbw, 0, sizeof(cbw));
@@ -292,7 +294,10 @@ void usbmsd_secwrite(u8 drv, u32 lba, u8* buf) {
     cbw.cdb[7] = 0x00;
     cbw.cdb[8] = 1;
 
-    if (usbmsd_do_bot(&cbw, buf, 512) < 0) {
+    int ret = 0;
+    if ((ret = usbmsd_do_bot(&cbw, buf, 512)) < 0) {
         printf("USBMSD: Write error at LBA %d\n", lba);
     }
+
+    return ret;
 }

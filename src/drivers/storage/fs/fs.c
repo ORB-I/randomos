@@ -1,5 +1,6 @@
 #include <core/std.h>
 #include <core/printf.h>
+#include <core/errno.h>
 #include <lib/string.h>
 #include <drivers/storage/fs.h>
 #include <drivers/storage/ext2.h>
@@ -11,7 +12,7 @@
 int fs_probe_mount(void) {
     if (_ext2_mount("/") < 0) {
         printf("Failed to mount EXT2\n");
-        return -1;
+        return -ENOEXIST;
     }
     return 0;
 }

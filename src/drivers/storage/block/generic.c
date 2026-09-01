@@ -67,8 +67,8 @@ int block_write(u8 id, const u8* buf, u32 lba, usize cnt) {
     if (_drv_id < 0 || _drv_type < 0) return BLOCK_NOTRDY;
 
     u8 drv = (id != 0) ? id : (u8)_drv_id;
-    void (*fn32)(u8 id, u32 lba, u8* buf) = NULL;
-    void (*fn64)(u8 id, u64 lba, u8* buf) = NULL;
+    int (*fn32)(u8 id, u32 lba, u8* buf) = NULL;
+    int (*fn64)(u8 id, u64 lba, u8* buf) = NULL;
 
     if (_drv_type == DRV_ATA) {
         fn32 = ata_secwrite;
@@ -84,25 +84,34 @@ int block_write(u8 id, const u8* buf, u32 lba, usize cnt) {
 
     if (_drv_type == DRV_ATA) lock_acquire(&blkio_lk);
 
+    int ret = 0;
     if (fn32) {
         for (usize i = 0; i < cnt; i++) {
-            fn32(drv, (u32)(lba + i), (u8*)(buf + (i * 512)));
+            int v = fn32(drv, (u32)(lba + i), (u8*)(buf + (i * 512)));
+            if (v < 0) {
+                ret = v;
+                break;
+            }
         }
     } else {
         for (usize i = 0; i < cnt; i++) {
-            fn64(drv, (u64)(lba + i), (u8*)(buf + (i * 512)));
+            int v = fn64(drv, (u64)(lba + i), (u8*)(buf + (i * 512)));
+            if (v < 0) {
+                ret = v;
+                break;
+            }
         }
     }
 
     if (_drv_type == DRV_ATA) lock_release(&blkio_lk);
 
-    return 0;
+    return ret;
 }
 
 int block_read(u8 id, u8* buf, u32 lba, usize cnt) {
     u8 drv = (id != 0) ? id : (u8)_drv_id;
-    void (*fn32)(u8 id, u32 lba, u8* buf) = NULL;
-    void (*fn64)(u8 id, u64 lba, u8* buf) = NULL;
+    int (*fn32)(u8 id, u32 lba, u8* buf) = NULL;
+    int (*fn64)(u8 id, u64 lba, u8* buf) = NULL;
     
     if (_drv_type == DRV_ATA) {
         fn32 = ata_secread;
@@ -118,17 +127,26 @@ int block_read(u8 id, u8* buf, u32 lba, usize cnt) {
 
     if (_drv_type == DRV_ATA) lock_acquire(&blkio_lk);
 
+    int ret = 0;
     if (fn32) {
         for (usize i = 0; i < cnt; i++) {
-            fn32(drv, (u32)(lba + i), (u8*)(buf + (i * 512)));
+            int v = fn32(drv, (u32)(lba + i), (u8*)(buf + (i * 512)));
+            if (v < 0) {
+                ret = v;
+                break;
+            }
         }
     } else {
         for (usize i = 0; i < cnt; i++) {
-            fn64(drv, (u64)(lba + i), (u8*)(buf + (i * 512)));
+            int v = fn64(drv, (u64)(lba + i), (u8*)(buf + (i * 512)));
+            if (v < 0) {
+                ret = v;
+                break;
+            }
         }
     }
 
     if (_drv_type == DRV_ATA) lock_release(&blkio_lk);
 
-    return 0;
+    return ret;
 }

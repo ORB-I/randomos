@@ -348,18 +348,26 @@ int ahci_init(void) {
     return -ENOEXIST;
 }
 
-void ahci_secread(u8 drv, u64 lba, u8* buf) {
+int ahci_secread(u8 drv, u64 lba, u8* buf) {
     (void)drv;
-    if (ahci_port < 0) return;
-    if (ahci_issue_cmd(ahci_port, lba, 1, buf, 0) < 0) {
+    if (ahci_port < 0) return -ENOEXIST;
+
+    int ret = 0;
+    if ((ret = ahci_issue_cmd(ahci_port, lba, 1, buf, 0)) < 0) {
         printf("AHCI: Read error at LBA %d\n", lba);
     }
+
+    return ret;
 }
 
-void ahci_secwrite(u8 drv, u64 lba, u8* buf) {
+int ahci_secwrite(u8 drv, u64 lba, u8* buf) {
     (void)drv;
-    if (ahci_port < 0) return;
-    if (ahci_issue_cmd(ahci_port, lba, 1, buf, 1) < 0) {
+    if (ahci_port < 0) return -ENOEXIST;
+
+    int ret = 0;
+    if ((ret = ahci_issue_cmd(ahci_port, lba, 1, buf, 1)) < 0) {
         printf("AHCI: Write error at LBA %d\n", lba);
     }
+
+    return ret;
 }

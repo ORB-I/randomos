@@ -146,14 +146,14 @@ static int virtio_blk_transfer(u32 type, u64 lba, u8* buf) {
     return 0;
 }
 
-void virtio_blk_secread(u8 id, u32 lba, u8* buf) {
+int virtio_blk_secread(u8 id, u32 lba, u8* buf) {
     (void)id;
-    virtio_blk_transfer(VIRTIO_BLK_T_IN, (u64)lba, buf);
+    return virtio_blk_transfer(VIRTIO_BLK_T_IN, (u64)lba, buf);
 }
 
-void virtio_blk_secwrite(u8 id, u32 lba, u8* buf) {
+int virtio_blk_secwrite(u8 id, u32 lba, u8* buf) {
     (void)id;
-    virtio_blk_transfer(VIRTIO_BLK_T_OUT, (u64)lba, buf);
+    return virtio_blk_transfer(VIRTIO_BLK_T_OUT, (u64)lba, buf);
 }
 
 u64 virtio_blk_get_capacity() {

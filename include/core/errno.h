@@ -24,6 +24,10 @@
 #define ENOEXIST  22 // something doesnt exist
 #define EHANG     23 // will hang
 #define ETOOSMALL 24 // buffer too small
+#define ENOSPC    25 // no space on disk
+#define ENOTDIR   26 // not a directory
+#define EISDIR    27 // is a directory
+#define ENOTEMPTY 28 // directory not empty
 
 #define FF_TO_ERRNO(FF)  \
     (FF == FR_OK ? EOK : \
