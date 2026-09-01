@@ -1,4 +1,4 @@
-# randomOS - DONE
+# NOT BEING USED ANYMORE.
 
 Completed work, grouped per developer. Format: `- [x] what - @who`.
 
