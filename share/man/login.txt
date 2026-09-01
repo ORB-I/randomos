@@ -1,0 +1,22 @@
+LOGIN(1)                    RandomOS Reference Manual                    LOGIN(1)
+
+NAME
+    login - authenticate user and initialize session
+
+SYNOPSIS
+    login [username]
+
+DESCRIPTION
+    login validates user credentials against /etc/passwd using the Argon2id
+    hashing algorithm from libmcrypto.
+
+    Upon successful authentication, login:
+        1. Sets UID, GID, EUID, and EGID to the user's credentials.
+        2. Sets environment variables: USER, HOME, and PATH.
+        3. Changes the working directory to the user's home directory.
+        4. Spawns the login shell via execve.
+
+SEE ALSO
+    passwd(5), sh(1), id(1), whoami(1)
+
+RandomOS 1.0                     September 2026                          LOGIN(1)

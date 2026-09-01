@@ -43,7 +43,7 @@ EXE  := kern.elf
 ISO  := os.iso
 DEPS := $(CC_SRC:.c=.d)
 
-SUBDIRS := user/libs/libmcrypto user/libc user/progs share/etc
+SUBDIRS := user/libs/libmcrypto user/libc user/progs share/etc share/man
 
 all: subdirs $(ISO)
 

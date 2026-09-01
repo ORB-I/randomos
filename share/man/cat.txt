@@ -1,0 +1,24 @@
+CAT(1)                      RandomOS Reference Manual                     CAT(1)
+
+NAME
+    cat - concatenate and display files
+
+SYNOPSIS
+    cat <file...>
+
+DESCRIPTION
+    cat reads files sequentially and prints their contents to standard output.
+    It uses standard read and write system calls.
+
+EXAMPLES
+    cat /etc/passwd
+        Display the user account database.
+
+    cat /share/man/sh.txt
+        Display the shell manual page.
+
+EXIT STATUS
+    0   All files read successfully
+    1   An error occurred opening or reading a file
+
+RandomOS 1.0                     September 2026                           CAT(1)

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RandomOS - Documentation</title>
+    <link rel="stylesheet" href="https://unpkg.com/mvp.css">
+    <style>
+        :root {
+            --bgclr: #202b38;
+            --hdrclr: #1b242e;
+            --textclr: #E2E2E2;
+            --cardclr: #18222d;
+            --borderclr: #2c3e50;
+        }
+
+        body {
+            background-color: var(--bgclr);
+            color: var(--textclr);
+        }
+
+        .site-main {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            min-height: 100dvh;
+        }
+
+        main {
+            max-width: 65%;
+        }
+
+        footer {
+            max-width: 65%;
+        }
+
+        header {
+            text-align: left !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding-left: 2rem !important;
+            background-color: var(--hdrclr);
+            overflow: hidden;
+            gap: 0rem;
+            display: flex;
+            flex-direction: column;
+
+            h1,
+            h2,
+            p {
+                margin-bottom: 0;
+            }
+        }
+
+        hr {
+            margin-bottom: 1rem;
+            margin-top: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            color: var(--textclr);
+            background-color: transparent;
+        }
+
+        th, td {
+            border: 1px solid var(--borderclr);
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            color: var(--textclr);
+        }
+
+        tr {
+            background-color: transparent !important;
+        }
+
+        th {
+            background-color: var(--hdrclr);
+            color: #FFFFFF;
+        }
+
+        code, kbd, samp {
+            background-color: #121921;
+            color: #89ddff;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            border: 1px solid #233140;
+        }
+
+        pre {
+            background-color: #121921;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid var(--borderclr);
+            color: var(--textclr);
+        }
+
+        pre code {
+            background-color: transparent;
+            border: none;
+            padding: 0;
+            color: var(--textclr);
+        }
+
+        a {
+            color: #70a5fd;
+        }
+
+        .doc-section {
+            margin-bottom: 2.5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="site-main">
+        <header>
+            <h1>
+                <a href="index.html" class="clean-link">RandomOS</a>
+            </h1>
+            <h2>Documentation and Technical Reference</h2>
+            <p>
+                <a href="features.html">Features</a> / 
+                <a href="docs.html">Docs</a> / 
+                <a href="https://github.com/Wdboyes13/randomos">GitHub</a> / 
+                <a href="license.html">License</a>
+            </p>
+        </header>
+        <main>
+            <div class="doc-section">
+                <h2>1. System Call ABI</h2>
+                <hr />
+                <p>
+                    RandomOS utilizes the standard x86_64 <code>syscall</code> instruction for transitions
+                    between user space and kernel space. Parameters and system call numbers are passed via
+                    general-purpose CPU registers.
+                </p>
+
+                <h3>Register Convention</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Register</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>RAX</code></td>
+                            <td>System call number (input) / Return value (output)</td>
+                        </tr>
+                        <tr>
+                            <td><code>RDI</code></td>
+                            <td>Argument 0</td>
+                        </tr>
+                        <tr>
+                            <td><code>RSI</code></td>
+                            <td>Argument 1</td>
+                        </tr>
+                        <tr>
+                            <td><code>RDX</code></td>
+                            <td>Argument 2</td>
+                        </tr>
+                        <tr>
+                            <td><code>R10</code></td>
+                            <td>Argument 3 (replaces RCX, which is clobbered by the syscall instruction)</td>
+                        </tr>
+                        <tr>
+                            <td><code>R8</code></td>
+                            <td>Argument 4</td>
+                        </tr>
+                        <tr>
+                            <td><code>R9</code></td>
+                            <td>Argument 5</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>
+                    Return values: Non-negative values indicate success. Negative values represent error codes
+                    defined in <code>errno.h</code> (such as <code>-EINVAL</code>, <code>-ENOMEM</code>, <code>-ENOEXIST</code>).
+                </p>
+            </div>
+
+            <div class="doc-section">
+                <h2>2. System Call Reference</h2>
+                <hr />
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Number</th>
+                            <th>Name</th>
+                            <th>Signature</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><code>SYS_EXIT</code></td>
+                            <td><code>void exit(int code)</code></td>
+                            <td>Terminates current process and reports exit status to parent.</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><code>SYS_READ</code></td>
+                            <td><code>ssize read(int fd, void* buf, usize count)</code></td>
+                            <td>Reads bytes from file descriptor.</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td><code>SYS_WRITE</code></td>
+                            <td><code>ssize write(int fd, const void* buf, usize count)</code></td>
+                            <td>Writes bytes to file descriptor.</td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><code>SYS_OPEN</code></td>
+                            <td><code>int open(const char* path, int flags, int mode)</code></td>
+                            <td>Opens file and allocates descriptor.</td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td><code>SYS_CLOSE</code></td>
+                            <td><code>int close(int fd)</code></td>
+                            <td>Closes file descriptor.</td>
+                        </tr>
+                        <tr>
+                            <td>6</td>
+                            <td><code>SYS_CREAT</code></td>
+                            <td><code>int creat(const char* path, int mode)</code></td>
+                            <td>Creates new file on filesystem.</td>
+                        </tr>
+                        <tr>
+                            <td>7</td>
+                            <td><code>SYS_UNLINK</code></td>
+                            <td><code>int unlink(const char* path)</code></td>
+                            <td>Deletes file entry and frees blocks if link count reaches 0.</td>
+                        </tr>
+                        <tr>
+                            <td>9</td>
+                            <td><code>SYS_LSEEK</code></td>
+                            <td><code>off_t lseek(int fd, off_t offset, int whence)</code></td>
+                            <td>Repositions read/write file offset.</td>
+                        </tr>
+                        <tr>
+                            <td>10</td>
+                            <td><code>SYS_RENAME</code></td>
+                            <td><code>int rename(const char* oldname, const char* newname)</code></td>
+                            <td>Renames file or directory.</td>
+                        </tr>
+                        <tr>
+                            <td>11</td>
+                            <td><code>SYS_MKDIR</code></td>
+                            <td><code>int mkdir(const char* path, int mode)</code></td>
+                            <td>Creates a directory entry.</td>
+                        </tr>
+                        <tr>
+                            <td>12</td>
+                            <td><code>SYS_RMDIR</code></td>
+                            <td><code>int rmdir(const char* path)</code></td>
+                            <td>Removes an empty directory.</td>
+                        </tr>
+                        <tr>
+                            <td>13</td>
+                            <td><code>SYS_REBOOT</code></td>
+                            <td><code>int reboot(void)</code></td>
+                            <td>Triggers ACPI or 8042 keyboard controller reboot.</td>
+                        </tr>
+                        <tr>
+                            <td>14</td>
+                            <td><code>SYS_STAT</code></td>
+                            <td><code>int stat(const char* path, struct stat* st)</code></td>
+                            <td>Queries file attributes, size, and mode.</td>
+                        </tr>
+                        <tr>
+                            <td>15</td>
+                            <td><code>SYS_POWEROFF</code></td>
+                            <td><code>int poweroff(void)</code></td>
+                            <td>Powers down machine via ACPI.</td>
+                        </tr>
+                        <tr>
+                            <td>16</td>
+                            <td><code>SYS_SLEEP</code></td>
+                            <td><code>void sleep(u64 seconds)</code></td>
+                            <td>Suspends process execution for specified duration.</td>
+                        </tr>
+                        <tr>
+                            <td>17</td>
+                            <td><code>SYS_READDIR</code></td>
+                            <td><code>int readdir(int dd, struct stat* st)</code></td>
+                            <td>Reads next directory entry.</td>
+                        </tr>
+                        <tr>
+                            <td>18</td>
+                            <td><code>SYS_OPENDIR</code></td>
+                            <td><code>int opendir(const char* path)</code></td>
+                            <td>Opens directory for reading.</td>
+                        </tr>
+                        <tr>
+                            <td>23</td>
+                            <td><code>SYS_TERMCTL</code></td>
+                            <td><code>int termctl(int cmd, int arg)</code></td>
+                            <td>Controls terminal color, cursor, and buffering modes.</td>
+                        </tr>
+                        <tr>
+                            <td>24</td>
+                            <td><code>SYS_CREATEFB</code></td>
+                            <td><code>int create_fb(int type)</code></td>
+                            <td>Allocates graphics or terminal framebuffer.</td>
+                        </tr>
+                        <tr>
+                            <td>26</td>
+                            <td><code>SYS_SWITCHFB</code></td>
+                            <td><code>int switch_fb(int fbid)</code></td>
+                            <td>Activates target framebuffer on display.</td>
+                        </tr>
+                        <tr>
+                            <td>28</td>
+                            <td><code>SYS_FLUSHSCR</code></td>
+                            <td><code>void flush_scr(void)</code></td>
+                            <td>Flushes framebuffer backbuffer to screen.</td>
+                        </tr>
+                        <tr>
+                            <td>29</td>
+                            <td><code>SYS_GETFBINF</code></td>
+                            <td><code>int get_fbinfo(int fbid, framebuf_info_t* info)</code></td>
+                            <td>Returns resolution, pitch, and pixel format.</td>
+                        </tr>
+                        <tr>
+                            <td>36</td>
+                            <td><code>SYS_MMAP</code></td>
+                            <td><code>void* mmap(void* addr, usize len, int prot, int flags)</code></td>
+                            <td>Maps virtual memory pages into process address space.</td>
+                        </tr>
+                        <tr>
+                            <td>37</td>
+                            <td><code>SYS_MUNMAP</code></td>
+                            <td><code>int munmap(void* addr, usize len)</code></td>
+                            <td>Unmaps process virtual memory pages.</td>
+                        </tr>
+                        <tr>
+                            <td>41</td>
+                            <td><code>SYS_GETMOUSEINFO</code></td>
+                            <td><code>int get_mouse_info(mouse_info_t* info)</code></td>
+                            <td>Polls relative mouse coordinates and button states.</td>
+                        </tr>
+                        <tr>
+                            <td>42</td>
+                            <td><code>SYS_NEWPROC</code></td>
+                            <td><code>int newproc(const char* path, char** argv, char** envp)</code></td>
+                            <td>Spawns child process from an executable ELF.</td>
+                        </tr>
+                        <tr>
+                            <td>43</td>
+                            <td><code>SYS_WAIT</code></td>
+                            <td><code>int wait(int pid, int* status)</code></td>
+                            <td>Waits for child process termination.</td>
+                        </tr>
+                        <tr>
+                            <td>44</td>
+                            <td><code>SYS_KILL</code></td>
+                            <td><code>int kill(int pid)</code></td>
+                            <td>Terminates target process by PID.</td>
+                        </tr>
+                        <tr>
+                            <td>45</td>
+                            <td><code>SYS_GETPID</code></td>
+                            <td><code>int getpid(void)</code></td>
+                            <td>Returns process ID of caller.</td>
+                        </tr>
+                        <tr>
+                            <td>46-53</td>
+                            <td><code>SYS_GET/SET UID/GID</code></td>
+                            <td><code>uid_t getuid(void), ...</code></td>
+                            <td>Retrieves and configures real/effective user and group IDs.</td>
+                        </tr>
+                        <tr>
+                            <td>55</td>
+                            <td><code>SYS_GETRAWSCTO</code></td>
+                            <td><code>u8 kbd_get_raw_to(u64 timeout)</code></td>
+                            <td>Reads raw keyboard scancode with timeout.</td>
+                        </tr>
+                        <tr>
+                            <td>56</td>
+                            <td><code>SYS_EXECVE</code></td>
+                            <td><code>int execve(const char* path, char** argv, char** envp)</code></td>
+                            <td>Replaces current process image with executable ELF.</td>
+                        </tr>
+                        <tr>
+                            <td>57-58</td>
+                            <td><code>SYS_RANDOM</code></td>
+                            <td><code>u64 random64(void), void random_bytes(...)</code></td>
+                            <td>Retrieves hardware entropy (VirtIO RNG / RDRAND).</td>
+                        </tr>
+                        <tr>
+                            <td>59-60</td>
+                            <td><code>SYS_GET/SETPWD</code></td>
+                            <td><code>int getcwd(...), int chdir(...)</code></td>
+                            <td>Manages process current working directory.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="doc-section">
+                <h2>3. User Utilities & Commands</h2>
+                <hr />
+                <p>Userland binaries reside in <code>/bin/</code> and can be inspected via <code>man &lt;topic&gt;</code>:</p>
+                <ul>
+                    <li><code>sh</code>: Interactive command shell with environment variables, PATH execution, and builtins.</li>
+                    <li><code>ls [path]</code>: Lists directory contents from EXT2 filesystem.</li>
+                    <li><code>cat &lt;file...&gt;</code>: Prints contents of specified files to standard output.</li>
+                    <li><code>echo &lt;args...&gt;</code>: Prints text arguments to standard output.</li>
+                    <li><code>mkfile &lt;file&gt;</code>: Creates a new empty file.</li>
+                    <li><code>rm &lt;file&gt;</code>: Deletes a file or directory.</li>
+                    <li><code>clear</code>: Clears the terminal screen buffer.</li>
+                    <li><code>sleep &lt;sec&gt;</code>: Pauses execution for specified number of seconds.</li>
+                    <li><code>id</code> / <code>whoami</code>: Prints real and effective user and group identities.</li>
+                    <li><code>environ</code>: Prints active environment variable table.</li>
+                    <li><code>random</code>: Reads and displays entropy from the kernel random generator.</li>
+                    <li><code>login</code>: Prompts for username and Argon2id password hash validation.</li>
+                    <li><code>wm</code>: Graphical window manager and desktop environment.</li>
+                    <li><code>man &lt;topic&gt;</code>: System manual documentation viewer.</li>
+                    <li><code>reboot</code> / <code>poweroff</code>: System power control utilities.</li>
+                </ul>
+            </div>
+
+            <div class="doc-section">
+                <h2>4. Configuration Files</h2>
+                <hr />
+                <h3>/etc/passwd</h3>
+                <p>
+                    Stores user accounts, credentials, and default configuration. Format is colon-delimited:
+                </p>
+                <pre><code>username:argon2id_hash:uid:gid:homedir:shell</code></pre>
+                <ul>
+                    <li><code>username</code>: Login identifier.</li>
+                    <li><code>argon2id_hash</code>: Argon2id cryptographic hash (empty for passwordless login).</li>
+                    <li><code>uid</code>: Numeric user ID (0 for root).</li>
+                    <li><code>gid</code>: Numeric primary group ID.</li>
+                    <li><code>homedir</code>: Default starting directory upon login.</li>
+                    <li><code>shell</code>: Path to login executable (default: <code>/bin/sh</code>).</li>
+                </ul>
+            </div>
+
+            <div class="doc-section">
+                <h2>5. Graphical Subsystem & Window Manager</h2>
+                <hr />
+                <p>
+                    RandomOS provides multiple framebuffer support via <code>create_fb()</code> and <code>switch_fb()</code>.
+                    The window manager (<code>wm</code>) initializes a dedicated GUI framebuffer and implements double-buffered
+                    compositing to prevent screen tearing.
+                </p>
+                <p>
+                    Built-in applications within the window manager include a graphical Terminal, File Browser,
+                    System Monitor, Notes editor, and Calculator.
+                </p>
+            </div>
+        </main>
+        <footer>
+            <sub>
+                RandomOS Documentation under the MIT License.
+            </sub>
+        </footer>
+    </div>
+</body>
+
+</html>

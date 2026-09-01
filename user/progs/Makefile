@@ -31,7 +31,8 @@ PROGS := init \
 		 whoami \
 		 serialtest \
 		 environ \
-		 random
+		 random \
+		 man
 
 PROGS_C := login
 

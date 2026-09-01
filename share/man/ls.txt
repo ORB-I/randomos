@@ -1,0 +1,20 @@
+LS(1)                       RandomOS Reference Manual                      LS(1)
+
+NAME
+    ls - list directory contents
+
+SYNOPSIS
+    ls [path...]
+
+DESCRIPTION
+    ls lists information about files and directories. If no path is specified,
+    it lists the contents of the current working directory.
+
+    Directories are printed with standard formatting, and entries are read
+    via the readdir system call from the underlying filesystem (EXT2).
+
+EXIT STATUS
+    0   Success
+    1   Failure (path does not exist or permission denied)
+
+RandomOS 1.0                     September 2026                            LS(1)

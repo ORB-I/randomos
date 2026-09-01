@@ -1,0 +1,37 @@
+SH(1)                       RandomOS Reference Manual                      SH(1)
+
+NAME
+    sh - interactive command interpreter
+
+SYNOPSIS
+    sh
+
+DESCRIPTION
+    sh is the primary user shell in RandomOS. It executes commands interactively
+    from standard input or non-interactively from scripts.
+
+    The shell searches executable programs in directories specified by the
+    PATH environment variable (default: /bin).
+
+BUILTIN COMMANDS
+    cd [dir]
+        Change the current working directory to dir. If no directory is
+        specified, changes to HOME directory or /.
+
+    pwd
+        Print the absolute path of the current working directory.
+
+    exit
+        Terminate the current shell session.
+
+ENVIRONMENT
+    PATH
+        Colon-separated search path for binaries (e.g., /bin).
+
+    HOME
+        User home directory (e.g., / or /home/username).
+
+    USER
+        Name of the logged-in user.
+
+RandomOS 1.0                     September 2026                            SH(1)
