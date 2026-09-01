@@ -7,9 +7,11 @@
 #include <lwip/lwip/timeouts.h>
 #include <drivers/time/clock.h>
 #include <drivers/time/hpet.h>
+#include <drivers/net/virtio_net.h>
+#include <drivers/net/e1000.h>
 #include <core/printf.h>
 
-err_t e1000_netifinit();
+err_t e1000_netifinit(struct netif* nf);
 extern struct netif _e1000_netif;
 
 static void netif_status_cb(struct netif *netif) {
@@ -43,18 +45,28 @@ int init_lwip() {
     IP4_ADDR(&nmask, 0, 0, 0, 0);
     IP4_ADDR(&gw, 0, 0, 0, 0);
 
-    printf("Adding ethernet device Intel(R) E1000\n");
-    struct netif* nf = netif_add(&_e1000_netif, &ipv4, 
-        &nmask, &gw, 
-        NULL, e1000_netifinit, 
-        ethernet_input);
+    struct netif* nf = NULL;
+
+    if (virtio_net_initialized) {
+        printf("Adding ethernet device VirtIO Net\n");
+        nf = netif_add(&_virtio_netif, &ipv4,
+            &nmask, &gw,
+            NULL, virtio_net_netifinit,
+            ethernet_input);
+    } else {
+        printf("Adding ethernet device Intel(R) E1000\n");
+        nf = netif_add(&_e1000_netif, &ipv4, 
+            &nmask, &gw, 
+            NULL, e1000_netifinit, 
+            ethernet_input);
+    }
 
     if (!nf) {
         printf("Failed to add interface\n");
         return -ENOEXIST;
     }
 
-    serial_printf("_e1000_netif=%p,netif=%p\n", &_e1000_netif, nf);
+    serial_printf("netif=%p\n", nf);
     
     printf("Setting link up for ethernet\n");
     netif_set_status_callback(nf, netif_status_cb);
@@ -63,7 +75,7 @@ int init_lwip() {
     serial_printf("Set up interface\n");
     netif_set_link_up(nf);
     serial_printf("Set link up interface\n");
-    printf("Setting default ethernet device Intel(R) E1000\n");
+    printf("Setting default ethernet device\n");
     netif_set_default(nf);
     serial_printf("Set default NetIF\n");
     printf("Starting DHCP\n");

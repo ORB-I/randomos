@@ -1,0 +1,30 @@
+Base configuration
+
+-M pc -cpu qemu64,+rdrand -boot d -smp 2
+-m 1G -serial stdio -accel tcg
+-device isa-debug-exit,iobase=0xf4,iosize=0x04
+-drive id=disk,file=drive.img,format=raw,if=none
+-netdev user,id=net0
+-monitor unix:/tmp/qemu-monitor.sock,server=on,wait=off
+-qmp unix:/tmp/qemu-qmp.sock,server=on,wait=off
+-device piix3-usb-uhci,id=uhci
+
+Supported devices
+
+Networking
+E1000: -device e1000,netdev=net0
+VirtIO: -device virtio-net-pci,netdev=net0
+
+USB Devices
+Keyboard: -device usb-kbd,bus=uhci.0,port=1
+Mouse: -device usb-mouse,bus=uhci.0,port=2
+
+RNG Devices: 
+RDRAND: (switch cpu flag from base) -cpu qemu64,+rdrand
+VirtIO (SLOWWWW): -device virtio-rng-pci
+
+Block devices:
+VirtIO: -device virtio-blk-pci,drive=disk
+IDE (ATA): -device ide-hd,drive=disk,bus=ide.0,unit=0
+AHCI: -device ich9-ahci,drive=disk
+USBMSD: -device usb-storage,drive=disk

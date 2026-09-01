@@ -27,6 +27,8 @@
 #include <drivers/display/fb.h>
 #include <drivers/usb/uhci.h>
 #include <drivers/net/e1000.h>
+#include <drivers/net/virtio_net.h>
+#include <drivers/rng/virtio_rng.h>
 #include <drivers/time/clock.h>
 #include <smp/ap.h>
 
@@ -149,6 +151,8 @@ void kmain_aftergdt() {
         mbtype = MOUSE_PS2;
     }
 
+    virtio_rng_init();
+    virtio_net_init();
     e1000_init();
     init_lwip();
 

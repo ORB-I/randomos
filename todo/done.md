@@ -39,6 +39,7 @@ Newest entries go at the bottom of each section.
       readdir aborting whole listings on one bad entry, stat basename on trailing
       slashes, lseek SEEK_END s32 overflow. setpwd now stores validated canonical
       paths and getpwd stops reading past the string. added cat
+- [x] Implement VirtIO support (VirtIO Core, VirtQueue, virtio-blk, virtio-net, and virtio-rng)
 
 ## @Wdboyes13
 
