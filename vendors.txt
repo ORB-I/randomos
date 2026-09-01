@@ -1,7 +1,6 @@
 This file keeps track of all third-party software in this repository including public domain
 software. This file includes names, original repositories, license name, and usage info.
 
-FatFs, https://elm-chan.org/fsw/ff/, BSD-style license, for FAT filesystem support
 LAI, https://github.com/managarm/lai, MIT License, for ACPI AML interpretation
 Limine, https://github.com/limine-bootloader/limine, BSD-2-Clause, for bootloading
 Flanterm, https://github.com/mintsuki/flanterm, BSD-2-Clause, for full terminal support

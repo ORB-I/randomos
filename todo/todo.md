@@ -10,20 +10,27 @@
 - [ ] Work on wm — @eskridd
 - [ ] errno support (libc reports positive errnos, kernel reports negative errnos) — @eskridd
 - [ ] Audit most of the code — @eskridd
-- [ ] VFS layer - @Wdboyes13
-- [ ] devfs - @Wdboyes13
 
 ## Known issues
 - [ ] Sometimes AP RUN hangs, though it reaches the "AP 1 received RUN request" print
       usually a re-link fixes it   
 ## Unassigned tasks
-- [ ] Make a simple README.md for randomOS.
-- [ ] Change About to something more professional.
-- [ ] Remove dead codes.
 - [ ] Add safety checks (ensurance.(c|h)) to process syscalls (src/usr/syscalls/ssc_proc)
 - [ ] Add invalid flags safety checks to ensurance.(c|h) and actually use them
-- [ ] Add support for different ext2 block sizes than 1024B
+- [ ] Add support for different ext2 block sizes than 1024B  
 - [ ] Do errno stuff for src/drivers/storage/fs  
+- [ ] Change scheduler to use multiple cores  
+- [ ] devtmpfs  
+- [ ] tmpfs  
+- [ ] vfs  
+- [ ] Add permissions checks so that permissions actually have a point  
+- [ ] Make it so that setuid/seteuid/setgid/setegid check if setuid/setgid bit is set on executable  
+- [ ] Add host functions specific to LwIPs sockets API  
+- [ ] More ethernet drivers  
+- [ ] VirtIO support  
+- [ ] xHCI support alongside UHCI  
+- [ ] More RNG drivers  
+- [ ] Make it so HPET doesnt fail and fallback to TSC  
 
 ## Future tasks
 - [ ] Documentation for randomOS (in near future - not for now.)
