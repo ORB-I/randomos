@@ -55,6 +55,8 @@ Newest entries go at the bottom of each section.
 - [x] login support (/etc/passwd)
 - [x] RNG driver
 - [x] SMP support
-- [x] chdir support in kernel - @Wdboyes13
-- [x] cd support in shell - @Wdboyes13
-- [x] Home directories - @Wdboyes13
+- [x] chdir support in kernel
+- [x] cd support in shell
+- [x] Home directories
+- [x] Make it so HPET doesnt fail and fallback to TSC  
+- [x] EXT2 write support  

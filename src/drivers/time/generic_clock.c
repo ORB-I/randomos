@@ -14,7 +14,7 @@ void sleepms(u64 ms) {
 int init_clock(int type) {
     if (type == CLOCK_HPET) {
         if (hpet_init(&getms) < 0) {
-            return init_tsc(&getms);
+            return -1;
         } else {
             return 0;
         }
