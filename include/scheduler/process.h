@@ -16,6 +16,10 @@ struct freereq_t {
 #define MAX_PROCESSES 255
 // passed as a wait target when any dead child will do
 #define WAIT_ANY 0xFF
+
+#define PROC_SUID 0x01
+#define PROC_SGID 0x02
+
 typedef struct {
     u64 rip;
     u64 rsp;
@@ -52,6 +56,7 @@ typedef struct {
     gid_t gid;
     uid_t euid;
     gid_t egid;
+    u8 perms;
 
     int currfb;
     struct fdinfo* fds;

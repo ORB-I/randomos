@@ -41,6 +41,12 @@ int kexecve(const char* path, char** argv, char** envp, u8 cpid) {
         return res.status;
     }
 
+    struct stat st;
+    int ret = 0;
+    if ((ret = stat(path, &st)) < 0) {
+        return ret;
+    }
+
     proc->rip = res.entry;
     proc->rsp = res.rsp;
     proc->rflags = 0x202;
@@ -70,6 +76,15 @@ int kexecve(const char* path, char** argv, char** envp, u8 cpid) {
     proc->is_blocked = 0;
     proc->wait_pid = WAIT_ANY;
     proc->wake_ms = 0;
+    proc->perms = 0;
+
+    if (st.mode & S_ISUID) {
+        proc->perms |= PROC_SUID;
+    }
+
+    if (st.mode & S_ISGID) {
+        proc->perms |= PROC_SGID;
+    }
     
     vmm_setumapbase(proc->pid, res.load_high);
     serial_printf("New process %s created\n", path);
@@ -108,6 +123,12 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
     if (res.status < 0) {
         serial_printf("failed to load program with code %d\n", res.status);
         return res.status;
+    }
+
+    struct stat st;
+    int ret = 0;
+    if ((ret = stat(path, &st)) < 0) {
+        return ret;
     }
 
     if (pid == 0) {
@@ -196,6 +217,15 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
     proc->is_blocked = 0;
     proc->wait_pid = WAIT_ANY;
     proc->wake_ms = 0;
+    proc->perms = 0;
+
+    if (st.mode & S_ISUID) {
+        proc->perms |= PROC_SUID;
+    }
+
+    if (st.mode & S_ISGID) {
+        proc->perms |= PROC_SGID;
+    }
 
     if (ppid < MAX_PROCESSES && proctbl[ppid].used && pid != 0) {
         proc->uid = proctbl[ppid].uid;
