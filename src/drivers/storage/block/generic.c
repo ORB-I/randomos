@@ -4,6 +4,7 @@
 #include <drivers/storage/ata.h>
 #include <drivers/storage/ahci.h>
 #include <drivers/storage/usbmsd.h>
+#include <drivers/storage/virtio_blk.h>
 
 #define BLOCK_OK     0
 #define BLOCK_ERR    1
@@ -14,6 +15,7 @@
 #define DRV_ATA    1
 #define DRV_AHCI   2
 #define DRV_USBMSD 3
+#define DRV_VIRTIO 4
 
 int _drv_type = -1;
 int _drv_id = -1;
@@ -26,7 +28,15 @@ int _drv_id = -1;
 static lock_t blkio_lk = {0};
 
 int block_init() {
-    int drv = usbmsd_init();
+    int drv = virtio_blk_init();
+    if (drv >= 0) {
+        serial_printf("Using VirtIO Block\n");
+        _drv_type = DRV_VIRTIO;
+        _drv_id = drv;
+        return 0;
+    }
+
+    drv = usbmsd_init();
     if (drv < 0) {
         drv = ahci_init();
         if (drv < 0) {
@@ -49,7 +59,7 @@ int block_init() {
         serial_printf("Using USB MSD\n");
         _drv_type = DRV_USBMSD;
         _drv_id = drv;
-         return 0;
+        return 0;
     }
 }
 
@@ -66,6 +76,8 @@ int block_write(u8 id, const u8* buf, u32 lba, usize cnt) {
         fn64 = ahci_secwrite;
     } else if (_drv_type == DRV_USBMSD) {
         fn32 = usbmsd_secwrite;
+    } else if (_drv_type == DRV_VIRTIO) {
+        fn32 = virtio_blk_secwrite;
     } else {
         return BLOCK_INVAL;
     }
@@ -98,6 +110,8 @@ int block_read(u8 id, u8* buf, u32 lba, usize cnt) {
         fn64 = ahci_secread;
     } else if (_drv_type == DRV_USBMSD) {
         fn32 = usbmsd_secread;
+    } else if (_drv_type == DRV_VIRTIO) {
+        fn32 = virtio_blk_secread;
     } else {
         return BLOCK_INVAL;
     }

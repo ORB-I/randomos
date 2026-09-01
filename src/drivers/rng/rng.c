@@ -1,4 +1,5 @@
 #include <drivers/rng/rng.h>
+#include <drivers/rng/virtio_rng.h>
 #include <core/std.h>
 #include <core/asmh.h>
 
@@ -33,6 +34,13 @@ static u64 prng_next() {
 }
 
 u64 random64() {
+    if (virtio_rng_available()) {
+        u64 val = 0;
+        if (virtio_rng_read((u8*)&val, sizeof(u64)) == 0) {
+            return val;
+        }
+    }
+
     if (has_rdrand < 0) {
         rng_probe();
     }
@@ -52,6 +60,12 @@ u64 random64() {
 }
 
 int random_bytes(u8* buf, usize sz) {
+    if (virtio_rng_available()) {
+        if (virtio_rng_read(buf, sz) == 0) {
+            return 0;
+        }
+    }
+
     for (usize i = 0; i < sz; i++) {
         u64 rb = 0;
         while (rb == 0) {
@@ -61,3 +75,4 @@ int random_bytes(u8* buf, usize sz) {
     }
     return 0;
 }
+
