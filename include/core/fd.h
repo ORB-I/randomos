@@ -1,12 +1,9 @@
 #pragma once
-#include <ff16/ff.h>
 #include <core/std.h>
 #include <drivers/display/fb.h>
 #include <drivers/storage/fs.h>
 #include <drivers/storage/ext2.h>
 
-#define FDTYPE_FILE  1
-#define FDTYPE_DIR   2
 #define FDTYPE_SOCK  3
 #define FDTYPE_FB    4
 #define FDTYPE_FBW   5
@@ -25,8 +22,6 @@ struct fdinfo {
     int inuse;
     int type;
     union {
-        FIL file;
-        DIR dir;
         int sock;
         framebuf_t* fb;
         struct iofd io;

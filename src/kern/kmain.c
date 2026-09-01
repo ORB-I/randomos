@@ -22,7 +22,6 @@
 #include <drivers/apic.h>
 #include <drivers/acpi.h>
 #include <drivers/display/term.h>
-#include <drivers/storage/ff16_init.h>
 #include <drivers/storage/fs.h>
 #include <drivers/storage/block.h>
 #include <drivers/display/fb.h>
@@ -32,7 +31,6 @@
 #include <smp/ap.h>
 
 #include <lai/helpers/pm.h>
-#include <ff16/ff.h>
 
 u64 ram_max = 0;
 extern void gdt_init();

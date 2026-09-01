@@ -3,11 +3,6 @@
 Copyright (c) 2026 Wdboyes13  
 This project is licensed under the MIT License available at the end of this file  
 
-## FatFs  
-From https://elm-chan.org/fsw/ff/  
-Copyright (C) 20xx, ChaN, all right reserved.  
-FatFs is licensed under the license at [vendor/ff16/LICENSE.txt](/vendor/ff16/LICENSE.txt)  
-
 ## LAI  
 From https://github.com/managarm/lai  
 Copyright (C) 2018-2023 The lai authors  

@@ -1,22 +1,13 @@
 #pragma once
 #include <core/std.h>
-#include <ff16/ff.h>
-
-#define MNT_FORMAT 0x01
-
-/* which filesystem owns the mounted drive */
-#define FS_BACKEND_FAT  0
-#define FS_BACKEND_EXT2 1
-extern int fs_backend;
-
 int fs_probe_mount(void); /* detect what's on the drive and mount it */
 
-#define O_WRONLY FA_WRITE
-#define O_RDONLY FA_READ
+#define O_WRONLY 0x01
+#define O_RDONLY 0x02
 #define O_RDWR (O_WRONLY | O_RDONLY)
-#define O_CREAT FA_OPEN_ALWAYS
-#define O_APPEND FA_OPEN_APPEND
-#define O_TRUNC 0x80
+#define O_CREAT 0x04
+#define O_APPEND 0x08
+#define O_TRUNC 0x10
 
 #define S_IFSOCK 0x400000
 #define S_IFLNK  0x200000
