@@ -2,6 +2,7 @@
 #include <drivers/rng/virtio_rng.h>
 #include <core/std.h>
 #include <core/asmh.h>
+#include <core/kqueue.h>
 
 // rdrand is only executed after cpuid says it exists - qemu's default
 // cpu (qemu64) does not expose it and blindly executing it used to #UD

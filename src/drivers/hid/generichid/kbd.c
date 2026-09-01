@@ -2,6 +2,7 @@
 #include <core/asmh.h>
 #include <core/idt.h>
 #include <core/printf.h>
+#include <core/kqueue.h>
 
 #include <drivers/hid/kbd.h>
 #include <drivers/display/term.h>
@@ -10,19 +11,11 @@
 #include <drivers/hid/ps2/kbd.h>
 #include <drivers/time/clock.h>
 
-#define KEYBUF_SZ 256
+kqueue_t* kbchq = NULL;
+kqueue_t* kbscq = NULL;
 
-char kbuf[KEYBUF_SZ];
-u32 kb_head = 0;
-u32 kb_tail = 0;
-bool kb_full = false;
-bool shift_pressed = false;
-int kb_type = 0;
-
-u8 kbuf_sc[KEYBUF_SZ];
-u32 kbsc_head = 0;
-u32 kbsc_tail = 0;
-bool kbsc_full = false;
+static bool shift_pressed = false;
+static int kb_type = 0;
 
 u8 kbd_get_raw(void) {
     while (!kb_has_sc()) {
@@ -55,6 +48,18 @@ u8 kbd_getrawto(u64 timeout) {
 
 void init_kbd(int kbd_type) {
     kb_type = kbd_type;
+    kbchq = kqueue_init(512);
+    if (!kbchq) {
+        printf("Could not create character queue\n");
+        return;
+    }
+
+    kbscq = kqueue_init(512);
+    if (!kbscq) {
+        printf("Could not create scancode queue\n");
+        return;
+    }
+
     if (kb_type == KBD_PS2) {
         init_kbdps2();
         printf("KBD: Using PS/2 Keyboard\n");
@@ -78,56 +83,35 @@ int kbd_getshift() {
 }
 
 void enqueue_key(char c) {
-    if (kb_full) {
-        return;
-    }
-
-    kbuf[kb_head] = c;
-    kb_head = (kb_head + 1) % KEYBUF_SZ;
-    if (kb_head == kb_tail) {
-        kb_full = true;
-    }
+    kqueue_enqueue(kbchq, (u8*)&c, 1);
 }
 
 char dequeue_key(void) {
-    if (kb_head == kb_tail && !kb_full) {
+    char c;
+    if (kqueue_dequeue(kbchq, (u8*)&c, 1) == 0) {
         return 0;
     }
-
-    char c = kbuf[kb_tail];
-    kb_tail = (kb_tail + 1) % KEYBUF_SZ;
-    kb_full = false;
     return c;
 }
 
 void enqueue_sc(u8 sc) {
-    if (kbsc_full) {
-        return;
-    }
-    kbuf_sc[kbsc_head] = sc;
-    kbsc_head = (kbsc_head + 1) % KEYBUF_SZ;
-    if (kbsc_head == kbsc_tail) {
-        kbsc_full = true;
-    }
+    kqueue_enqueue(kbscq, &sc, 1);
 }
 
 char dequeue_sc(void) {
-    if (kbsc_head == kbsc_tail && !kb_full) {
+    u8 sc;
+    if (kqueue_dequeue(kbscq, &sc, 1) == 0) {
         return 0;
     }
-
-    u8 sc = kbuf_sc[kbsc_tail];
-    kbsc_tail = (kbsc_tail + 1) % KEYBUF_SZ;
-    kbsc_full = false;
     return sc;
 }
 
 bool kb_has_char(void) {
-    return (kb_head != kb_tail) || kb_full;
+    return kqueue_queued(kbchq) > 0;
 }
 
 bool kb_has_sc(void) {
-    return (kbsc_head != kbsc_tail) || kbsc_full;
+    return kqueue_queued(kbscq) > 0;
 }
 
 int _kbd_noecho = 0;

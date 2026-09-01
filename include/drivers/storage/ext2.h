@@ -118,6 +118,8 @@ typedef struct {
 #define EXT2_S_IFCHR  0x2000
 #define EXT2_S_IFIFO  0x1000
 
+#define EXT2_S_TYPE(MODE) (MODE & 0xF000)
+
 #define EXT2_S_ISUID 0x0800
 #define EXT2_S_ISGID 0x0400
 #define EXT2_S_ISVTX 0x0200
@@ -186,6 +188,6 @@ int _ext2_stat(const char* path, struct stat* st);
 int _ext2_unlink(const char* path);
 int _ext2_rmdir(const char* path);
 int _ext2_rename(const char* oname, const char* nname);
-int _ext2_mkdir(const char* path, u16 mode);
+int _ext2_mkdir(const char* path, u32 mode);
 int _ext2_chdir(const char* path);
 int _ext2_getcwd(char* path, usize len);

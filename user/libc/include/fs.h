@@ -48,7 +48,7 @@ int unlink(char* path);
 int chdir(char* path);
 off_t lseek(int fd, off_t off, u32 whence);
 int rename(char* oldname, char* newname);
-int mkdir(char* path, int mode);
+int mkdir(char* path, u32 mode);
 int rmdir(char* path);
 int stat(char* path, struct stat* st);
 int readdir(int dir, struct stat* st);

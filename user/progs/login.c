@@ -265,7 +265,7 @@ void ensure_home(char* home) {
 
         while (p != NULL) {
             *p = '\0';
-            if (mkdir(tmp, 0x755) != 0) {
+            if (mkdir(tmp, 0x0755) != 0) {
                 if (stat(tmp, &st) < 0) {
                     free(tmp);
                     return;

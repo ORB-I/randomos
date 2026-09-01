@@ -30,7 +30,7 @@ int rename(char* oldname, char* newname) {
     return (int)__syscall2(SYS_RENAME, (u64)oldname, (u64)newname);
 }
 
-int mkdir(char* path, int mode) {
+int mkdir(char* path, u32 mode) {
     return (int)__syscall2(SYS_MKDIR, (u64)path, mode);
 }
 

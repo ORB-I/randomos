@@ -748,22 +748,13 @@ static int rmlink(const char* path) {
 static int mklink(const char* path, u32 ino, u16 mode) {
     char dir[1024], base[1204];
 
-    if (path_dirname(path, dir, 1024) < 0) {
-        serial_printf("mklink failure (dirname)\n");
-        return -1;
-    }
+    if (path_dirname(path, dir, 1024) < 0) return -1;
 
-    if (path_basename(path, base, 1024) < 0) {
-        serial_printf("mklink failure (basename)\n");
-        return -1;
-    }
+    if (path_basename(path, base, 1024) < 0) return -1;
 
     ext2_ino_t parinod;
     u32 parino = findino(dir, &parinod);
-    if (parino == EXT2_BAD_INO) {
-        serial_printf("mklink failure (find parent (dir: \"%s\" base: \"%s\"))\n", dir, base);
-        return -1;
-    }
+    if (parino == EXT2_BAD_INO) return -1;
 
     usize newsz = EXT2_DIR_RECLEN(strlen(base));
     usize nblks = (getisize(&parinod) + 1023) / 1024;
@@ -774,19 +765,20 @@ static int mklink(const char* path, u32 ino, u16 mode) {
     memcpy(newent.name, base, strlen(base));
 
     if (ext2_sb.sb.s_rev_level == EXT2_DYNAMIC_REV && ext2_sb.s_feature_incompat & EXT2_FEATURE_INCOMPAT_FILETYPE)  {
-        if (mode & EXT2_S_IFSOCK) {
+        u16 type = EXT2_S_TYPE(mode);
+        if (type == EXT2_S_IFSOCK) {
             newent.file_type = EXT2_FT_SOCK;
-        } else if (mode & EXT2_S_IFLNK) {
+        } else if (type == EXT2_S_IFLNK) {
             newent.file_type = EXT2_FT_SYMLINK;
-        } else if (mode & EXT2_S_IFREG) {
+        } else if (type == EXT2_S_IFREG) {
             newent.file_type = EXT2_FT_REG_FILE;
-        } else if (mode & EXT2_S_IFBLK) {
+        } else if (type == EXT2_S_IFBLK) {
             newent.file_type = EXT2_FT_BLKDEV;
-        } else if (mode & EXT2_S_IFDIR) {
+        } else if (type == EXT2_S_IFDIR) {
             newent.file_type = EXT2_FT_DIR;
-        } else if (mode & EXT2_S_IFCHR) {
+        } else if (type == EXT2_S_IFCHR) {
             newent.file_type = EXT2_FT_CHRDEV;
-        } else if (mode & EXT2_S_IFIFO) {
+        } else if (type == EXT2_S_IFIFO) {
             newent.file_type = EXT2_FT_FIFO;
         } else {
             newent.file_type = EXT2_FT_UNKNOWN;
@@ -795,19 +787,13 @@ static int mklink(const char* path, u32 ino, u16 mode) {
 
     for (usize b = 0; b < nblks; b++) {
         ssize blk = ino_getblkid(&parinod, b);
-        if (blk < 0) {
-            serial_printf("mklink failure (getblkid)\n");
-            return -1;
-        }
+        if (blk < 0) return -1;
 
         u8 blkd[1024];
         if (rdblk(blk, blkd) < 0) return -1;
         for (usize i = 0; i < 1024;) {
             ext2_dir1_t* ent = (ext2_dir1_t*)&blkd[i];
-            if (ent->rec_len < 8 || i + ent->rec_len > 1024) {
-                serial_printf("mklink failure (entsiz)\n");
-                return -1;
-            }
+            if (ent->rec_len < 8 || i + ent->rec_len > 1024) return -1;
             usize oldsz = EXT2_DIR_RECLEN(ent->name_len);
 
             if (ent->inode == 0) {
@@ -815,10 +801,7 @@ static int mklink(const char* path, u32 ino, u16 mode) {
                     newent.rec_len = ent->rec_len;
                     memcpy(&blkd[i], &newent, newsz);
 
-                    if (wrblk(blk, blkd) < 0) {
-                        serial_printf("mklink failure (wrblk)\n");
-                        return -1;
-                    }
+                    if (wrblk(blk, blkd) < 0) return -1;
                     return 0;
                 }
             } else if (ent->rec_len >= oldsz && ent->rec_len - oldsz >= newsz) {
@@ -826,10 +809,7 @@ static int mklink(const char* path, u32 ino, u16 mode) {
                 ent->rec_len = oldsz;
                 memcpy(&blkd[i + oldsz], &newent, newsz);
 
-                if (wrblk(blk, blkd) < 0) {
-                    serial_printf("mklink failure (wrblk)\n");
-                    return -1;
-                }
+                if (wrblk(blk, blkd) < 0) return -1;
                 return 0;
             }
 
@@ -843,8 +823,9 @@ static int mklink(const char* path, u32 ino, u16 mode) {
     u8 blkd[1024] = {0};
     newent.rec_len = 1024;
     memcpy(blkd, &newent, EXT2_DIR_RECLEN(strlen(base)));
-    
+    parinod.i_size += 1024;
     if (wrblk(nblk, blkd) < 0) return -1;
+    flush_inode(parino, &parinod);
     return 0;
 }
 
@@ -853,68 +834,65 @@ static u32 e2mode_conv(u32 e2mode) {
     u32 mode = 0;
 
     if CONVE2(S_IXOTH) 
-    else if CONVE2(S_IWOTH) 
-    else if CONVE2(S_IROTH)
+    if CONVE2(S_IWOTH) 
+    if CONVE2(S_IROTH)
 
-    else if CONVE2(S_IXGRP)
-    else if CONVE2(S_IWGRP)
-    else if CONVE2(S_IRGRP)
+    if CONVE2(S_IXGRP)
+    if CONVE2(S_IWGRP)
+    if CONVE2(S_IRGRP)
 
-    else if CONVE2(S_IXUSR)
-    else if CONVE2(S_IWUSR)
-    else if CONVE2(S_IRUSR)
+    if CONVE2(S_IXUSR)
+    if CONVE2(S_IWUSR)
+    if CONVE2(S_IRUSR)
 
-    else if CONVE2(S_ISVTX)
-    else if CONVE2(S_ISGID)
-    else if CONVE2(S_ISUID)
+    if CONVE2(S_ISVTX)
+    if CONVE2(S_ISGID)
+    if CONVE2(S_ISUID)
 
-    else if CONVE2(S_IFIFO)
-    else if CONVE2(S_IFCHR)
-    else if CONVE2(S_IFDIR)
-    else if CONVE2(S_IFBLK)
-    else if CONVE2(S_IFREG)
-    else if CONVE2(S_IFLNK)
-    else if CONVE2(S_IFSOCK)
+    if CONVE2(S_IFIFO)
+    if CONVE2(S_IFCHR)
+    if CONVE2(S_IFDIR)
+    if CONVE2(S_IFBLK)
+    if CONVE2(S_IFREG)
+    if CONVE2(S_IFLNK)
+    if CONVE2(S_IFSOCK)
 
     return mode;
 }
 
 #define CONVSYS(NAME) (sysmode & NAME) { mode |= EXT2_##NAME; }
-static u32 sysmode_conv(u32 sysmode) {
-    u32 mode = 0;
+static u16 sysmode_conv(u32 sysmode) {
+    u16 mode = 0;
 
     if CONVSYS(S_IXOTH) 
-    else if CONVSYS(S_IWOTH) 
-    else if CONVSYS(S_IROTH)
+    if CONVSYS(S_IWOTH)
+    if CONVSYS(S_IROTH)
 
-    else if CONVSYS(S_IXGRP)
-    else if CONVSYS(S_IWGRP)
-    else if CONVSYS(S_IRGRP)
+    if CONVSYS(S_IXGRP)
+    if CONVSYS(S_IWGRP)
+    if CONVSYS(S_IRGRP)
 
-    else if CONVSYS(S_IXUSR)
-    else if CONVSYS(S_IWUSR)
-    else if CONVSYS(S_IRUSR)
+    if CONVSYS(S_IXUSR)
+    if CONVSYS(S_IWUSR)
+    if CONVSYS(S_IRUSR)
 
-    else if CONVSYS(S_ISVTX)
-    else if CONVSYS(S_ISGID)
-    else if CONVSYS(S_ISUID)
+    if CONVSYS(S_ISVTX)
+    if CONVSYS(S_ISGID)
+    if CONVSYS(S_ISUID)
 
-    else if CONVSYS(S_IFIFO)
-    else if CONVSYS(S_IFCHR)
-    else if CONVSYS(S_IFDIR)
-    else if CONVSYS(S_IFBLK)
-    else if CONVSYS(S_IFREG)
-    else if CONVSYS(S_IFLNK)
-    else if CONVSYS(S_IFSOCK)
+    if CONVSYS(S_IFIFO)
+    if CONVSYS(S_IFCHR)
+    if CONVSYS(S_IFDIR)
+    if CONVSYS(S_IFBLK)
+    if CONVSYS(S_IFREG)
+    if CONVSYS(S_IFLNK)
+    if CONVSYS(S_IFSOCK)
 
     return mode;
 }
 
 int _ext2_mount(const char* path) {
     if (strlen(path) > CWD_MAX) return -1;
-    if (streq(path, "") || streq(path, " ")) {
-        memcpy(ext2_cwd, "/", 2);
-    }
 
     u8 rawsb[1024];
     if (block_read(0, rawsb, 2, 2) != 0) return -1;
@@ -975,11 +953,7 @@ int _ext2_mount(const char* path) {
         cblk++;
     }
     
-    lock_acquire(&ext2_cwdlk);
-    memcpy(ext2_cwd, path, strlen(path)+1);
-    lock_release(&ext2_cwdlk);
-
-    return 0;
+    return _ext2_chdir(path);
 }
 
 int _ext2_unmount() {
@@ -1071,7 +1045,7 @@ ssize _ext2_read(int fd, void* buf, usize size) {
     struct fdinfo* info = NULL;
     if (getfd(fd, &info) < 0) return -1;
 
-    if (info->type != FDTYPE_E2ENT || info->data.e2ent.inod.i_mode & EXT2_S_IFDIR) {
+    if (info->type != FDTYPE_E2ENT || EXT2_S_TYPE(info->data.e2ent.inod.i_mode) == EXT2_S_IFDIR) {
         return -1;
     }
 
@@ -1104,7 +1078,7 @@ ssize _ext2_write(int fd, void* buf, usize size) {
     struct fdinfo* info = NULL;
     if (getfd(fd, &info) < 0) return -1;
 
-    if (info->type != FDTYPE_E2ENT || info->data.e2ent.inod.i_mode & EXT2_S_IFDIR) {
+    if (info->type != FDTYPE_E2ENT || EXT2_S_TYPE(info->data.e2ent.inod.i_mode) == EXT2_S_IFDIR) {
         return -1;
     }
 
@@ -1173,7 +1147,7 @@ int _ext2_opendir(const char* path) {
         return -1;
     }
 
-    if (!(inod.i_mode & EXT2_S_IFDIR)) {
+    if (!(EXT2_S_TYPE(inod.i_mode) == EXT2_S_IFDIR)) {
         return -1;
     }
 
@@ -1199,7 +1173,7 @@ int _ext2_readdir(int dd, struct stat* st) {
     struct fdinfo* info;
     if (getfd(dd, &info) < 0) return -1;
 
-    if (info->type != FDTYPE_E2ENT || !(info->data.e2ent.inod.i_mode & EXT2_S_IFDIR)) {
+    if (info->type != FDTYPE_E2ENT || EXT2_S_TYPE(info->data.e2ent.inod.i_mode) != EXT2_S_IFDIR) {
         return -1;
     }
 
@@ -1342,35 +1316,31 @@ int _ext2_rename(const char* oname, const char* nname) {
     return rmlink(oname);
 }
 
-int _ext2_mkdir(const char* path, u16 mode) {
-    serial_printf("mkdir %s (mode %d) requested\n", path, mode);
+
+int _ext2_mkdir(const char* path, u32 mode) {
     ext2_ino_t inod;
     if (findino(path, &inod) != EXT2_BAD_INO) {
         return -1;
     }
 
-    u32 e2mod = sysmode_conv(mode | S_IFDIR);
+    u16 e2mod = sysmode_conv(mode);
+    e2mod |= EXT2_S_IFDIR;
 
     u64 ino = 0;
     if ((ino = newino(0, e2mod, proctbl[current_pid].euid, proctbl[current_pid].egid)) < 0) return -1;
     if (mklink(path, ino, e2mod) < 0) return -1;
 
     char dir[1024];
-    if (path_dirname(path, dir, 1024) < 0) {
-        serial_printf("mkdir failure (dirname)\n");
-        return -1;
-    }
+    if (path_dirname(path, dir, 1024) < 0) return -1;
 
     ext2_ino_t dinod;
     u32 dino = findino(dir, &dinod);
     if (dino == EXT2_BAD_INO) {
-        serial_printf("mkdir failure (find parent)\n");
         _ext2_unlink(path);
         return -1;
     }
 
     if (getino(ino, &inod) < 0) {
-        serial_printf("mkdir failure (find new)\n");
         _ext2_unlink(path);
         return -1;
     }
@@ -1378,14 +1348,12 @@ int _ext2_mkdir(const char* path, u16 mode) {
     char dot[1024], dotdot[1024];
     int ret = snprintf(dot, 1024, "%s/.", path);
     if (ret >= 1024 || ret < 0) {
-        serial_printf("mkdir failure (snprintf1)\n");
         _ext2_unlink(path);
         return -1;
     }
 
     ret = snprintf(dotdot, 1024, "%s/..", path);
     if (ret >= 1024 || ret < 0) {
-        serial_printf("mkdir failure (snprintf2)\n");
         _ext2_unlink(path);
         return -1;
     }
@@ -1407,27 +1375,23 @@ int _ext2_mkdir(const char* path, u16 mode) {
 
 int _ext2_chdir(const char* path) {
     if (strlen(path) >= CWD_MAX) {
-        serial_printf("chdir to %s failed (size)\n", path);
         return -1;
     }
 
     char dir[1024];
     if (path_dirname(path, dir, 1024) < 0) {
-        serial_printf("chdir to %s failed (seperate)\n", path);
         return -1;
     }
 
     ext2_ino_t dinod;
     u32 dino = findino(dir, &dinod);
     if (dino == EXT2_BAD_INO) {
-        serial_printf("chdir to %s failed (find parent)\n", path);
         return -1;
     }
 
     ext2_ino_t inod;
     u32 ino = findino(path, &inod);
     if (ino == EXT2_BAD_INO) {
-        serial_printf("chdir to %s failed (find directory)\n", path);
         return -1;
     }
 

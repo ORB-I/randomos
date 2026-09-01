@@ -2,6 +2,7 @@
 #include <core/std.h>
 #include <core/asmh.h>
 #include <core/idt.h>
+#include <core/kqueue.h>
 #include <drivers/apic.h>
 #include <lib/string.h>
 #include <drivers/hid/ps2/mouse.h>
@@ -11,15 +12,11 @@
 #include <drivers/hid/mouse.h>
 #include <drivers/time/clock.h>
 
-#define MOUSEBUF_SZ 256
-mouse_info_t mousebuf[MOUSEBUF_SZ];
-u32 mb_head = 0;
-u32 mb_tail = 0;
-bool mb_full = 0;
+kqueue_t* msq = NULL;
 int mb_type = 0;
 
 int mouse_has_info() {
-    return (mb_head != mb_tail) || mb_full;
+    return (kqueue_queued(msq) / sizeof(mouse_info_t)) > 0;
 }
 
 int get_mouse_info(mouse_info_t* buf) {
@@ -38,28 +35,24 @@ int get_mouse_info(mouse_info_t* buf) {
 }
 
 void enqueue_mouse(mouse_info_t info) {
-    if (!mb_full) {
-        memcpy(&mousebuf[mb_head], &info, sizeof(info));
-
-        mb_head = (mb_head + 1) % MOUSEBUF_SZ;
-        if (mb_head == mb_tail) {
-            mb_full = true;
-        }
-    }
+    kqueue_enqueue(msq, (u8*)&info, sizeof(mouse_info_t));
 }
 
 mouse_info_t dequeue_mouse() {
-    if (mb_head == mb_tail && !mb_full) {
-        return (mouse_info_t){0,0,0};
+    mouse_info_t msinfo = {0, 0, 0};
+    if (kqueue_dequeue(msq, (u8*)&msinfo, sizeof(mouse_info_t)) < sizeof(mouse_info_t)) {
+        return (mouse_info_t){0, 0, 0};
     }
-
-    mouse_info_t info = mousebuf[mb_tail];
-    mb_tail = (mb_tail + 1) % MOUSEBUF_SZ;
-    mb_full = false;
-    return info;
+    return msinfo;
 }
 
 int init_mouse(int type) {
+    msq = kqueue_init(sizeof(mouse_info_t) * 256);
+    if (!msq) {
+        printf("Failed to create queue\n");
+        return -ENOMEM;
+    }
+
     mb_type = type;
     if (type == MOUSE_PS2) {
         if (!isps2dc()) {
