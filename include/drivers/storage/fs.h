@@ -1,6 +1,6 @@
 #pragma once
 #include <core/std.h>
-#include <drivers/storage/vfs.h>
+#include <drivers/storage/fs/vfs.h>
 int fs_probe_mount(void); /* detect what's on the drive and mount it */
 
 #define O_WRONLY 0x01
@@ -28,7 +28,7 @@ struct stat {
     u64 st_ino;
 } __attribute__((packed));
 
-int mount(const char* dev, const char* path);
+int mount(const char* dev, const char* path, const char* type);
 int umount(const char* path);
 
 int open(const char* path, int flags, u16 mode);

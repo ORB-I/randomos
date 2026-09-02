@@ -5,10 +5,10 @@
 #include <core/fd.h>
 #include <lib/string.h>
 #include <drivers/storage/fs.h>
-#include <drivers/storage/ext2.h>
-#include <drivers/storage/block.h>
+#include <drivers/storage/fs/ext2.h>
+#include <drivers/storage/block/block.h>
 #include <drivers/time/gettimeofday.h>
-#include <drivers/storage/vfs.h>
+#include <drivers/storage/fs/vfs.h>
 #include <scheduler/process.h>
 #include <core/errno.h>
 

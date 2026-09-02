@@ -2,7 +2,7 @@
 #include <core/std.h>
 #include <drivers/display/fb.h>
 #include <drivers/storage/fs.h>
-#include <drivers/storage/vfs.h>
+#include <drivers/storage/fs/vfs.h>
 
 #define FDTYPE_FILE  1
 #define FDTYPE_DIR   2
@@ -23,6 +23,7 @@ struct file {
     vinode_t inod;
     u64 ino;
     usize pos;
+    char path[1024];
 };
 
 struct fdinfo {

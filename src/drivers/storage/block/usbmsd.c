@@ -9,9 +9,9 @@
 #include <core/liballoc.h>
 
 #include <drivers/usb/uhci.h>
-#include <drivers/storage/usbmsd.h>
+#include <drivers/storage/block/usbmsd.h>
 #include <drivers/time/clock.h>
-#include <drivers/storage/block.h>
+#include <drivers/storage/block/block.h>
 
 #define USBMSD_TIMEOUT 5000000
 

@@ -1,0 +1,280 @@
+#include <drivers/storage/fs/vfs.h>
+#include <drivers/storage/fs/ramfs.h>
+#include <lib/string.h>
+#include <core/liballoc.h>
+#include <core/errno.h>
+
+static u32 findfreeino(vfs_t* vfs) {
+    ramfs_info* fs = RAMFS(vfs);
+    for (usize i = 0; i < fs->ninodes; i++) {
+        if (!fs->inodtbl[i].used) {
+            return i+1;
+        }
+    }
+
+    ramfs_inode* ninodtbl = realloc(fs->inodtbl, sizeof(ramfs_inode) * (fs->ninodes + 64));
+    if (!ninodtbl) return 0;
+    fs->inodtbl = ninodtbl;
+    u32 ino = fs->ninodes + 1;
+    fs->ninodes += 64;
+    return ino;
+}
+
+static ramfs_inode* getinod(vfs_t* vfs, u32 ino) {
+    ramfs_info* fs = RAMFS(vfs);
+    if (ino >= fs->ninodes) return NULL;
+    if (fs->inodtbl[ino].used) {
+        return &fs->inodtbl[ino];
+    } else {
+        return NULL;
+    }
+}
+
+ssize ramfs_umount(vfs_t* vfs) {
+    ramfs_info* fs = RAMFS(vfs);
+    for (usize i = 0; i < fs->ninodes; i++) {
+        if (fs->inodtbl[i].used) {
+            free(fs->inodtbl[i].dptr);
+        }
+    }
+    free(fs->inodtbl);
+    free(fs);
+    free(vfs->ops);
+    return 0;
+}
+
+ssize ramfs_mkino(vfs_t* vfs, u16 mode, u16 uid, u16 gid) {
+    ramfs_info* fs = RAMFS(vfs);
+    u32 ino = findfreeino(vfs);
+    if (!ino) return -ENOMEM;
+
+    void* dptr = malloc(1024);
+    if (!dptr) return -ENOMEM;
+    fs->inodtbl[ino-1] = (ramfs_inode){
+        1, mode, uid, 0, 0, 0, gid, 0, 1024, dptr
+    };
+    return 0;
+}
+
+ssize ramfs_rmino(vfs_t* vfs, u32 ino) {
+    ramfs_inode* inod = getinod(vfs, ino);
+    if (!inod) return -ENOENT;
+    free(inod->dptr);
+    memset(inod, 0, sizeof(*inod));
+    return 0;
+}
+
+ssize ramfs_mklink(vfs_t* vfs, u32 ino, u16 mode, u32 dino, const char* name) {
+    (void)mode;
+    
+    ramfs_inode* dinod = getinod(vfs, dino);
+    if (!dinod) return -ENOENT;
+
+    char* np = malloc(strlen(name) + 1);
+    if (!np) return -ENOMEM;
+
+    ramfs_dirent ent = {
+        1, ino, strlen(name) + 1, np
+    };
+
+    usize ndirs = dinod->size / sizeof(ramfs_dirent);
+    ramfs_dirent* dir = dinod->dptr;
+    ramfs_dirent* tgtent = NULL;
+    for (usize i = 0; i < ndirs; i++) {
+        if (!dir[i].used) {
+            tgtent = &dir[i];
+            break;
+        }
+    }
+
+    if (!tgtent) {
+        if (dinod->size + sizeof(ent) > dinod->allocd) {
+            void* nptr = realloc(dinod->dptr, dinod->allocd + (sizeof(ramfs_dirent) * 32));
+            if (!nptr) return -ENOMEM;
+
+            dinod->dptr = nptr;
+            dir = dinod->dptr;
+
+            tgtent = &dir[dinod->allocd / sizeof(ramfs_dirent)];
+            dinod->allocd += sizeof(ramfs_dirent) * 32;
+        } else {
+            tgtent = &dir[dinod->size / sizeof(ramfs_dirent)];
+        }
+    }
+
+    memcpy(tgtent, &ent, sizeof(ent));
+    return 0;
+}
+
+ssize ramfs_rmlink(vfs_t* vfs, u32 dino, const char* name) {
+    usize namlen = strlen(name) + 1;
+
+    ramfs_inode* dinod = getinod(vfs, dino);
+    if (!dinod) return -ENOENT;
+
+    usize ndirs = dinod->size / sizeof(ramfs_dirent);
+    ramfs_dirent* dir = dinod->dptr;
+    for (usize i = 0; i < ndirs; i++) {
+        if (dir[i].used && dir[i].namlen == namlen && strneq(dir[i].namep, name, namlen)) {
+            free(dir[i].namep);
+            dir[i].namlen = 0;
+            dir[i].inode = 0;
+            dir[i].used = 0;
+        }
+    }
+
+    return -ENOENT;
+}
+
+ssize ramfs_trunc(vfs_t* vfs, u32 ino) {
+    ramfs_inode* inod = getinod(vfs, ino);
+    if (!inod) return -ENOENT;
+
+    memset(inod->dptr, 0, inod->size);
+    inod->size = 0;
+    return 0;
+}
+
+ssize ramfs_getino(vfs_t* vfs, u32 ino, vinode_t* buf) {
+    ramfs_inode* inod = getinod(vfs, ino);
+    if (!inod) return -ENOENT;
+
+    buf->mode = inod->mode;
+    buf->uid = inod->uid;
+    buf->atime = inod->atime;
+    buf->ctime = inod->ctime;
+    buf->mtime = inod->mtime;
+    buf->gid = inod->gid;
+    buf->lnkcnt = 0;
+    buf->size = inod->size;
+    buf->priv = ino;
+
+    return 0;
+}
+
+ssize ramfs_setino(vfs_t* vfs, u32 ino, vinode_t* vinod) {
+    ramfs_inode* inod = getinod(vfs, ino);
+    if (!inod) return -ENOENT;
+
+    inod->mode = vinod->mode;
+    inod->uid = vinod->uid;
+    inod->atime = vinod->atime;
+    inod->ctime = vinod->ctime;
+    inod->mtime = vinod->mtime;
+    inod->gid = vinod->gid;
+
+    return 0;
+}
+
+ssize ramfs_lookup(vfs_t* vfs, u32 dino, const char* name) {
+    usize namlen = strlen(name) + 1;
+
+    ramfs_inode* dinod = getinod(vfs, dino);
+    if (!dinod) return -ENOENT;
+
+    usize ndirs = dinod->size / sizeof(ramfs_dirent);
+    ramfs_dirent* dir = dinod->dptr;
+    for (usize i = 0; i < ndirs; i++) {
+        if (dir[i].used && dir[i].namlen == namlen && strneq(dir[i].namep, name, namlen)) {
+            return dir[i].inode;
+        }
+    }
+
+    return -ENOENT;
+}
+
+ssize ramfs_readdir(vfs_t* vfs, u32 dino, u64* prv, char* name, usize namlen, vinode_t* buf) {
+    ramfs_inode* dinod = getinod(vfs, dino);
+    if (!dinod) return -ENOENT;
+
+    usize ndirs = dinod->size / sizeof(ramfs_dirent);
+    ramfs_dirent* dir = dinod->dptr;
+
+    if (*prv >= ndirs) {
+        return -1;
+    }
+
+    if (namlen < dir[*prv].namlen) return -ETOOSMALL;
+    memcpy(name, dir[*prv].namep, dir[*prv].namlen);
+    ramfs_inode* inod = getinod(vfs, dir[*prv].inode);
+    
+    buf->mode = inod->mode;
+    buf->uid = inod->uid;
+    buf->atime = inod->atime;
+    buf->ctime = inod->ctime;
+    buf->mtime = inod->mtime;
+    buf->gid = inod->gid;
+    buf->lnkcnt = 0;
+    buf->size = inod->size;
+    buf->priv = dir[*prv].inode;
+    (*prv)++;
+    return 0;
+}
+
+ssize ramfs_read(vfs_t* vfs, u32 ino, usize off, usize nb, void* buf) {
+    ramfs_inode* inod = getinod(vfs, ino);
+    if (!inod) return -ENOENT;
+
+    if (inod->size < off) {
+        return -1;
+    }
+
+    if (inod->size < off + nb) {
+        nb = inod->size - off;
+    }
+
+    memcpy(buf, inod->dptr + off, nb);
+    return nb;
+}
+
+ssize ramfs_write(vfs_t* vfs, u32 ino, usize off, usize nb, void* buf) {
+    ramfs_inode* inod = getinod(vfs, ino);
+    if (!inod) return -ENOENT;
+
+    if (inod->allocd < off + nb) {
+        void* ndata = realloc(inod->dptr, inod->allocd + nb);
+        if (!ndata) return -ENOMEM;
+        inod->dptr = ndata;
+    }
+
+    memcpy(inod->dptr + off, buf, nb);
+    return nb;
+}
+
+int ramfs_mount(vfs_t* vfs) {
+    vfs->root_ino = 1;
+    ramfs_info* fs = malloc(sizeof(*fs));
+    if (!fs) return -ENOMEM;
+
+    fs->inodtbl = malloc(sizeof(*fs->inodtbl) * 1024);
+    if (!fs->inodtbl) {
+        free(fs);
+        return -ENOMEM;
+    }
+
+    memset(fs->inodtbl, 0, sizeof(*fs->inodtbl) * 1024);
+    fs->ninodes = 1024;
+
+    vfs->priv = (u64)fs;
+
+    vfs->ops = malloc(sizeof(*vfs->ops));
+    if (!vfs->ops) {
+        free(fs->inodtbl);
+        free(fs);
+        return -ENOMEM;
+    }
+
+    vfs->ops->umount = ramfs_umount;
+    vfs->ops->lookup = ramfs_lookup;
+    vfs->ops->readdir = ramfs_readdir;
+    vfs->ops->mkino = ramfs_mkino;
+    vfs->ops->rmino = ramfs_rmino;
+    vfs->ops->getino = ramfs_getino;
+    vfs->ops->setino = ramfs_setino;
+    vfs->ops->mklink = ramfs_mklink;
+    vfs->ops->rmlink = ramfs_rmlink;
+    vfs->ops->trunc = ramfs_trunc;
+    vfs->ops->read = ramfs_read;
+    vfs->ops->write = ramfs_write;
+    return 0;
+}

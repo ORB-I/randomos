@@ -1,7 +1,6 @@
 #include <lib/string.h>
 #include <core/fd.h>
 #include <drivers/storage/fs.h>
-#include <drivers/storage/ext2.h>
 #include <scheduler/process.h>
 #include <core/liballoc.h>
 #include <drivers/display/fb.h>

@@ -8,8 +8,8 @@
 #include <lib/string.h>
 #include <drivers/virtio/virtio.h>
 #include <drivers/virtio/virtqueue.h>
-#include <drivers/storage/virtio_blk.h>
-#include <drivers/storage/block.h>
+#include <drivers/storage/block/virtio_blk.h>
+#include <drivers/storage/block/block.h>
 
 #define DMA_HDR_OFF    0
 #define DMA_STATUS_OFF 64

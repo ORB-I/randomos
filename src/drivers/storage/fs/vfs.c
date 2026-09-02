@@ -8,14 +8,28 @@
 #include <drivers/display/term.h>
 #include <drivers/hid/kbd.h>
 #include <core/fd.h>
-#include <drivers/storage/vfs.h>
-#include <drivers/storage/block.h>
-#include <drivers/storage/ext2.h>
+#include <drivers/storage/fs/vfs.h>
+#include <drivers/storage/block/block.h>
+#include <drivers/storage/fs/ext2.h>
+#include <drivers/storage/fs/ramfs.h>
 #include <scheduler/process.h>
 
 static vfs_t* mounts = NULL;
 char cwd[1024];
 usize avmounts = 0;
+
+#define FSFLAG_NOBLK 0x01
+struct av_vfs {
+    const char* id;
+    u32 flags;
+    int (*mount)(vfs_t* vfs);
+};
+
+struct av_vfs availfs[] = {
+    {"ext2", 0, ext2fs_mount},
+    {"ramfs", FSFLAG_NOBLK, ramfs_mount}
+};
+static const usize navailfs = sizeof(availfs) / sizeof(availfs[0]);
 
 int vfs_init() {
     mounts = malloc(sizeof(*mounts) * 16);
@@ -327,7 +341,7 @@ int vfs_baseunlink(vfs_t* mnt, u64 ino, const char* path) {
     return 0;
 }
 
-int mount(const char* dev, const char* path) {
+int mount(const char* dev, const char* path, const char* type) {
     int ret = 0;
 
     char abs[1024];
@@ -336,34 +350,51 @@ int mount(const char* dev, const char* path) {
     ssize mntid = vfs_findfreemnt();
     if (mntid < 0) return mntid;
 
-    struct blockdev bdev;
-    if (dev) {
-        if ((ret = block_getdevnam(dev, &bdev)) < 0) return ret;
-    } else {
-        struct blockdev* devs = block_getdevs();
-        usize ndevs = block_getndevs();
-        if (ndevs >= 0) bdev = devs[0];
-        else return -1;
+    struct av_vfs* fs = NULL;
+    for (usize i = 0; i < navailfs; i++) {
+        if (streq(type, availfs[i].id)) {
+            fs = &availfs[i];
+        }
+    }
+
+    if (!fs) {
+        return -EINVAL;
     }
 
     vfs_t* mnt = &mounts[mntid];
     mnt->inuse = 1;
 
-    mnt->blkid = bdev.id;
+    if (!(fs->flags & FSFLAG_NOBLK)) {
+        struct blockdev bdev;
+        if (dev) {
+            if ((ret = block_getdevnam(dev, &bdev)) < 0) {
+                mnt->inuse = 0;
+                return ret;
+            }
+        } else {
+            struct blockdev* devs = block_getdevs();
+            usize ndevs = block_getndevs();
+            if (ndevs >= 0) {
+                bdev = devs[0];
+            } else {
+                mnt->inuse = 1;
+                return -ENOEXIST;
+            }
+        }
+        mnt->blkid = bdev.id;
+    }
+    
     mnt->mntno = mntid;
     memcpy(mnt->path, abs, strlen(abs)+1);
 
-    if ((ret = ext2fs_mount(mnt)) < 0) {
+    if ((ret = fs->mount(mnt)) < 0) {
         mnt->blkid = 0;
         mnt->mntno = 0;
         memset(mnt->path, 0, sizeof(mnt->path));
         mnt->inuse = 0;
-        serial_printf("EXT2 couldn't mount device %s (code %d)\n", bdev.name, ret);
         return ret;
-    } // here we'd add other filesystems in an elseif
-      // but we dont have anymore for now
+    }
 
-    serial_printf("Mounted device %s at %s\n", bdev.name, path);
     return 0;
 }
 
@@ -416,7 +447,7 @@ int open(const char* path, int flags, u16 mode) {
 
     struct fdinfo info = {
         0, 0, FDTYPE_FILE, {.file = {
-            mnt, inod, ino, 0
+            mnt, inod, ino, 0, {0}
         }}
     };
 
@@ -533,9 +564,10 @@ int opendir(const char* path) {
 
     struct fdinfo info = {
         0, 0, FDTYPE_DIR, {.dir = {
-            mnt, inod, ino, 0
+            mnt, inod, ino, 0, {0}
         }}
     };
+    memcpy(info.data.dir.path, abs, strlen(abs)+1);
 
     struct fdinfo* ninfo = NULL;
     if (!(ninfo = getnewfd(&info))) {

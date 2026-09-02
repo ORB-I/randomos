@@ -1,5 +1,5 @@
-#include <drivers/storage/ata.h>
-#include <drivers/storage/block.h>
+#include <drivers/storage/block/ata.h>
+#include <drivers/storage/block/block.h>
 #include <core/asmh.h>
 #include <core/std.h>
 #include <core/panic.h>

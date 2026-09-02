@@ -4,11 +4,11 @@
 #include <lib/string.h>
 #include <core/printf.h>
 #include <core/liballoc.h>
-#include <drivers/storage/block.h>
-#include <drivers/storage/ata.h>
-#include <drivers/storage/ahci.h>
-#include <drivers/storage/usbmsd.h>
-#include <drivers/storage/virtio_blk.h>
+#include <drivers/storage/block/block.h>
+#include <drivers/storage/block/ata.h>
+#include <drivers/storage/block/ahci.h>
+#include <drivers/storage/block/usbmsd.h>
+#include <drivers/storage/block/virtio_blk.h>
 
 static struct blockdev* blkdevs = NULL;
 static usize nblkdevsup = 0;

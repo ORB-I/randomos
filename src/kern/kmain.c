@@ -25,14 +25,14 @@
 #include <drivers/acpi.h>
 #include <drivers/display/term.h>
 #include <drivers/storage/fs.h>
-#include <drivers/storage/block.h>
+#include <drivers/storage/block/block.h>
 #include <drivers/display/fb.h>
 #include <drivers/usb/uhci.h>
 #include <drivers/net/e1000.h>
 #include <drivers/net/virtio_net.h>
 #include <drivers/rng/virtio_rng.h>
 #include <drivers/time/clock.h>
-#include <drivers/storage/vfs.h>
+#include <drivers/storage/fs/vfs.h>
 
 #include <lai/helpers/pm.h>
 
@@ -148,8 +148,12 @@ void kmain_aftergdt() {
     }
 
     const char* rootdev = cmdline_get("root");
-    if (mount(rootdev, "/") < 0) {
+    if (mount(rootdev, "/", "ext2") < 0) {
         panic("Failed to mount a device\n");
+    }
+
+    if (mount(NULL, "/tmp", "ramfs") < 0) {
+        printf("Didn't mount tmpfs\n");
     }
 
     int kbtype = KBD_USBHID;

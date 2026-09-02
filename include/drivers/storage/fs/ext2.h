@@ -1,6 +1,6 @@
 #pragma once
 #include <core/std.h>
-#include <drivers/storage/vfs.h>
+#include <drivers/storage/fs/vfs.h>
 
 #define EXT2_SUPER_MAGIC 0xEF53
 

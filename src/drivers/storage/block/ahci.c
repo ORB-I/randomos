@@ -9,8 +9,8 @@
 #include <core/liballoc.h>
 
 #include <drivers/pci.h>
-#include <drivers/storage/ahci.h>
-#include <drivers/storage/block.h>
+#include <drivers/storage/block/ahci.h>
+#include <drivers/storage/block/block.h>
 
 #define PCI_CLASS_MASS_STORAGE 0x01
 #define PCI_SUBCLASS_SATA 0x06
