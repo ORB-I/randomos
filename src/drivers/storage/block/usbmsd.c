@@ -6,23 +6,23 @@
 #include <core/mem/pmm.h>
 #include <lib/string.h>
 #include <core/mem/vmm.h>
+#include <core/liballoc.h>
 
 #include <drivers/usb/uhci.h>
 #include <drivers/storage/usbmsd.h>
 #include <drivers/time/clock.h>
+#include <drivers/storage/block.h>
 
 #define USBMSD_TIMEOUT 5000000
 
 typedef struct {
     uhci_controller_t* ctrl;
     u8 addr;
-    u8 ep_in;
-    u8 ep_out;
-    u8 max_packet;
+    u8 epin;
+    u8 epout;
+    u8 mxpkt;
+    u64 tag;
 } usbmsd_dev_t;
-
-static usbmsd_dev_t usbmsd_dev;
-static u32 usbmsd_tag = 1;
 
 static int usbmsd_read_cfg_desc(uhci_controller_t* hc, u8 addr, u8** buf) {
     usb_device_request_t req;
@@ -91,23 +91,21 @@ static int usbmsd_parse_endpoints(u8* cfg, u16 total_len, u8* ep_in, u8* ep_out,
     return 0;
 }
 
-static int usbmsd_do_bot(usbmsd_cbw_t* cbw, void* data, u32 len) {
-    usbmsd_dev_t* dev = &usbmsd_dev;
-
+static int usbmsd_do_bot(usbmsd_dev_t* dev, usbmsd_cbw_t* cbw, void* data, u32 len) {
     int ret = 0;
-    if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, dev->ep_out, cbw, sizeof(*cbw), 0)) < 0) {
+    if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, dev->epout, cbw, sizeof(*cbw), 0)) < 0) {
         return ret;
     }
 
     if (len > 0) {
         int in = (cbw->flags & 0x80) ? 1 : 0;
-        if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, in ? dev->ep_in : dev->ep_out, data, len, in)) < 0) {
+        if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, in ? dev->epin : dev->epout, data, len, in)) < 0) {
             return ret;
         }
     }
 
     usbmsd_csw_t csw;
-    if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, dev->ep_in, &csw, sizeof(csw), 1)) < 0) {
+    if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, dev->epin, &csw, sizeof(csw), 1)) < 0) {
         return ret;
     }
 
@@ -118,12 +116,11 @@ static int usbmsd_do_bot(usbmsd_cbw_t* cbw, void* data, u32 len) {
     return 0;
 }
 
-static int usbmsd_scsi_cmd(u8 cmd, void* data, u32 len) {
-    usbmsd_dev_t* dev = &usbmsd_dev;
+static int usbmsd_scsi_cmd(usbmsd_dev_t* dev, u8 cmd, void* data, u32 len) {
     usbmsd_cbw_t cbw;
     memset(&cbw, 0, sizeof(cbw));
     cbw.signature = CBW_SIGNATURE;
-    cbw.tag = usbmsd_tag++;
+    cbw.tag = dev->tag++;
     cbw.data_len = len;
     cbw.flags = (cmd == SCSI_INQUIRY || cmd == SCSI_READ_CAPACITY || cmd == SCSI_REQUEST_SENSE) ? 0x80 : 0x00;
     cbw.lun = 0;
@@ -138,19 +135,19 @@ static int usbmsd_scsi_cmd(u8 cmd, void* data, u32 len) {
     }
 
     int ret = 0;
-    if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, dev->ep_out, &cbw, sizeof(cbw), 0)) < 0) {
+    if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, dev->epout, &cbw, sizeof(cbw), 0)) < 0) {
         return ret;
     }
 
     if (len > 0) {
         int in = (cbw.flags & 0x80) ? 1 : 0;
-        if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, in ? dev->ep_in : dev->ep_out, data, len, in)) < 0) {
+        if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, in ? dev->epin : dev->epout, data, len, in)) < 0) {
             return ret;
         }
     }
 
     usbmsd_csw_t csw;
-    if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, dev->ep_in, &csw, sizeof(csw), 1)) < 0) {
+    if ((ret = uhci_bulk_transfer(dev->ctrl, dev->addr, dev->epin, &csw, sizeof(csw), 1)) < 0) {
         return ret;
     }
 
@@ -172,9 +169,9 @@ static int usbmsd_reset(uhci_controller_t* hc, u8 addr, u8 iface) {
     return uhci_control_transfer(hc, addr, false, &req, NULL, 0);
 }
 
-static int usbmsd_wait_ready(void) {
+static int usbmsd_wait_ready(usbmsd_dev_t* dev) {
     for (int i = 0; i < 20; i++) {
-        if (usbmsd_scsi_cmd(SCSI_TEST_UNIT_READY, NULL, 0) == 0) {
+        if (usbmsd_scsi_cmd(dev, SCSI_TEST_UNIT_READY, NULL, 0) == 0) {
             return 0;
         }
         sleepms(50);
@@ -182,14 +179,13 @@ static int usbmsd_wait_ready(void) {
     return -ETIME;
 }
 
-int usbmsd_init(void) {
+void usbmsd_enumerate() {
     uhci_controller_t* conts;
     usize nconts = uhci_get_controllers(&conts);
 
-    for (usize i = 0; i < nconts; i++) {
+    for (usize i =0; i < nconts; i++) {
         uhci_controller_t* hc = &conts[i];
         int nports = uhci_get_portcnt(hc);
-
         for (int p = 0; p < nports; p++) {
             if (hc->port_in_use[p]) continue;
             if (!uhci_portcon(hc, p)) continue;
@@ -198,63 +194,60 @@ int usbmsd_init(void) {
                 continue;
             }
 
-            u8 new_addr = p + 1;
+            usbmsd_dev_t* dev = malloc(sizeof(*dev));
+            if (!dev) return;
+
+            u8 naddr = p + 1;
             uhci_reset_port(hc, p);
 
-            if (usb_set_address(hc, 0, new_addr) < 0) continue;
+            if (usb_set_address(hc, 0, naddr) < 0) continue;
+            if (usb_set_configuration(hc, naddr, 1) < 0) continue;
 
-            if (usb_set_configuration(hc, new_addr, 1) < 0) continue;
-
-            u8* cfg_buf;
-            if (usbmsd_read_cfg_desc(hc, new_addr, &cfg_buf) < 0) {
+            u8* cfgbuf = NULL;
+            if (usbmsd_read_cfg_desc(hc, naddr, &cfgbuf) < 0) {
                 continue;
             }
 
-            u16 cfg_total = (u16)cfg_buf[2] | ((u16)cfg_buf[3] << 8);
-            u8 ep_in, ep_out, max_pkt;
-            if (usbmsd_parse_endpoints(cfg_buf, cfg_total, &ep_in, &ep_out, &max_pkt) < 0) {
-                pmm_ffree((void*)((u64)cfg_buf - HHDM_START), 1);
+            u16 cfgt = (u16)cfgbuf[2] | ((u16)cfgbuf[3] << 8);
+            u8 epin, epout, maxpkt;
+            if (usbmsd_parse_endpoints(cfgbuf, cfgt, &epin, &epout, &maxpkt) < 0) {
+                pmm_ffree((void*)((u64)cfgbuf - HHDM_START), 1);
                 continue;
             }
 
-            pmm_ffree((void*)((u64)cfg_buf - HHDM_START), 1);
+            pmm_ffree((void*)((u64)cfgbuf - HHDM_START), 1);
+            usbmsd_reset(hc, naddr, 0);
 
-            // Send Bulk-Only Mass Storage Reset request
-            usbmsd_reset(hc, new_addr, 0);
+            dev->ctrl = hc;
+            dev->addr = naddr;
+            dev->epin = epin;
+            dev->epout = epout;
+            dev->mxpkt = maxpkt;
+            dev->tag = 0;
 
-            // Populate usbmsd_dev before waiting for SCSI unit ready
-            memset(&usbmsd_dev, 0, sizeof(usbmsd_dev));
-            usbmsd_dev.ctrl = hc;
-            usbmsd_dev.addr = new_addr;
-            usbmsd_dev.ep_in = ep_in;
-            usbmsd_dev.ep_out = ep_out;
-            usbmsd_dev.max_packet = max_pkt;
-
-            if (usbmsd_wait_ready() < 0) {
-                memset(&usbmsd_dev, 0, sizeof(usbmsd_dev));
+            if (usbmsd_wait_ready(dev) < 0) {
+                free(dev);
                 continue;
             }
 
             hc->port_in_use[p] = 1;
-            hc->addrs[new_addr] = 1;
+            hc->addrs[naddr] = 1;
 
-            printf("USBMSD: Found device on port %d, addr %d, ep_in=%d ep_out=%d\n", p, new_addr, ep_in, ep_out);
-            return (int)new_addr;
+            if (block_register(DRV_USBMSD, (u64)dev) < 0) {
+                free(dev);
+                return;
+            }
         }
     }
-
-    printf("USBMSD: No device found\n");
-    return -ENOEXIST;
 }
 
-int usbmsd_secread(u8 drv, u32 lba, u8* buf) {
-    (void)drv;
-    if (usbmsd_dev.addr == 0) return -ENOEXIST;
+int usbmsd_secread(u64 drv, u32 lba, u8* buf) {
+    usbmsd_dev_t* dev = (usbmsd_dev_t*)drv;
 
     usbmsd_cbw_t cbw;
     memset(&cbw, 0, sizeof(cbw));
     cbw.signature = CBW_SIGNATURE;
-    cbw.tag = usbmsd_tag++;
+    cbw.tag = dev->tag++;
     cbw.data_len = 512;
     cbw.flags = 0x80;
     cbw.lun = 0;
@@ -268,20 +261,19 @@ int usbmsd_secread(u8 drv, u32 lba, u8* buf) {
     cbw.cdb[8] = 1;
 
     int ret = 0;
-    if ((ret = usbmsd_do_bot(&cbw, buf, 512)) < 0) {
+    if ((ret = usbmsd_do_bot(dev, &cbw, buf, 512)) < 0) {
         printf("USBMSD: Read error at LBA %d\n", lba);
     }
     return ret;
 }
 
-int usbmsd_secwrite(u8 drv, u32 lba, u8* buf) {
-    (void)drv;
-    if (usbmsd_dev.addr == 0) return -ENOEXIST;
+int usbmsd_secwrite(u64 drv, u32 lba, u8* buf) {
+    usbmsd_dev_t* dev = (usbmsd_dev_t*)drv;
 
     usbmsd_cbw_t cbw;
     memset(&cbw, 0, sizeof(cbw));
     cbw.signature = CBW_SIGNATURE;
-    cbw.tag = usbmsd_tag++;
+    cbw.tag = dev->tag++;
     cbw.data_len = 512;
     cbw.flags = 0x00;
     cbw.lun = 0;
@@ -295,7 +287,7 @@ int usbmsd_secwrite(u8 drv, u32 lba, u8* buf) {
     cbw.cdb[8] = 1;
 
     int ret = 0;
-    if ((ret = usbmsd_do_bot(&cbw, buf, 512)) < 0) {
+    if ((ret = usbmsd_do_bot(dev, &cbw, buf, 512)) < 0) {
         printf("USBMSD: Write error at LBA %d\n", lba);
     }
 

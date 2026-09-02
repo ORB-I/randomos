@@ -6,9 +6,11 @@
 #include <core/mem/pmm.h>
 #include <lib/string.h>
 #include <core/mem/vmm.h>
+#include <core/liballoc.h>
 
 #include <drivers/pci.h>
 #include <drivers/storage/ahci.h>
+#include <drivers/storage/block.h>
 
 #define PCI_CLASS_MASS_STORAGE 0x01
 #define PCI_SUBCLASS_SATA 0x06
@@ -126,53 +128,35 @@ typedef struct {
     u8 reserved[0x80 - 0x44];
 } __attribute__((packed)) ahci_port_regs_t;
 
-static volatile hba_global_t* hba;
-static int ahci_port = -1;
-static u8 ahci_bus, ahci_slot, ahci_fn;
+typedef struct {
+    volatile hba_global_t* hba;
+    u64 port;
+    u8 bus;
+    u8 slot;
+    u8 fn;
+    u64 cmdls_phys;
+    u64 cmdtbl_phys;
+    u64 fis_phys;
+    u64 dmabuf_phys;
+    void* cmdls_virt;
+    void* cmdtbl_virt;
+    void* fis_virt;
+    u8* dmabuf;
+} ahci_dev_t;
 
-static u64 cmd_list_phys;
-static u64 cmd_table_phys;
-static u64 fis_phys;
-static u64 dma_buf_phys;
-static void* cmd_list_virt;
-static void* cmd_table_virt;
-static void* fis_virt;
-static u8* dma_buf;
+#define AHCI_PORT(dev, port) ((volatile ahci_port_regs_t*)((u8*)dev->hba + 0x100 + (port) * 0x80))
 
-#define AHCI_PORT(port) ((volatile ahci_port_regs_t*)((u8*)hba + 0x100 + (port) * 0x80))
-
-static int ahci_find_controller(void) {
-    for (u8 bus = 0; bus < 4; bus++) {
-        for (u8 slot = 0; slot < 32; slot++) {
-            for (u8 fn = 0; fn < 8; fn++) {
-                pci_chdr_t hdr;
-                pci_get_chdr_fn(bus, slot, fn, &hdr);
-                if (hdr.vndid == 0xFFFF) continue;
-                if (hdr.cls == PCI_CLASS_MASS_STORAGE &&
-                    hdr.subcls == PCI_SUBCLASS_SATA &&
-                    hdr.progif == PCI_PROGIF_AHCI) {
-                    ahci_bus = bus;
-                    ahci_slot = slot;
-                    ahci_fn = fn;
-                    return 0;
-                }
-            }
-        }
-    }
-    return -ENOEXIST;
-}
-
-static u64 ahci_read_bar5(void) {
-    u32 bar5_low = pci_cfg_inl(ahci_bus, ahci_slot, ahci_fn, 0x24);
+static u64 ahci_read_bar5(ahci_dev_t* dev) {
+    u32 bar5_low = pci_cfg_inl(dev->bus, dev->slot, dev->fn, 0x24);
     u32 bar5_high = 0;
     if (bar5_low & 0x4) {
-        bar5_high = pci_cfg_inl(ahci_bus, ahci_slot, ahci_fn, 0x28);
+        bar5_high = pci_cfg_inl(dev->bus, dev->slot, dev->fn, 0x28);
     }
     return ((u64)bar5_high << 32) | (bar5_low & 0xFFFFFFF0);
 }
 
-static int ahci_wait_idle(int port, u32 timeout) {
-    volatile ahci_port_regs_t* p = AHCI_PORT(port);
+static int ahci_wait_idle(ahci_dev_t* dev, int port, u32 timeout) {
+    volatile ahci_port_regs_t* p = AHCI_PORT(dev, port);
     for (u32 i = 0; i < timeout; i++) {
         u32 tfd = p->tfd;
         if (!(tfd & (HBA_PORT_TFD_BSY | HBA_PORT_TFD_DRQ))) {
@@ -182,10 +166,72 @@ static int ahci_wait_idle(int port, u32 timeout) {
     return -ETIME;
 }
 
-static int ahci_port_init(int port) {
-    volatile ahci_port_regs_t* p = AHCI_PORT(port);
+static int ahci_issue_cmd(ahci_dev_t* dev, int port, u64 lba, u32 count, u8* buf, int write) {
+    volatile ahci_port_regs_t* p = AHCI_PORT(dev, port);
 
-    // Stop port
+    // Build command FIS
+    fis_reg_h2d_t* fis = (fis_reg_h2d_t*)dev->fis_virt;
+    memset(fis, 0, sizeof(*fis));
+    fis->type = FIS_TYPE_REG_H2D;
+    fis->pmport = 0x80;
+    fis->cmd = write ? ATA_CMD_WRITE_DMA_EXT : ATA_CMD_READ_DMA_EXT;
+    fis->lba0 = lba & 0xFF;
+    fis->lba1 = (lba >> 8) & 0xFF;
+    fis->lba2 = (lba >> 16) & 0xFF;
+    fis->device = 0x40;
+    fis->lba3 = (lba >> 24) & 0xFF;
+    fis->lba4 = (lba >> 32) & 0xFF;
+    fis->lba5 = (lba >> 40) & 0xFF;
+    fis->countl = count & 0xFF;
+    fis->counth = (count >> 8) & 0xFF;
+
+    // Build command header
+    hba_cmd_header_t* cmd = (hba_cmd_header_t*)dev->cmdls_virt;
+    memset(cmd, 0, sizeof(*cmd));
+    cmd->info = write ? (CMD_HEADER_P | CMD_HEADER_W | 3) : (CMD_HEADER_P | 3);
+    cmd->prdtl = 1;
+    cmd->ctba = dev->cmdtbl_phys;
+
+    // Build command table
+    hba_cmd_table_t* tbl = (hba_cmd_table_t*)dev->cmdtbl_virt;
+    memset(tbl, 0, sizeof(*tbl));
+    memcpy(tbl->cfis, fis, sizeof(*fis));
+
+    // Build PRDT entry
+    hba_prdt_entry_t* prdt = (hba_prdt_entry_t*)((u8*)tbl + sizeof(hba_cmd_table_t));
+    prdt->dba = dev->dmabuf_phys;
+    prdt->dbc = (count * 512 - 1) | (1U << 31);
+
+    // Copy data for write
+    if (write) {
+        memcpy(dev->dmabuf, buf, count * 512);
+    }
+
+    // Issue command
+    p->ci = 1;
+
+    // Wait for completion
+    for (u32 i = 0; i < 1000000; i++) {
+        if (!(p->ci & 1)) break;
+    }
+
+    // Check errors
+    u32 tfd = p->tfd;
+    if (tfd & HBA_PORT_TFD_ERR) {
+        p->serr = 0xFFFFFFFF;
+        return -EHANG;
+    }
+
+    // Copy data for read
+    if (!write) {
+        memcpy(buf, dev->dmabuf, count * 512);
+    }
+
+    return 0;
+}
+
+static int ahci_port_init(ahci_dev_t* dev, int port) {
+    volatile ahci_port_regs_t* p = AHCI_PORT(dev, port);
     p->cmd = 0;
 
     // Wait for CMD.CR and CMD.FR to clear
@@ -193,8 +239,7 @@ static int ahci_port_init(int port) {
         if (!(p->cmd & (HBA_PORT_CMD_CR | HBA_PORT_CMD_FR))) break;
     }
 
-    // Wait for port idle
-    if (ahci_wait_idle(port, 100000) < 0) {
+    if (ahci_wait_idle(dev, port, 100000) < 0) {
         return -ETIME;
     }
 
@@ -202,12 +247,12 @@ static int ahci_port_init(int port) {
     p->is = 0xFFFFFFFF;
 
     // Set command list base address
-    p->clb = (u32)(cmd_list_phys & 0xFFFFFFFF);
-    p->clbu = (u32)((cmd_list_phys >> 32) & 0xFFFFFFFF);
+    p->clb = (u32)(dev->cmdls_phys & 0xFFFFFFFF);
+    p->clbu = (u32)((dev->cmdls_phys >> 32) & 0xFFFFFFFF);
 
     // Set FIS base address
-    p->fb = (u32)(fis_phys & 0xFFFFFFFF);
-    p->fbu = (u32)((fis_phys >> 32) & 0xFFFFFFFF);
+    p->fb = (u32)(dev->fis_phys & 0xFFFFFFFF);
+    p->fbu = (u32)((dev->fis_phys >> 32) & 0xFFFFFFFF);
 
     // Enable FIS receive
     p->cmd = HBA_PORT_CMD_FRE;
@@ -237,135 +282,87 @@ static int ahci_port_init(int port) {
     return 0;
 }
 
-static int ahci_issue_cmd(int port, u64 lba, u32 count, u8* buf, int write) {
-    volatile ahci_port_regs_t* p = AHCI_PORT(port);
+static int ahci_dev_init(ahci_dev_t* dev) {
+    u64 hbap = ahci_read_bar5(dev);
+    if (!hbap) return -EINVAL;
 
-    // Build command FIS
-    fis_reg_h2d_t* fis = (fis_reg_h2d_t*)fis_virt;
-    memset(fis, 0, sizeof(*fis));
-    fis->type = FIS_TYPE_REG_H2D;
-    fis->pmport = 0x80;
-    fis->cmd = write ? ATA_CMD_WRITE_DMA_EXT : ATA_CMD_READ_DMA_EXT;
-    fis->lba0 = lba & 0xFF;
-    fis->lba1 = (lba >> 8) & 0xFF;
-    fis->lba2 = (lba >> 16) & 0xFF;
-    fis->device = 0x40;
-    fis->lba3 = (lba >> 24) & 0xFF;
-    fis->lba4 = (lba >> 32) & 0xFF;
-    fis->lba5 = (lba >> 40) & 0xFF;
-    fis->countl = count & 0xFF;
-    fis->counth = (count >> 8) & 0xFF;
+    dev->hba = (volatile hba_global_t*)(HHDM_START + hbap);
 
-    // Build command header
-    hba_cmd_header_t* cmd = (hba_cmd_header_t*)cmd_list_virt;
-    memset(cmd, 0, sizeof(*cmd));
-    cmd->info = write ? (CMD_HEADER_P | CMD_HEADER_W | 3) : (CMD_HEADER_P | 3);
-    cmd->prdtl = 1;
-    cmd->ctba = cmd_table_phys;
+    dev->cmdls_phys = (u64)pmm_falloc(1);
+    dev->cmdtbl_phys = (u64)pmm_falloc(1);
+    dev->fis_phys = (u64)pmm_falloc(1);
+    dev->dmabuf_phys = (u64)pmm_falloc(1);
 
-    // Build command table
-    hba_cmd_table_t* tbl = (hba_cmd_table_t*)cmd_table_virt;
-    memset(tbl, 0, sizeof(*tbl));
-    memcpy(tbl->cfis, fis, sizeof(*fis));
-
-    // Build PRDT entry
-    hba_prdt_entry_t* prdt = (hba_prdt_entry_t*)((u8*)tbl + sizeof(hba_cmd_table_t));
-    prdt->dba = dma_buf_phys;
-    prdt->dbc = (count * 512 - 1) | (1U << 31);
-
-    // Copy data for write
-    if (write) {
-        memcpy(dma_buf, buf, count * 512);
-    }
-
-    // Issue command
-    p->ci = 1;
-
-    // Wait for completion
-    for (u32 i = 0; i < 1000000; i++) {
-        if (!(p->ci & 1)) break;
-    }
-
-    // Check errors
-    u32 tfd = p->tfd;
-    if (tfd & HBA_PORT_TFD_ERR) {
-        p->serr = 0xFFFFFFFF;
-        return -EHANG;
-    }
-
-    // Copy data for read
-    if (!write) {
-        memcpy(buf, dma_buf, count * 512);
-    }
-
-    return 0;
-}
-
-int ahci_init(void) {
-    int ret = 0;
-    if ((ret = ahci_find_controller()) < 0) {
-        printf("AHCI: No controller found\n");
-        return ret;
-    }
-
-    u64 hba_phys = ahci_read_bar5();
-    if (!hba_phys) {
-        printf("AHCI: Invalid BAR5\n");
-        return -EINVAL;
-    }
-
-    hba = (volatile hba_global_t*)(HHDM_START + hba_phys);
-
-    // Allocate DMA buffers
-    cmd_list_phys = (u64)pmm_falloc(1);
-    cmd_table_phys = (u64)pmm_falloc(1);
-    fis_phys = (u64)pmm_falloc(1);
-    dma_buf_phys = (u64)pmm_falloc(1);
-
-    if (!cmd_list_phys || !cmd_table_phys || !fis_phys || !dma_buf_phys) {
-        printf("AHCI: DMA allocation failed\n");
+    if (!dev->cmdls_phys || !dev->cmdtbl_phys || !dev->fis_phys || !dev->dmabuf_phys) {
         return -ENOMEM;
     }
 
-    cmd_list_virt = (void*)(HHDM_START + cmd_list_phys);
-    cmd_table_virt = (void*)(HHDM_START + cmd_table_phys);
-    fis_virt = (void*)(HHDM_START + fis_phys);
-    dma_buf = (u8*)(HHDM_START + dma_buf_phys);
+    dev->cmdls_virt = (void*)(HHDM_START + dev->cmdls_phys);
+    dev->cmdtbl_virt = (void*)(HHDM_START + dev->cmdtbl_phys);
+    dev->fis_virt = (void*)(HHDM_START + dev->fis_phys);
+    dev->dmabuf = (u8*)(HHDM_START + dev->dmabuf_phys);
 
-    // Find and initialize a port
-    u32 pi = hba->pi;
+    u32 pi = dev->hba->pi;
     for (int i = 0; i < 32; i++) {
         if (pi & (1U << i)) {
-            if (ahci_port_init(i) == 0) {
-                ahci_port = i;
-                printf("AHCI: Initialized on port %d\n", i);
+            if (ahci_port_init(dev, i) == 0) {
+                dev->port = i;
                 return 0;
             }
         }
     }
 
-    printf("AHCI: No device found on any port\n");
-    return -ENOEXIST;
+    return -1;
 }
 
-int ahci_secread(u8 drv, u64 lba, u8* buf) {
-    (void)drv;
-    if (ahci_port < 0) return -ENOEXIST;
+void ahci_enumerate() {
+    for (u8 bus = 0; bus < 4; bus++) {
+        for (u8 slot = 0; slot < 32; slot++) {
+            for (u8 fn = 0; fn < 8; fn++) {
+                pci_chdr_t hdr;
+                pci_get_chdr_fn(bus, slot, fn, &hdr);
+                if (hdr.vndid == 0xFFFF) continue;
+                if (hdr.cls == PCI_CLASS_MASS_STORAGE &&
+                    hdr.subcls == PCI_SUBCLASS_SATA &&
+                    hdr.progif == PCI_PROGIF_AHCI) {
+                        ahci_dev_t* dev = malloc(sizeof(*dev));
+                        if (!dev) return;
+
+                        dev->bus = bus;
+                        dev->slot = slot;
+                        dev->fn = fn;
+
+                        if (ahci_dev_init(dev) < 0) {
+                            free(dev);
+                            continue;
+                        }
+
+                        if (block_register(DRV_AHCI, (u64)dev) < 0) {
+                            free(dev);
+                            return;
+                        }
+                }
+            }
+        }
+    }
+}
+
+int ahci_secread(u64 drv, u64 lba, u8* buf) {
+    ahci_dev_t* dev = (ahci_dev_t*)drv;
 
     int ret = 0;
-    if ((ret = ahci_issue_cmd(ahci_port, lba, 1, buf, 0)) < 0) {
+    if ((ret = ahci_issue_cmd(dev, dev->port, lba, 1, buf, 0)) < 0) {
         printf("AHCI: Read error at LBA %d\n", lba);
     }
 
     return ret;
 }
 
-int ahci_secwrite(u8 drv, u64 lba, u8* buf) {
-    (void)drv;
-    if (ahci_port < 0) return -ENOEXIST;
+int ahci_secwrite(u64 drv, u64 lba, u8* buf) {
+    ahci_dev_t* dev = (ahci_dev_t*)drv;
 
     int ret = 0;
-    if ((ret = ahci_issue_cmd(ahci_port, lba, 1, buf, 1)) < 0) {
+    if ((ret = ahci_issue_cmd(dev, dev->port, lba, 1, buf, 1)) < 0) {
         printf("AHCI: Write error at LBA %d\n", lba);
     }
 

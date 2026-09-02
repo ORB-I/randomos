@@ -2,7 +2,7 @@
 #include <sys/sysfn.h>
 #include <sys/syscall.h>
 
-int open(char* path, u32 flags, int mode) {
+int open(char* path, int flags, u16 mode) {
     return (int)__syscall3(SYS_OPEN, (u64)path, flags, mode);
 }
 

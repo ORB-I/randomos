@@ -78,11 +78,11 @@ int kexecve(const char* path, char** argv, char** envp, u8 cpid) {
     proc->wake_ms = 0;
     proc->perms = 0;
 
-    if (st.mode & S_ISUID) {
+    if (st.st_mode & S_ISUID) {
         proc->perms |= PROC_SUID;
     }
 
-    if (st.mode & S_ISGID) {
+    if (st.st_mode & S_ISGID) {
         proc->perms |= PROC_SGID;
     }
     
@@ -219,11 +219,11 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
     proc->wake_ms = 0;
     proc->perms = 0;
 
-    if (st.mode & S_ISUID) {
+    if (st.st_mode & S_ISUID) {
         proc->perms |= PROC_SUID;
     }
 
-    if (st.mode & S_ISGID) {
+    if (st.st_mode & S_ISGID) {
         proc->perms |= PROC_SGID;
     }
 

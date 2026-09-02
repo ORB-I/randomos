@@ -34,7 +34,15 @@ typedef struct {
     u32 blk_size;
 } __attribute__((packed)) virtio_blk_config_t;
 
-int virtio_blk_init();
-int virtio_blk_secread(u8 id, u32 lba, u8* buf);
-int virtio_blk_secwrite(u8 id, u32 lba, u8* buf);
-u64 virtio_blk_get_capacity();
+typedef struct {
+    virtio_dev_t vd;
+    virtqueue_t vq;
+    u64 cap;
+    u64 dma_phys;
+    u8* dma_virt;
+} virtblk_dev_t;
+
+void virtio_blk_enumerate();
+int virtio_blk_secread(u64 id, u32 lba, u8* buf);
+int virtio_blk_secwrite(u64 id, u32 lba, u8* buf);
+u64 virtio_blk_get_capacity(virtblk_dev_t* dev);

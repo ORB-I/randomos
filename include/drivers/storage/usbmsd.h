@@ -33,6 +33,6 @@ typedef struct {
     u8  status;
 } __attribute__((packed)) usbmsd_csw_t;
 
-int usbmsd_init(void);
-int usbmsd_secread(u8 drv, u32 lba, u8* buf);
-int usbmsd_secwrite(u8 drv, u32 lba, u8* buf);
+void usbmsd_enumerate();
+int usbmsd_secread(u64 drv, u32 lba, u8* buf);
+int usbmsd_secwrite(u64 drv, u32 lba, u8* buf);

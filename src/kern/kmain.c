@@ -13,6 +13,7 @@
 #include <scheduler/scheduler.h>
 #include <scheduler/process.h>
 #include <smp/smp.h>
+#include <smp/ap.h>
 
 #include <drivers/time/gettimeofday.h>
 #include <drivers/hid/kbd.h>
@@ -30,7 +31,7 @@
 #include <drivers/net/virtio_net.h>
 #include <drivers/rng/virtio_rng.h>
 #include <drivers/time/clock.h>
-#include <smp/ap.h>
+#include <drivers/storage/vfs.h>
 
 #include <lai/helpers/pm.h>
 
@@ -136,12 +137,16 @@ void kmain_aftergdt() {
     init_gettimeofday();
     init_cores();
 
-    if (block_init() != BLOCK_OK) {
+    if (block_init() < 0) {
         panic("KERN: No drive available\n");
     }
 
-    if (fs_probe_mount() < 0) {
-        panic("Failed to mount\n");
+    if (vfs_init() < 0) {
+        panic("Failed to initialize VFS\n");
+    }
+
+    if (mount(NULL, "/") < 0) {
+        panic("Failed to mount a device\n");
     }
 
     int kbtype = KBD_USBHID;

@@ -1,65 +1,73 @@
+#include <core/errno.h>
 #include <core/std.h>
 #include <core/asmh.h>
 #include <core/printf.h>
 #include <drivers/pci.h>
 #include <drivers/virtio/virtio.h>
 
+int virtio_pci_maxfn(u32 bus, u32 slot) {
+    pci_chdr_t hdr;
+    pci_get_chdr_fn(bus, slot, 0, &hdr);
+    if (hdr.vndid == 0xFFFF || hdr.vndid == 0) return 0;
+    return (hdr.hdrt & 0x80) ? 8 : 1;
+}
+
+int virtio_pci_isfunc(u32 bus, u32 slot, u32 fn, u16 devid) {
+    pci_chdr_t hdr;
+    pci_get_chdr_fn(bus, slot, fn, &hdr);
+    if (hdr.vndid == 0xFFFF || hdr.vndid == 0 || hdr.vndid != VIRTIO_VENDOR_ID) return 0;
+    if (hdr.devid == devid) {
+        return 1;
+    } else if (devid == VIRTIO_DEV_NET && hdr.devid == VIRTIO_DEV_MODERN_NET) {
+        return 1;
+    } else if (devid == VIRTIO_DEV_BLOCK && hdr.devid == VIRTIO_DEV_MODERN_BLOCK) {
+        return 1;
+    } else if (devid == VIRTIO_DEV_RNG && hdr.devid == VIRTIO_DEV_MODERN_RNG) {
+        return 1;
+    }
+
+    return 0;
+}
+
+int virtio_pci_initfn(virtio_dev_t* dev, u32 bus, u32 slot, u32 fn, u32 inten) {
+    pci_chdr_t hdr;
+    pci_get_chdr_fn(bus, slot, fn, &hdr);
+
+    u32 bar0 = pci_read_bar(bus, slot, fn, 0);
+    if (!(bar0 & 0x01)) {
+        return -EINVAL;
+    }
+
+    dev->bus = (u8)bus;
+    dev->slot = (u8)slot;
+    dev->devid = hdr.devid;
+    dev->iobase = (u64)(bar0 & ~0x3);
+    dev->irq = pci_cfg_inb(bus, slot, fn, 0x3C);
+
+    /* Enable Bus Master, Memory Space, and I/O Space in PCI Command */
+    u16 pcicmd = pci_cfg_inw(bus, slot, fn, 0x04);
+    pcicmd |= (1 << 0) | (1 << 1) | (1 << 2);
+
+    if (inten) {
+        pcicmd &= ~(1 << 10);
+    } else {
+        pcicmd |= (1 << 10);
+    }
+
+    pci_cfg_outw(bus, slot, fn, 0x04, pcicmd);
+    return 0;
+}
+
 int virtio_find_pci_device(u16 devid, virtio_dev_t* dev, u8 inten) {
-    if (!dev) return -1;
+    if (!dev) return -EINVAL;
 
     for (u32 bus = 0; bus < 256; bus++) {
         for (u32 slot = 0; slot < 32; slot++) {
-            pci_chdr_t hdr;
-            pci_get_chdr_fn(bus, slot, 0, &hdr);
-            if (hdr.vndid == 0xFFFF || hdr.vndid == 0) continue;
-
-            u8 max_fn = (hdr.hdrt & 0x80) ? 8 : 1;
-            for (u32 fn = 0; fn < max_fn; fn++) {
-                if (fn > 0) {
-                    pci_get_chdr_fn(bus, slot, fn, &hdr);
-                    if (hdr.vndid == 0xFFFF || hdr.vndid == 0) continue;
-                }
-
-                if (hdr.vndid != VIRTIO_VENDOR_ID) continue;
-
-                bool match = false;
-                if (hdr.devid == devid) {
-                    match = true;
-                } else if (devid == VIRTIO_DEV_NET && hdr.devid == VIRTIO_DEV_MODERN_NET) {
-                    match = true;
-                } else if (devid == VIRTIO_DEV_BLOCK && hdr.devid == VIRTIO_DEV_MODERN_BLOCK) {
-                    match = true;
-                } else if (devid == VIRTIO_DEV_RNG && hdr.devid == VIRTIO_DEV_MODERN_RNG) {
-                    match = true;
-                }
-
-                if (match) {
-                    serial_printf("Found VirtIO Device\nb%d:s%d:f%d:d%d\n", bus, slot, fn, devid);
-                    u32 bar0 = pci_read_bar(bus, slot, fn, 0);
-                    if (!(bar0 & 0x01)) {
-                        /* BAR0 must be I/O space for legacy VirtIO */
-                        continue;
-                    }
-
-                    dev->bus = (u8)bus;
-                    dev->slot = (u8)slot;
-                    dev->fn = (u8)fn;
-                    dev->devid = hdr.devid;
-                    dev->iobase = (u16)(bar0 & ~0x3);
-                    dev->irq = pci_cfg_inb(bus, slot, fn, 0x3C);
-
-                    /* Enable Bus Master, Memory Space, and I/O Space in PCI Command */
-                    u16 pci_cmd = pci_cfg_inw(bus, slot, fn, 0x04);
-                    pci_cmd |= (1 << 0) | (1 << 1) | (1 << 2);
-
-                    if (inten) {
-                        pci_cmd &= ~(1 << 10); /* disable legacy interrupts */
-                    } else {
-                        pci_cmd |= (1 << 10); /* disable legacy interrupts */
-                    }
-                    pci_cfg_outw(bus, slot, fn, 0x04, pci_cmd);
-
-                    return 0;
+            u8 maxfn = virtio_pci_maxfn(bus, slot);
+            if (!maxfn) continue;
+            for (u32 fn = 0; fn < maxfn; fn++) {
+                if (virtio_pci_isfunc(bus, slot, fn, devid)) {
+                    return virtio_pci_initfn(dev, bus, slot, fn, inten);
                 }
             }
         }

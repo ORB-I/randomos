@@ -1,6 +1,6 @@
 #pragma once
 #include <core/std.h>
-#include <drivers/storage/fs.h>
+#include <drivers/storage/vfs.h>
 
 #define EXT2_SUPER_MAGIC 0xEF53
 
@@ -171,26 +171,19 @@ struct ext2_entry {
     int perms;
 };
 
-extern u32 ext2_blocksz;
+typedef struct {
+    int isdyn;
 
-int _ext2_mount(const char* path);
-int _ext2_unmount();
-int _ext2_trunc(int fd);
-int _ext2_creat(const char* path, u16 mode);
-int _ext2_open(const char* path, int flags, u16 mode);
-int _ext2_close(int fd);
-ssize _ext2_read(int fd, void* buf, usize size);
-ssize _ext2_write(int fd, void* buf, usize size);
-off_t _ext2_lseek(int fd, off_t off, int whence);
-int _ext2_sync(int fd);
-int _ext2_opendir(const char* path);
-int _ext2_closedir(int dd);
-int _ext2_readdir(int dd, struct stat* st);
-int _ext2_stat(const char* path, struct stat* st);
-int _ext2_unlink(const char* path);
-int _ext2_rmdir(const char* path);
-int _ext2_rename(const char* oname, const char* nname);
-int _ext2_mkdir(const char* path, u32 mode);
-int _ext2_chdir(const char* path);
-int _ext2_getcwd(char* path, usize len);
-int _ext2_canon(const char* path, char* out, usize outlen);
+    ext2_dynrev_sb_t sb;
+    u32 nbgs; // number of block groups
+    u32 bgtbln; // blocks used by the block group descriptor table
+    ext2_bg_t* bgs;
+    u32 blocksz;
+    u32 spb; // sectors per block
+    u32 ppb; // block pointers per block
+    u32 gpb; // block group descriptors per block
+} ext2fs_t;
+
+#define EXT2FS(VFS) ((ext2fs_t*)((VFS)->priv))
+
+int ext2fs_mount(vfs_t* vfs);

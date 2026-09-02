@@ -7,7 +7,7 @@ int main(int ac, char **av) {
         return 1;
     }
 
-    if (creat(av[1], 0x644) < 0) {
+    if (creat(av[1], 0644) < 0) {
         printf("failed to create file\n");
         return 1;
     }

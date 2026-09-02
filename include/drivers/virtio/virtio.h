@@ -61,3 +61,6 @@ u16 virtio_read_config16(virtio_dev_t* dev, u8 offset);
 u32 virtio_read_config32(virtio_dev_t* dev, u8 offset);
 u64 virtio_read_config64(virtio_dev_t* dev, u8 offset);
 u8 virtio_read_isr(virtio_dev_t* dev);
+int virtio_pci_maxfn(u32 bus, u32 slot);
+int virtio_pci_isfunc(u32 bus, u32 slot, u32 fn, u16 devid);
+int virtio_pci_initfn(virtio_dev_t* dev, u32 bus, u32 slot, u32 fn, u32 inten);

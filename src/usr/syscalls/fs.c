@@ -27,7 +27,7 @@ DEFSYSCALL(sys_close) {
 
 DEFSYSCALL(sys_creat) {
     if (!ensure_string((char*)args->a0, 256, 0)) return -EINVAL;
-    return creat((char*)args->a0, args->a1 | S_IFREG);
+    return creat((char*)args->a0, args->a1);
 }
 
 DEFSYSCALL(sys_unlink) {

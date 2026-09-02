@@ -483,7 +483,7 @@ static void files_refresh(win_t* w) {
     struct stat st;
     while (readdir(fd, &st) == 0 && f->file_count < 32) {
         wm_strncpy(f->file_names[f->file_count], st.st_name, sizeof(f->file_names[0]) - 1);
-        f->is_dir[f->file_count] = (st.mode & S_IFDIR) != 0;
+        f->is_dir[f->file_count] = (S_TYPE(st.st_mode) == S_IFDIR) != 0;
         f->file_sizes[f->file_count] = st.st_size;
         f->file_count++;
     }

@@ -61,6 +61,8 @@ int close(int fd) {
     }
 
     switch (info->type) {
+        case FDTYPE_FILE: 
+        case FDTYPE_DIR: return closefd(fd);
         case FDTYPE_SOCK: return -EINVAL;
         case FDTYPE_FB: {
             return free_fb(fd);
@@ -70,9 +72,6 @@ int close(int fd) {
         }
         case FDTYPE_IO: {
             break;
-        }
-        case FDTYPE_E2ENT: {
-            return _ext2_close(fd);
         }
     }
 
@@ -87,6 +86,8 @@ ssize read(int fd, void* buf, usize size) {
     }
 
     switch (info->type) {
+        case FDTYPE_FILE: return fsread(fd, buf, size);
+        case FDTYPE_DIR: return -EINVAL;
         case FDTYPE_FB: 
         case FDTYPE_FBW: {
             return -EINVAL;
@@ -101,9 +102,6 @@ ssize read(int fd, void* buf, usize size) {
                 return -EBADF;
             }
         }
-        case FDTYPE_E2ENT: {
-            return _ext2_read(fd, buf, size);
-        }
         default: return -EINVAL;
     }
 }
@@ -117,6 +115,8 @@ ssize write(int fd, void* buf, usize size) {
     }
 
     switch (info->type) {
+        case FDTYPE_FILE: return fswrite(fd, buf, size);
+        case FDTYPE_DIR: return -EINVAL;
         case FDTYPE_FB:
         case FDTYPE_FBW: {
             return -EINVAL;
@@ -130,9 +130,6 @@ ssize write(int fd, void* buf, usize size) {
             } else {
                 return -EBADF;
             }
-        }
-        case FDTYPE_E2ENT: {
-            return _ext2_write(fd, buf, size);
         }
         default: return -EINVAL;
     }

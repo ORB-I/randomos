@@ -1,3 +1,5 @@
+#include <drivers/storage/ata.h>
+#include <drivers/storage/block.h>
 #include <core/asmh.h>
 #include <core/std.h>
 #include <core/panic.h>
@@ -92,36 +94,14 @@ bool ata_identify_drive(u8 drv_id, u8 drivet) {
     return true;
 }
 
-s16 ata_find_valid_drive() {
-    if (inb(D1IOB + 7) == 0xFF) {
-        if (inb(D2IOB + 7) == 0xFF) {
-            return -ENOEXIST;
-        } else {
-            if (ata_identify_drive(1, 0xA0)) {
-                return 2;
-            } else {
-                return -ENOEXIST;
-            }
-        }
-    } else {
-        if (ata_identify_drive(1, 0xA0)) {
-            return 1;
-        } else {
-            return -ENOEXIST;
-        }
+void ata_enumerate() {
+    if (ata_identify_drive(1, 0xA0)) {
+        block_register(DRV_ATA, 1);
     }
-}
 
-// this driver is ported from my old ahh kernel so it might be shit
-
-int ata_init() {
-    s16 drv;
-    if ((drv = ata_find_valid_drive()) < 0) {
-        printf("ATA: No valid drive found\n");
-        return drv;
+    if (ata_identify_drive(2, 0xA0)) {
+        block_register(DRV_ATA, 2);
     }
-    printf("ATA: Found ATA drive with id %d\n", drv);
-    return (u8)drv;
 }
 
 void ata_poll(u8 drv) {
@@ -133,7 +113,7 @@ void ata_poll(u8 drv) {
     else if (!(stat & 0x08)) panic("ATA DRQ not set");
 }
 
-int ata_secread(u8 drv, u32 lba, u8* buf) {
+int ata_secread(u64 drv, u32 lba, u8* buf) {
     ata_outb(drv, RTCTRL, 0, 0);
     ata_outb(drv, RTIO, 6, 0xE0 | ((lba >> 24) & 0x0F));
     for (int i = 0; i < 4; i++) ata_inb(drv, RTCTRL, 0);
@@ -155,7 +135,7 @@ int ata_secread(u8 drv, u32 lba, u8* buf) {
     return 0;
 }
 
-int ata_secwrite(u8 drv, u32 lba, u8* buf) {
+int ata_secwrite(u64 drv, u32 lba, u8* buf) {
     ata_outb(drv, RTCTRL, 0, 0);
 
     ata_outb(drv, RTIO, 6, 0xE0 | ((lba >> 24) & 0x0F));

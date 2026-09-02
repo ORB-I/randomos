@@ -28,6 +28,7 @@
 #define ENOTDIR   26 // not a directory
 #define EISDIR    27 // is a directory
 #define ENOTEMPTY 28 // directory not empty
+#define EEXISTS   29 // file or directory already exists
 
 #define FF_TO_ERRNO(FF)  \
     (FF == FR_OK ? EOK : \
