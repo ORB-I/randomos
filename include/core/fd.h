@@ -23,6 +23,7 @@ struct file {
     vinode_t inod;
     u64 ino;
     usize pos;
+    usize mnt_pos;
     char path[1024];
 };
 
