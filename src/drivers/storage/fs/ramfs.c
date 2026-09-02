@@ -3,6 +3,7 @@
 #include <lib/string.h>
 #include <core/liballoc.h>
 #include <core/errno.h>
+#include <core/printf.h>
 
 static u32 findfreeino(vfs_t* vfs) {
     ramfs_info* fs = RAMFS(vfs);
@@ -22,10 +23,14 @@ static u32 findfreeino(vfs_t* vfs) {
 
 static ramfs_inode* getinod(vfs_t* vfs, u32 ino) {
     ramfs_info* fs = RAMFS(vfs);
-    if (ino >= fs->ninodes) return NULL;
-    if (fs->inodtbl[ino].used) {
-        return &fs->inodtbl[ino];
+    if (ino >= fs->ninodes) {
+        return NULL;
+    }
+
+    if (fs->inodtbl[ino-1].used) {
+        return &fs->inodtbl[ino-1];
     } else {
+        serial_printf("inode %d does not exist on tmpfs\n", ino);
         return NULL;
     }
 }
@@ -43,18 +48,31 @@ ssize ramfs_umount(vfs_t* vfs) {
     return 0;
 }
 
-ssize ramfs_mkino(vfs_t* vfs, u16 mode, u16 uid, u16 gid) {
+static int base_mkino(vfs_t* vfs, u32 ino, ramfs_inode* inod) {
     ramfs_info* fs = RAMFS(vfs);
+    if (S_TYPE(inod->mode) != S_IFCHR && S_TYPE(inod->mode) != S_IFBLK) {
+        void* dptr = malloc(1024);
+        if (!dptr) return -ENOMEM;
+        inod->allocd = 1024;
+        inod->dptr = dptr;
+    } else {
+        inod->allocd = 0;
+        inod->dptr = NULL; // if this is a devnod we dont want to have actual
+                           // backing for it, just inodes and links
+    }
+
+    fs->inodtbl[ino-1] = *inod;
+    return 0;
+}
+
+ssize ramfs_mkino(vfs_t* vfs, u16 mode, u16 uid, u16 gid) {
     u32 ino = findfreeino(vfs);
     if (!ino) return -ENOMEM;
-
-    void* dptr = malloc(1024);
-    if (!dptr) return -ENOMEM;
-    fs->inodtbl[ino-1] = (ramfs_inode){
+    ramfs_inode inod = (ramfs_inode){
         1, mode, uid, 0, 0, 
-        0, gid, 0, 0, 1024, dptr
+        0, gid, 0, 0, 0, NULL
     };
-    return 0;
+    return base_mkino(vfs, ino, &inod);
 }
 
 ssize ramfs_rmino(vfs_t* vfs, u32 ino) {
@@ -249,17 +267,13 @@ ssize ramfs_write(vfs_t* vfs, u32 ino, usize off, usize nb, void* buf) {
 }
 
 ssize ramfs_mknod(vfs_t* vfs, u16 mode, u16 uid, u16 gid, u32 rdev) {
-    ramfs_info* fs = RAMFS(vfs);
     u32 ino = findfreeino(vfs);
     if (!ino) return -ENOMEM;
-
-    void* dptr = malloc(1024);
-    if (!dptr) return -ENOMEM;
-    fs->inodtbl[ino-1] = (ramfs_inode){
+    ramfs_inode inod = {
         1, mode, uid, 0, 0, 
-        0, gid, 0, rdev, 1024, dptr
+        0, gid, 0, rdev, 0, NULL
     };
-    return 0;
+    return base_mkino(vfs, ino, &inod);
 }
 
 int ramfs_mount(vfs_t* vfs) {
@@ -298,6 +312,22 @@ int ramfs_mount(vfs_t* vfs) {
     vfs->ops->read = ramfs_read;
     vfs->ops->write = ramfs_write;
     vfs->ops->mknod = ramfs_mknod;
+
+    ramfs_inode root_inod = {
+        1, S_IFDIR | 0755, 0, 0, 0, 
+        0, 0, 0, 0, 0, NULL
+    };
+
+    int ret = 0;
+    if ((ret = base_mkino(vfs, 1, &root_inod)) < 0) {
+        free(fs->inodtbl);
+        free(fs);
+        free(vfs->ops);
+        return -ENOMEM;
+    }
+
+    ramfs_mklink(vfs, 1, root_inod.mode, 1, ".");
+    ramfs_mklink(vfs, 1, root_inod.mode, 1, "..");
     
     return 0;
 }

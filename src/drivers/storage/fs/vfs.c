@@ -139,6 +139,7 @@ vfs_t* vfs_getmnt(const char* path) {
         mntlen = len;
     }
 
+    serial_printf("Resolved %s to mount %s (id %d)\n", path, (mnt) ? mnt->path : "none", (mnt) ? mnt->mntno : 0);
     return mnt;
 }
 
@@ -394,6 +395,8 @@ int mount(const char* dev, const char* path, const char* type) {
         return ret;
     }
 
+    serial_printf("Mounted device %s at %s (type %s mountid %d)\n", (fs->flags & FSFLAG_NOBLK) ? "ram" : dev, path, type, mntid);
+
     return 0;
 }
 
@@ -446,7 +449,7 @@ int open(const char* path, int flags, u16 mode) {
 
     struct fdinfo info = {
         0, 0, FDTYPE_FILE, {.file = {
-            mnt, inod, ino, 0, {0}
+            mnt, inod, ino, 0, 0, {0}
         }}
     };
 
@@ -552,10 +555,14 @@ int opendir(const char* path) {
     vfs_t* mnt = vfs_getmnt(abs);
 
     u64 ino = 0;
-    if ((ret = vfs_findino(mnt, abs, &ino)) < 0) return ret;
+    if ((ret = vfs_findino(mnt, abs, &ino)) < 0) {
+        return ret;
+    }
 
     vinode_t inod;
-    if ((ret = mnt->ops->getino(mnt, ino, &inod)) < 0) return ret;
+    if ((ret = mnt->ops->getino(mnt, ino, &inod)) < 0) {
+        return ret;
+    }
 
     if (S_TYPE(inod.mode) != S_IFDIR) {
         return -ENOTDIR;
