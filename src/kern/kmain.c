@@ -5,6 +5,7 @@
 #include <core/panic.h>
 #include <core/asmh.h>
 #include <core/idt.h>
+#include <core/udevr.h>
 #include <core/printf.h>
 #include <core/fpu.h>
 #include <core/cmdline.h>
@@ -124,6 +125,14 @@ void kmain_aftergdt() {
     acpi_hdl = &acpi;
     init_acpi(&acpi);
 
+    if (vfs_init() < 0) {
+        panic("Failed to initialize VFS\n");
+    }
+
+    if (udevr_init() < 0) {
+        printf("Failed to create User Device Register\n");
+    }
+
     printf("IO: Initializing APIC & IOAPIC\n");
     apic_init();
 
@@ -141,10 +150,6 @@ void kmain_aftergdt() {
 
     if (block_init() < 0) {
         panic("KERN: No drive available\n");
-    }
-
-    if (vfs_init() < 0) {
-        panic("Failed to initialize VFS\n");
     }
 
     const char* rootdev = cmdline_get("root");

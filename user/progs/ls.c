@@ -12,10 +12,12 @@ int list_dir(char* path) {
     }
 
     struct stat st;
+    int ret = 0;
     termctl(TCTL_AFLSH, 0);
-    while ((readdir(d, &st)) == 0) {
+    while ((ret = readdir(d, &st)) == 0) {
         printf("\t%s\n", st.st_name);
     }
+    serial_printf("readdir returned with %p\n", ret);
     termctl(TCTL_AFLSH, 1);
     termctl(TCTL_FLUSH, 0);
 

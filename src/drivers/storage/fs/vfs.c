@@ -413,6 +413,34 @@ int umount(const char* path) {
     return 0;
 }
 
+int mknod(const char* path, u32 dev, int mode) {
+    int ret = 0;
+    char abs[1024];
+    if ((ret = vfs_abspath(path, abs, 1024)) < 0) return ret;
+    
+    char dir[1024], base[1024];
+    if ((ret = vfs_dirname(abs, dir, 1024)) < 0) return ret;
+    if ((ret = vfs_basename(abs, base, 1024)) < 0) return -1;
+
+    vfs_t* mnt = vfs_getmnt(abs);
+
+    u64 dino = 0;
+    if ((ret = vfs_findino(mnt, dir, &dino)) < 0) return ret;
+
+    u64 _fino = 0;
+    if ((ret = vfs_findino(mnt, abs, &_fino)) >= 0) return -EEXISTS;
+
+    ssize ino = 0;
+    if ((ino = mnt->ops->mknod(mnt, mode, proctbl[current_pid].euid, proctbl[current_pid].egid, dev)) < 0) return ino;
+
+    serial_printf("Linking inode %d to directory %d\n", ino, dino);
+    if ((ret = mnt->ops->mklink(mnt, ino, mode, dino, base)) < 0) {
+        return ret;
+    }
+
+    return 0;
+}
+
 int creat(const char* path, int mode) {
     u64 inop = 0;
     return vfs_basecreat(path, mode | S_IFREG, &inop);
@@ -447,29 +475,44 @@ int open(const char* path, int flags, u16 mode) {
     vinode_t inod;
     if ((ret = mnt->ops->getino(mnt, ino, &inod)) < 0) return ret;
 
-    struct fdinfo info = {
-        0, 0, FDTYPE_FILE, {.file = {
-            mnt, inod, ino, 0, 0, {0}
-        }}
-    };
+    if (S_TYPE(inod.mode) == S_IFBLK || S_TYPE(inod.mode) == S_IFCHR) {
+        struct fdinfo info = {
+            0, 0, FDTYPE_DEV, {.dev = {
+                inod.mode, inod.rdev
+            }}
+        };
 
-    if (flags & O_APPEND) {
-        info.data.file.pos = inod.size;
-    }
-
-    struct fdinfo* ninfo = NULL;
-    if (!(ninfo = getnewfd(&info))) {
-        return -ENOMEM;
-    }
-
-    if (flags & O_TRUNC) {
-        if ((ret = mnt->ops->trunc(mnt, ino)) < 0) {
-            closefd(ninfo->fd);
-            return ret;
+        struct fdinfo* ninfo = NULL;
+        if (!(ninfo = getnewfd(&info))) {
+            return -ENOMEM;
         }
-    }
 
-    return ninfo->fd;
+        return ninfo->fd;
+    } else {
+        struct fdinfo info = {
+            0, 0, FDTYPE_FILE, {.file = {
+                mnt, inod, ino, 0, 0, {0}
+            }}
+        };
+
+        if (flags & O_APPEND) {
+            info.data.file.pos = inod.size;
+        }
+
+        struct fdinfo* ninfo = NULL;
+        if (!(ninfo = getnewfd(&info))) {
+            return -ENOMEM;
+        }
+
+        if (flags & O_TRUNC) {
+            if ((ret = mnt->ops->trunc(mnt, ino)) < 0) {
+                closefd(ninfo->fd);
+                return ret;
+            }
+        }
+
+        return ninfo->fd;
+    }
 }
 
 ssize fsread(int fd, void* buf, usize sz) {
@@ -591,9 +634,15 @@ int readdir(int dd, struct stat* st) {
     int ret = 0;
 
     struct fdinfo* fdinfo;
-    if ((ret = getfd(dd, &fdinfo)) < 0) return ret;
+    if ((ret = getfd(dd, &fdinfo)) < 0) {
+        serial_printf("(1) readddir returning %d\n", ret);
+        return ret;
+    }
 
-    if (fdinfo->type != FDTYPE_DIR) return -ENOTDIR;
+    if (fdinfo->type != FDTYPE_DIR) {
+        serial_printf("(2) readddir returning %d\n", -ENOTDIR);
+        return -ENOTDIR;
+    }
     struct file* ent = &fdinfo->data.dir;
 
     vinode_t inod;

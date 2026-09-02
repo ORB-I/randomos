@@ -10,6 +10,7 @@
 #define FDTYPE_FB    4
 #define FDTYPE_FBW   5
 #define FDTYPE_IO    6 // for stdin,stdout,stderr
+#define FDTYPE_DEV   7
 
 struct iofd {
     int in;
@@ -27,6 +28,11 @@ struct file {
     char path[1024];
 };
 
+struct device {
+    u16 mode;
+    u16 rdev;
+};
+
 struct fdinfo {
     int fd;
     int inuse;
@@ -37,6 +43,7 @@ struct fdinfo {
         int sock;
         framebuf_t* fb;
         struct iofd io;
+        struct device dev;
     } data;
 };
 

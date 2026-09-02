@@ -3,6 +3,7 @@
 #include <drivers/storage/fs.h>
 #include <lib/string.h>
 #include <core/liballoc.h>
+#include <core/printf.h>
 #include <scheduler/process.h>
 #include "ssc.h"
 
@@ -63,7 +64,9 @@ DEFSYSCALL(sys_stat) {
 
 DEFSYSCALL(sys_readdir) {
     if (!ensure_pointer((void*)args->a1, sizeof(struct stat), 1)) return -EINVAL;
-    return readdir((int)args->a0, (struct stat*)args->a1);
+    u64 r = readdir((int)args->a0, (struct stat*)args->a1);
+    serial_printf("returning %d\n", r);
+    return r;
 }
 
 DEFSYSCALL(sys_opendir) {

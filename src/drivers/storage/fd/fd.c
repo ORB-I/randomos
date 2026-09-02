@@ -1,4 +1,5 @@
 #include <lib/string.h>
+#include <core/udevr.h>
 #include <core/fd.h>
 #include <drivers/storage/fs.h>
 #include <scheduler/process.h>
@@ -60,7 +61,8 @@ int close(int fd) {
     }
 
     switch (info->type) {
-        case FDTYPE_FILE: 
+        case FDTYPE_FILE:
+        case FDTYPE_DEV:
         case FDTYPE_DIR: return closefd(fd);
         case FDTYPE_SOCK: return -EINVAL;
         case FDTYPE_FB: {
@@ -101,6 +103,9 @@ ssize read(int fd, void* buf, usize size) {
                 return -EBADF;
             }
         }
+        case FDTYPE_DEV: {
+            return udevr_read(fd, buf, size);
+        }
         default: return -EINVAL;
     }
 }
@@ -129,6 +134,9 @@ ssize write(int fd, void* buf, usize size) {
             } else {
                 return -EBADF;
             }
+        }
+        case FDTYPE_DEV: {
+            return udevr_write(fd, buf, size);
         }
         default: return -EINVAL;
     }

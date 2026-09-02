@@ -2,7 +2,9 @@
 #include <drivers/rng/virtio_rng.h>
 #include <core/std.h>
 #include <core/asmh.h>
+#include <core/udevr.h>
 #include <core/kqueue.h>
+#include <core/printf.h>
 #include <core/liballoc.h>
 
 #define RNG_RDRAND 1
@@ -10,6 +12,12 @@
 
 static int rng_type = 0;
 static kqueue_t* entq = NULL;
+
+ssize rng_read(udev_t dev, void* buf, usize sz) {
+    (void)dev;
+    random_bytes(buf, sz);
+    return sz;
+}
 
 int rng_init() {
     u32 a, b, c, d;
@@ -24,6 +32,13 @@ int rng_init() {
 
     entq = kqueue_init(1024 * sizeof(u64));
     if (!entq) return -1;
+
+    if (udevr_register(UDEV_RNG, "rng", UDEV_RD, rng_read, NULL) < 0) {
+        serial_printf("Failed to register RNG with UDEVR\n");
+        return 0;
+    }
+
+    udevr_regdev(UDEV_RNG, 0);
 
     return 0;
 }
@@ -90,4 +105,3 @@ int random_bytes(u8* buf, usize sz) {
     }
     return 0;
 }
-

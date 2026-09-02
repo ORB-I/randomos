@@ -48,7 +48,7 @@ ssize ramfs_umount(vfs_t* vfs) {
     return 0;
 }
 
-static int base_mkino(vfs_t* vfs, u32 ino, ramfs_inode* inod) {
+static ssize base_mkino(vfs_t* vfs, u32 ino, ramfs_inode* inod) {
     ramfs_info* fs = RAMFS(vfs);
     if (S_TYPE(inod->mode) != S_IFCHR && S_TYPE(inod->mode) != S_IFBLK) {
         void* dptr = malloc(1024);
@@ -62,7 +62,7 @@ static int base_mkino(vfs_t* vfs, u32 ino, ramfs_inode* inod) {
     }
 
     fs->inodtbl[ino-1] = *inod;
-    return 0;
+    return ino;
 }
 
 ssize ramfs_mkino(vfs_t* vfs, u16 mode, u16 uid, u16 gid) {
@@ -91,6 +91,7 @@ ssize ramfs_mklink(vfs_t* vfs, u32 ino, u16 mode, u32 dino, const char* name) {
 
     char* np = malloc(strlen(name) + 1);
     if (!np) return -ENOMEM;
+    memcpy(np, name, strlen(name) + 1);
 
     ramfs_dirent ent = {
         1, ino, strlen(name) + 1, np
@@ -122,6 +123,7 @@ ssize ramfs_mklink(vfs_t* vfs, u32 ino, u16 mode, u32 dino, const char* name) {
     }
 
     memcpy(tgtent, &ent, sizeof(ent));
+    dinod->size += sizeof(ent);
     return 0;
 }
 
@@ -213,6 +215,9 @@ ssize ramfs_readdir(vfs_t* vfs, u32 dino, u64* prv, char* name, usize namlen, vi
 
     usize ndirs = dinod->size / sizeof(ramfs_dirent);
     ramfs_dirent* dir = dinod->dptr;
+
+    serial_printf("ramfs_readdir: dino=%u size=%zu ndirs=%zu pos=%llu\n",
+        dino, dinod->size, ndirs, *prv);
 
     if (*prv >= ndirs) {
         return -1;

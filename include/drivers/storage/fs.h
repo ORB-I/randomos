@@ -49,6 +49,7 @@ int chdir(const char* path);
 int getcwd(char* buf, usize len);
 int rmdir(const char* path);
 int creat(const char* path, int mode);
+int mknod(const char* path, u32 dev, int mode);
 int canonicalize(const char* path, char* out, usize outlen);
 ssize fsread(int fd, void* buf, usize sz);
 ssize fswrite(int fd, void* buf, usize sz);
