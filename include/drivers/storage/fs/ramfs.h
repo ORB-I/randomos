@@ -11,6 +11,7 @@ typedef struct {
     u32 mtime;
     u16 gid;
     u64 size;
+    u32 rdev;
     u64 allocd;
     void* dptr;
 } ramfs_inode;

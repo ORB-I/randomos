@@ -51,7 +51,8 @@ ssize ramfs_mkino(vfs_t* vfs, u16 mode, u16 uid, u16 gid) {
     void* dptr = malloc(1024);
     if (!dptr) return -ENOMEM;
     fs->inodtbl[ino-1] = (ramfs_inode){
-        1, mode, uid, 0, 0, 0, gid, 0, 1024, dptr
+        1, mode, uid, 0, 0, 
+        0, gid, 0, 0, 1024, dptr
     };
     return 0;
 }
@@ -148,6 +149,7 @@ ssize ramfs_getino(vfs_t* vfs, u32 ino, vinode_t* buf) {
     buf->lnkcnt = 0;
     buf->size = inod->size;
     buf->priv = ino;
+    buf->rdev = inod->rdev;
 
     return 0;
 }
@@ -162,6 +164,10 @@ ssize ramfs_setino(vfs_t* vfs, u32 ino, vinode_t* vinod) {
     inod->ctime = vinod->ctime;
     inod->mtime = vinod->mtime;
     inod->gid = vinod->gid;
+
+    if (S_TYPE(vinod->mode) == S_IFCHR || S_TYPE(vinod->mode) == S_IFBLK) {
+        inod->rdev = vinod->rdev;
+    }
 
     return 0;
 }
@@ -207,6 +213,7 @@ ssize ramfs_readdir(vfs_t* vfs, u32 dino, u64* prv, char* name, usize namlen, vi
     buf->lnkcnt = 0;
     buf->size = inod->size;
     buf->priv = dir[*prv].inode;
+    buf->rdev = inod->rdev;
     (*prv)++;
     return 0;
 }
@@ -239,6 +246,20 @@ ssize ramfs_write(vfs_t* vfs, u32 ino, usize off, usize nb, void* buf) {
 
     memcpy(inod->dptr + off, buf, nb);
     return nb;
+}
+
+ssize ramfs_mknod(vfs_t* vfs, u16 mode, u16 uid, u16 gid, u32 rdev) {
+    ramfs_info* fs = RAMFS(vfs);
+    u32 ino = findfreeino(vfs);
+    if (!ino) return -ENOMEM;
+
+    void* dptr = malloc(1024);
+    if (!dptr) return -ENOMEM;
+    fs->inodtbl[ino-1] = (ramfs_inode){
+        1, mode, uid, 0, 0, 
+        0, gid, 0, rdev, 1024, dptr
+    };
+    return 0;
 }
 
 int ramfs_mount(vfs_t* vfs) {
@@ -276,5 +297,7 @@ int ramfs_mount(vfs_t* vfs) {
     vfs->ops->trunc = ramfs_trunc;
     vfs->ops->read = ramfs_read;
     vfs->ops->write = ramfs_write;
+    vfs->ops->mknod = ramfs_mknod;
+    
     return 0;
 }

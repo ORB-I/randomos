@@ -134,6 +134,12 @@ typedef struct {
 #define EXT2_S_IWOTH 0x0002
 #define EXT2_S_IXOTH 0x0001
 
+#define EXT2_OLD_DEV_VALID(dev)  (MAJOR(dev) < 256 && MINOR(dev) < 256)
+#define EXT2_OLD_DEV_ENCODE(dev) ((MAJOR(dev) << 8) | MINOR(dev)) 
+#define EXT2_OLD_DEV_DECODE(val) (MKDEV((val >> 8) & 255, val & 255))
+#define EXT2_NEW_DEV_ENCODE(dev) ((MINOR(dev) & 0xff) | (MAJOR(dev) << 8) | ((MINOR(dev) & ~0xff) << 12))
+#define EXT2_NEW_DEV_DECODE(val) MKDEV((val & 0xfff00) >> 8, (val & 0xff) | ((val >> 12) & 0xfff00))
+
 #define EXT2_SECRM_FL     0x00000001
 #define EXT2_UNRM_FL      0x00000002
 #define EXT2_COMPR_FL     0x00000004

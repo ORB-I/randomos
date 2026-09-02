@@ -549,6 +549,51 @@ static int ino_freeblk(vfs_t* vfs, u32 ino, ext2_ino_t* inod, usize idx) {
     return 0;
 }
 
+static u32 decode_dev(ext2_ino_t* inod) {
+    if (inod->i_block[0]) return EXT2_OLD_DEV_DECODE(inod->i_block[0]);
+    else return EXT2_NEW_DEV_DECODE(inod->i_block[1]);
+}
+
+static void encode_dev(ext2_ino_t* inod, u32 dev) {
+    if (EXT2_OLD_DEV_VALID(dev)) inod->i_block[0] = EXT2_OLD_DEV_ENCODE(dev);
+    else inod->i_block[1] = EXT2_NEW_DEV_ENCODE(dev);
+}
+
+static int mkino_base(vfs_t* vfs, ext2_ino_t* inode) {
+        ext2fs_t* fs = EXT2FS(vfs);
+    int ret = 0;
+
+    for (usize grp = 0; grp < fs->nbgs; grp++) {
+        u8 bmp[fs->blocksz];
+        if (fs->bgs[grp].bg_free_inodes_count == 0) continue;
+        if ((ret = rdblk(vfs, fs->bgs[grp].bg_inode_bitmap, bmp)) < 0) return ret;
+
+        for (usize i = 0; i < (fs->sb.sb.s_inodes_per_group + 7) / 8 && i < fs->blocksz; i++) {
+            for (usize b = 0; b < 8; b++) {
+                if (!(bmp[i] & (1 << b))) {
+                    usize idx = i * 8 + b;
+                    if (idx >= fs->sb.sb.s_inodes_per_group) break;
+                    bmp[i] |= (1 << b);
+                    if ((ret = wrblk(vfs, fs->bgs[grp].bg_inode_bitmap, bmp)) < 0) return ret;
+
+                    fs->bgs[grp].bg_free_inodes_count--;
+                    fs->sb.sb.s_free_inodes_count--;
+
+                    if ((ret = flush_bgs(vfs)) < 0) return ret;
+                    if ((ret = flush_sbs(vfs)) < 0) return ret;
+
+                    u32 ino = grp * fs->sb.sb.s_inodes_per_group + idx + 1;
+                    if ((ret = flush_inode(vfs, ino, inode)) < 0) return ret;
+
+                    return ino;
+                }
+            }
+        }
+    }
+
+    return -ENOSPC;
+}
+
 static u8* getinodata(vfs_t* vfs, ext2_ino_t* inode, usize* outsz, int* status) {
     ext2fs_t* fs = EXT2FS(vfs);
     if (!inode || !outsz) {
@@ -635,48 +680,32 @@ ssize ext2fs_lookup(vfs_t* vfs, u32 dino, const char* name) {
 }
 
 ssize ext2fs_mkino(vfs_t* vfs, u16 mode, u16 uid, u16 gid) {
-    ext2fs_t* fs = EXT2FS(vfs);
-    int ret = 0;
+    u64 time = gettimeofday();
 
-    for (usize grp = 0; grp < fs->nbgs; grp++) {
-        u8 bmp[fs->blocksz];
-        if (fs->bgs[grp].bg_free_inodes_count == 0) continue;
-        if ((ret = rdblk(vfs, fs->bgs[grp].bg_inode_bitmap, bmp)) < 0) return ret;
+    ext2_ino_t inode = {
+        mode, uid, 0,
+        time, time, time, 0,
+        gid, 0, 0, 0,
+        0, {0}, 0, 0,
+        0, 0, {0}
+    };
 
-        for (usize i = 0; i < (fs->sb.sb.s_inodes_per_group + 7) / 8 && i < fs->blocksz; i++) {
-            for (usize b = 0; b < 8; b++) {
-                if (!(bmp[i] & (1 << b))) {
-                    usize idx = i * 8 + b;
-                    if (idx >= fs->sb.sb.s_inodes_per_group) break;
-                    bmp[i] |= (1 << b);
-                    if ((ret = wrblk(vfs, fs->bgs[grp].bg_inode_bitmap, bmp)) < 0) return ret;
+    return mkino_base(vfs, &inode);
+}
 
-                    fs->bgs[grp].bg_free_inodes_count--;
-                    fs->sb.sb.s_free_inodes_count--;
+ssize ext2fs_mknod(vfs_t* vfs, u16 mode, u16 uid, u16 gid, u32 rdev) {
+    u64 time = gettimeofday();
 
-                    if ((ret = flush_bgs(vfs)) < 0) return ret;
-                    if ((ret = flush_sbs(vfs)) < 0) return ret;
+    ext2_ino_t inode = {
+        mode, uid, 0,
+        time, time, time, 0,
+        gid, 0, 0, 0,
+        0, {0}, 0, 0,
+        0, 0, {0}
+    };
 
-                    u64 time = gettimeofday();
-
-                    ext2_ino_t inode = {
-                        mode, uid, 0,
-                        time, time, time, 0,
-                        gid, 0, 0, 0,
-                        0, {0}, 0, 0,
-                        0, 0, {0}
-                    };
-
-                    u32 ino = grp * fs->sb.sb.s_inodes_per_group + idx + 1;
-                    if ((ret = flush_inode(vfs, ino, &inode)) < 0) return ret;
-
-                    return ino;
-                }
-            }
-        }
-    }
-
-    return -ENOSPC;
+    encode_dev(&inode, rdev);
+    return mkino_base(vfs, &inode);
 }
 
 ssize ext2fs_rmlink(vfs_t* vfs, u32 dino, const char* name) {
@@ -923,6 +952,10 @@ ssize ext2fs_readdir(vfs_t* vfs, u32 dino, u64* prv, char* name, usize namlen, v
                     buf->size = getisize(vfs, &inod);
                     buf->priv = dir->inode;
 
+                    if (S_TYPE(inod.i_mode) == S_IFCHR || S_TYPE(inod.i_mode) == S_IFBLK) {
+                        buf->rdev = decode_dev(&inod);
+                    }
+
                     if (namlen >= dir->name_len + 1) {
                         memcpy(name, dir->name, dir->name_len);
                         name[dir->name_len] = '\0';
@@ -957,6 +990,10 @@ ssize ext2fs_getino(vfs_t* vfs, u32 ino, vinode_t* buf) {
     buf->size = getisize(vfs, &inod);
     buf->priv = ino;
 
+    if (S_TYPE(inod.i_mode) == S_IFCHR || S_TYPE(inod.i_mode) == S_IFBLK) {
+        buf->rdev = decode_dev(&inod);
+    }
+
     return 0;
 }
 
@@ -974,6 +1011,10 @@ ssize ext2fs_setino(vfs_t* vfs, u32 ino, vinode_t* buf) {
     inod.i_gid = buf->gid;
     inod.i_links_count = buf->lnkcnt;
     inod.i_size = buf->size;
+
+    if (S_TYPE(buf->mode) == S_IFCHR || S_TYPE(buf->mode) == S_IFBLK) {
+        encode_dev(&inod, buf->rdev);
+    }
 
     return flush_inode(vfs, ino, &inod);
 }
@@ -1039,6 +1080,7 @@ int ext2fs_mount_setops(vfs_t* vfs) {
     vfs->ops->trunc = ext2fs_trunc;
     vfs->ops->read = ext2fs_read;
     vfs->ops->write = ext2fs_write;
+    vfs->ops->mknod = ext2fs_mknod;
 
     return 0;
 }

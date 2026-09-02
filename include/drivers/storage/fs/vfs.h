@@ -26,12 +26,17 @@
 #define S_IWOTH 0x0002
 #define S_IXOTH 0x0001
 
+#define MAJOR(dev) ((u32)((dev) >> 20))
+#define MINOR(dev) ((u32)((dev) & ((1U << 20) - 1)))
+#define MKDEV(maj, min) (((maj) << 20) | (min))
+
 typedef struct {
     u16 mode;
     u16 uid;
     u32 atime;
     u32 ctime;
     u32 mtime;
+    u32 rdev;
     u16 gid;
     u16 lnkcnt; // tracked by fs driver
     u64 size; // tracked by fs driver
@@ -55,6 +60,7 @@ typedef struct vfsops {
     ssize (*lookup)(vfs_t* vfs, u32 dino, const char* name); // lookup something inside a directory
     ssize (*readdir)(vfs_t* vfs, u32 dino, u64* prv, char* name, usize namlen, vinode_t* buf); // read a directory, prv should start as 0 and be updated by fs driver
 
+    ssize (*mknod)(vfs_t* vfs, u16 mode, u16 uid, u16 gid, u32 rdev);
     ssize (*mkino)(vfs_t* vfs, u16 mode, u16 uid, u16 gid); // create inode
     ssize (*rmino)(vfs_t* vfs, u32 ino);
     ssize (*getino)(vfs_t* vfs, u32 ino, vinode_t* buf); // get vinode
