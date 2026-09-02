@@ -128,13 +128,12 @@ vfs_t* vfs_getmnt(const char* path) {
     for (usize i = 0; i < avmounts; i++) {
         vfs_t* m = &mounts[i];
         if (!m->inuse) continue;
-        serial_printf("Found mount %p at %s\n", m, m->path);
 
         usize len = strlen(m->path);
         if (len < mntlen) continue;
-        if (strncmp(path, m->path, len) != 0) continue;
+        if (strncmp(abs, m->path, len) != 0) continue;
 
-        if (path[len] == '/') continue;
+        if (len > 1 && abs[len] != '\0' && abs[len] != '/') continue;
 
         mnt = m;
         mntlen = len;
@@ -564,7 +563,7 @@ int opendir(const char* path) {
 
     struct fdinfo info = {
         0, 0, FDTYPE_DIR, {.dir = {
-            mnt, inod, ino, 0, {0}
+            mnt, inod, ino, 0, 0, {0}
         }}
     };
     memcpy(info.data.dir.path, abs, strlen(abs)+1);
@@ -593,20 +592,91 @@ int readdir(int dd, struct stat* st) {
     vinode_t inod;
     char name[1024];
     ssize fsino = 0;
-    if ((fsino = ent->mnt->ops->readdir(ent->mnt, ent->ino, &ent->pos, name, 1024, &inod)) < 0) {
-        return fsino;
+    if ((fsino = ent->mnt->ops->readdir(ent->mnt, ent->ino, &ent->pos, name, 1024, &inod)) >= 0) {
+        char child_path[1024];
+        if (streq(ent->path, "/")) {
+            snprintf(child_path, sizeof(child_path), "/%s", name);
+        } else {
+            snprintf(child_path, sizeof(child_path), "%s/%s", ent->path, name);
+        }
+
+        for (usize i = 0; i < avmounts; i++) {
+            if (mounts[i].inuse && streq(mounts[i].path, child_path)) {
+                vinode_t minod;
+                memset(&minod, 0, sizeof(minod));
+                if (mounts[i].ops && mounts[i].ops->getino) {
+                    if (mounts[i].ops->getino(&mounts[i], mounts[i].root_ino, &minod) >= 0) {
+                        inod = minod;
+                        fsino = mounts[i].root_ino;
+                    }
+                }
+                break;
+            }
+        }
+
+        memcpy(st->st_name, name, strlen(name)+1);
+        st->st_uid = inod.uid;
+        st->st_atime = inod.atime;
+        st->st_ctime = inod.ctime;
+        st->st_mtime = inod.mtime;
+        st->st_gid = inod.gid;
+        st->st_mode = inod.mode;
+        st->st_size = inod.size;
+        st->st_ino = fsino;
+        return 0;
     }
 
-    memcpy(st->st_name, name, strlen(name)+1);
-    st->st_uid = inod.uid;
-    st->st_atime = inod.atime;
-    st->st_ctime = inod.ctime;
-    st->st_mtime = inod.mtime;
-    st->st_gid = inod.gid;
-    st->st_mode = inod.mode;
-    st->st_size = inod.size;
-    st->st_ino = fsino;
-    return 0;
+    while (ent->mnt_pos < avmounts) {
+        usize m_idx = ent->mnt_pos++;
+        vfs_t* m = &mounts[m_idx];
+        if (!m->inuse) continue;
+        if (streq(m->path, "/")) continue;
+
+        char parent[1024];
+        if (vfs_dirname(m->path, parent, sizeof(parent)) < 0) continue;
+        if (!streq(parent, ent->path)) continue;
+
+        char child_name[1024];
+        if (vfs_basename(m->path, child_name, sizeof(child_name)) < 0) continue;
+
+        if (ent->mnt->ops->lookup && ent->mnt->ops->lookup(ent->mnt, ent->ino, child_name) >= 0) {
+            continue;
+        }
+
+        int duplicate = 0;
+        for (usize p = 0; p < m_idx; p++) {
+            if (!mounts[p].inuse) continue;
+            char prev_parent[1024];
+            if (vfs_dirname(mounts[p].path, prev_parent, sizeof(prev_parent)) < 0) continue;
+            if (!streq(prev_parent, ent->path)) continue;
+            char prev_name[1024];
+            if (vfs_basename(mounts[p].path, prev_name, sizeof(prev_name)) < 0) continue;
+            if (streq(prev_name, child_name)) {
+                duplicate = 1;
+                break;
+            }
+        }
+        if (duplicate) continue;
+
+        vinode_t minod;
+        memset(&minod, 0, sizeof(minod));
+        if (m->ops && m->ops->getino) {
+            m->ops->getino(m, m->root_ino, &minod);
+        }
+
+        memcpy(st->st_name, child_name, strlen(child_name)+1);
+        st->st_uid = minod.uid;
+        st->st_atime = minod.atime;
+        st->st_ctime = minod.ctime;
+        st->st_mtime = minod.mtime;
+        st->st_gid = minod.gid;
+        st->st_mode = minod.mode ? minod.mode : (S_IFDIR | 0755);
+        st->st_size = minod.size;
+        st->st_ino = m->root_ino;
+        return 0;
+    }
+
+    return -1;
 }
 
 int stat(const char* path, struct stat* st) {
