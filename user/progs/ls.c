@@ -6,14 +6,14 @@
 
 int list_dir(char* path) {
     int d = opendir(path);
-    if (!d) {
-        printf("Failed to open: %s\n", path);
+    if (d < 0) {
+        printf("Failed to open: %s (code %d)\n", path, d);
         return 1;
     }
 
     struct stat st;
     termctl(TCTL_AFLSH, 0);
-    while ((readdir(d, &st)) != -1) {
+    while ((readdir(d, &st)) == 0) {
         printf("\t%s\n", st.st_name);
     }
     termctl(TCTL_AFLSH, 1);

@@ -20,6 +20,7 @@ usize avmounts = 0;
 int vfs_init() {
     mounts = malloc(sizeof(*mounts) * 16);
     if (!mounts) return -ENOMEM;
+    memset(mounts, 0, sizeof(*mounts) * 16);
     avmounts = 16;
     memcpy(cwd, "/", 2);
     return 0;
@@ -113,14 +114,13 @@ vfs_t* vfs_getmnt(const char* path) {
     for (usize i = 0; i < avmounts; i++) {
         vfs_t* m = &mounts[i];
         if (!m->inuse) continue;
+        serial_printf("Found mount %p at %s\n", m, m->path);
 
         usize len = strlen(m->path);
-
         if (len < mntlen) continue;
-
         if (strncmp(path, m->path, len) != 0) continue;
 
-        if (path[len] != '\0' && path[len] != '/') continue;
+        if (path[len] == '/') continue;
 
         mnt = m;
         mntlen = len;
@@ -141,6 +141,7 @@ ssize vfs_findfreemnt() {
     if (mntid < 0) {
         vfs_t* nmounts = realloc(mounts, sizeof(*mounts) * (avmounts + 4));
         if (!nmounts) return -ENOMEM;
+        memset(nmounts + avmounts, 0, sizeof(*mounts) * 4);
         mounts = nmounts;
         avmounts += 4;
 
@@ -211,10 +212,16 @@ int vfs_basename(const char* path, char* base, usize baselen) {
 }
 
 int vfs_findino(vfs_t* mnt, const char* path, u64* ino) {
-    path += strlen(mnt->path);
-
     ssize fino = mnt->root_ino;
-    if (!path || *path == '\0' || !ino) return -EINVAL;
+    if (!path || *path == '\0' || !ino) {
+        return -EINVAL;
+    }
+
+    path += strlen(mnt->path);
+    if (*path == '\0') {
+        *ino = fino;
+        return 0;
+    }
 
     if (path[0] == '/') {
         path++;
@@ -231,7 +238,9 @@ int vfs_findino(vfs_t* mnt, const char* path, u64* ino) {
         if (*path == '\0') break;
 
         while (path[len] != '/' && path[len] != '\0') {
-            if (len >= sizeof(comp) - 1) return -EINVAL;
+            if (len >= sizeof(comp) - 1) {
+                return -EINVAL;
+            }
             comp[len] = path[len];
             len++;
         }
@@ -342,7 +351,7 @@ int mount(const char* dev, const char* path) {
 
     mnt->blkid = bdev.id;
     mnt->mntno = mntid;
-    memcpy(mnt->path, path, strlen(path)+1);
+    memcpy(mnt->path, abs, strlen(abs)+1);
 
     if ((ret = ext2fs_mount(mnt)) < 0) {
         mnt->blkid = 0;
@@ -354,6 +363,7 @@ int mount(const char* dev, const char* path) {
     } // here we'd add other filesystems in an elseif
       // but we dont have anymore for now
 
+    serial_printf("Mounted device %s at %s\n", bdev.name, path);
     return 0;
 }
 
@@ -512,9 +522,7 @@ int opendir(const char* path) {
     vfs_t* mnt = vfs_getmnt(abs);
 
     u64 ino = 0;
-    if ((ret = vfs_findino(mnt, abs, &ino)) < 0) {
-        return ret;
-    }
+    if ((ret = vfs_findino(mnt, abs, &ino)) < 0) return ret;
 
     vinode_t inod;
     if ((ret = mnt->ops->getino(mnt, ino, &inod)) < 0) return ret;
@@ -547,7 +555,7 @@ int readdir(int dd, struct stat* st) {
     struct fdinfo* fdinfo;
     if ((ret = getfd(dd, &fdinfo)) < 0) return ret;
 
-    if (fdinfo->type != FDTYPE_DIR) return -EBADF;
+    if (fdinfo->type != FDTYPE_DIR) return -ENOTDIR;
     struct file* ent = &fdinfo->data.dir;
 
     vinode_t inod;

@@ -33,5 +33,10 @@ LIMINE_REQ volatile struct limine_executable_address_request kaddr_req = {
     .revision = 0
 };
 
+LIMINE_REQ volatile struct limine_executable_cmdline_request cmdline_req = {
+    .id = LIMINE_EXECUTABLE_CMDLINE_REQUEST_ID,
+    .revision = 0
+};
+
 __attribute__((used, section(".limine_requests_end")))
 static volatile u64 _limreq_em[] = LIMINE_REQUESTS_END_MARKER;

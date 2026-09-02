@@ -7,6 +7,7 @@
 #include <core/idt.h>
 #include <core/printf.h>
 #include <core/fpu.h>
+#include <core/cmdline.h>
 
 #include <lib/loader.h>
 #include <lib/syscall.h>
@@ -111,6 +112,7 @@ void kmain_aftergdt() {
     vmm_init();
 
     init_allterm();
+    init_cmdline();
 
     asm("cli");
     pic_remap(0x20, 0x28);
@@ -145,7 +147,8 @@ void kmain_aftergdt() {
         panic("Failed to initialize VFS\n");
     }
 
-    if (mount(NULL, "/") < 0) {
+    const char* rootdev = cmdline_get("root");
+    if (mount(rootdev, "/") < 0) {
         panic("Failed to mount a device\n");
     }
 
