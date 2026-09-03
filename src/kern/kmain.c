@@ -103,13 +103,15 @@ void ap_testtask() {
 }
 
 __noreturn void __stack_chk_fail() {
+    u64 caller = (u64)__builtin_return_address(0);
+    kprint("stack canary failed in caller RIP %016lx\n", caller);
     panic("stack smashing detected");
 }
 
 u64 __stack_chk_guard = 0;
 
 int init_lwip();
-void kmain_aftergdt() {
+__no_protect void kmain_aftergdt() {
     // init_fpu(); we're emulating fpu with -msoft-float now
     if (init_clock(CLOCK_TSC) < 0) {
         for (;;) asm("hlt");
@@ -200,8 +202,17 @@ void kmain_aftergdt() {
 
     char* argv[] = {"/bin/init", NULL};
     char* envp[] = {NULL};
-    if (new_process("/bin/init", argv, envp, 0) < 0) {
+    int init_pid = new_process("/bin/init", argv, envp, 0);
+    if (init_pid < 0) {
         panic("init failed");
+    }
+    current_pid = (u8)init_pid;
+
+    for (usize i = 0; i < ncores; i++) {
+        if (smp_info[i].apicid == bsp_apicid) {
+            smp_info[i].current_pid = (u8)init_pid;
+            break;
+        }
     }
 
     start_scheduler();

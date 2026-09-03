@@ -110,6 +110,8 @@ extern framebuf_t _term_fb;
 int new_process(const char* path, char** argv, char** envp, u8 ppid) {
     process_state_t* proc = NULL;
     u8 pid = 0;
+
+    spinlock_acquire(&proctbl_lock);
     for (usize i = 0; i < MAX_PROCESSES; i++) {
         if (!proctbl[i].used) {
             proc = &proctbl[i];
@@ -117,11 +119,15 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
             break;
         }
     }
-    if (!proc) return -EFULL;
+    if (!proc) {
+        spinlock_release(&proctbl_lock);
+        return -EFULL;
+    }
 
     loadprog_res_t res = load_program(path, argv, envp);
     if (res.status < 0) {
         kprint("failed to load program with code %d\n", res.status);
+        spinlock_release(&proctbl_lock);
         return res.status;
     }
 
@@ -129,6 +135,7 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
     int ret = 0;
     if ((ret = stat(path, &st)) < 0) {
         kprint("stat failed %d\n", ret);
+        spinlock_release(&proctbl_lock);
         return ret;
     }
 
@@ -136,6 +143,7 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
         struct fdinfo* new_fds = malloc(sizeof(struct fdinfo) * 4);
         if (!new_fds) {
             kprint("no memory for fds\n");
+            spinlock_release(&proctbl_lock);
             return -ENOMEM;
         }
 
@@ -170,14 +178,21 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
         // setpwd uses malloc and we will
         // need to use free() on it on process end
         proc->pwd = malloc(2);
-        if (!proc->pwd) return -ENOMEM;
+        if (!proc->pwd) {
+            spinlock_release(&proctbl_lock);
+            return -ENOMEM;
+        }
         proc->pwd[0] = '/';
         proc->pwd[1] = '\0';
     } else {
         copy_fds(pid, ppid);
         proc->currfb = get_currfb();
+        proc->ppid = ppid;
         proc->pwd = strdup(proctbl[proc->ppid].pwd);
-        if (!proc->pwd) return -ENOMEM;
+        if (!proc->pwd) {
+            spinlock_release(&proctbl_lock);
+            return -ENOMEM;
+        }
     }
 
     proc->rip = res.entry;
@@ -236,6 +251,7 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
     proc->used = 1;
 
     vmm_setumapbase(proc->pid, res.load_high);
+    spinlock_release(&proctbl_lock);
 
     kprint("created new process %s with PID %d\n", path, proc->pid);
     return proc->pid;

@@ -12,6 +12,8 @@ typedef struct {
     u8 tid;
     madt_plapic_t* acpi_ent;
     u8 status;
+    u8 current_pid;
+    u8 preempt_pending;
 } smp_info_t;
 
 typedef struct {

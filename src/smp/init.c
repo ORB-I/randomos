@@ -185,7 +185,9 @@ int init_cores() {
                 ((madt_plapic_t*)ptr)->apicid,
                 i,
                 (madt_plapic_t*)ptr,
-                SMP_STATUS_DEAD
+                SMP_STATUS_DEAD,
+                0xFF,   // <-- current_pid: invalid
+                0       // <-- preempt_pending: false
             };
             i++;
         }

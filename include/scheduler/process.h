@@ -1,5 +1,6 @@
 #pragma once
 #include <core/std.h>
+#include <core/spinlock.h>
 
 #define FREEREQ_MALLOC 1
 #define FREEREQ_PHYS   2
@@ -82,6 +83,7 @@ typedef struct {
 } __packed procctx_t;
 
 extern process_state_t proctbl[MAX_PROCESSES];
+extern spinlock_t proctbl_lock;
 extern u8 current_pid;
 int new_process(const char* path, char** argv, char** envp, u8 ppid);
 int kexecve(const char* path, char** argv, char** envp, u8 cpid);
