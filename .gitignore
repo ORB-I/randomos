@@ -49,4 +49,4 @@ __pycache__/
 .DS_Store
 Thumbs.dbtesting
 
-testing/
+testing/qemu.log
