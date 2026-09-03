@@ -56,24 +56,46 @@ ssize vfs_resolve(vfs_t* mnt, const char* path, u32 flags) {
         return -EINVAL;
     }
 
-    char pbuf[VFS_PATH_MAX];
-    char lnkbuf[VFS_PATH_MAX];
+    char* pbuf = malloc(VFS_PATH_MAX);
+    if (!pbuf) return -ENOMEM;
+    char* lnkbuf = malloc(VFS_PATH_MAX);
+    if (!lnkbuf) {
+        free(pbuf);
+        return -ENOMEM;
+    }
 
     pathstk_t* stk = pathstk_init();
-    if (!stk) return -ENOMEM;
+    if (!stk) {
+        free(lnkbuf);
+        free(pbuf);
+        return -ENOMEM;
+    }
 
-    usize len = strlen(path);
-    if (len >= sizeof(pbuf)) {
+    const char* rel_path = path;
+    usize mntlen = strlen(mnt->path);
+    if (strncmp(rel_path, mnt->path, mntlen) == 0) {
+        rel_path += mntlen;
+        if (*rel_path == '/') {
+            rel_path++;
+        }
+    }
+
+    usize len = strlen(rel_path);
+    if (len >= VFS_PATH_MAX) {
         free(stk);
+        free(lnkbuf);
+        free(pbuf);
         return -ENAMETOOLONG;
     }
 
-    memcpy(pbuf, path, len + 1);
+    memcpy(pbuf, rel_path, len + 1);
 
     {
         pathstk_t* comps = pathstk_init();
-        if (!stk) {
+        if (!comps) {
             free(stk);
+            free(lnkbuf);
+            free(pbuf);
             return -ENOMEM;
         }
 
@@ -88,6 +110,8 @@ ssize vfs_resolve(vfs_t* mnt, const char* path, u32 flags) {
             if (p - st > VFS_NAME_MAX) {
                 free(stk);
                 free(comps);
+                free(lnkbuf);
+                free(pbuf);
                 return -ENAMETOOLONG;
             }
 
@@ -98,6 +122,8 @@ ssize vfs_resolve(vfs_t* mnt, const char* path, u32 flags) {
             if (pathstk_push(comps, st) < 0) {
                 free(stk);
                 free(comps);
+                free(lnkbuf);
+                free(pbuf);
                 return -ENAMETOOLONG;
             }
         }
@@ -107,6 +133,8 @@ ssize vfs_resolve(vfs_t* mnt, const char* path, u32 flags) {
             if (ret < 0) {
                 free(stk);
                 free(comps);
+                free(lnkbuf);
+                free(pbuf);
                 return ret;
             }
         }
@@ -116,178 +144,214 @@ ssize vfs_resolve(vfs_t* mnt, const char* path, u32 flags) {
     u32 ino = mnt->root_ino;
     usize symlnks = 0;
     usize depth = 0;
-    {
-        pathstk_t* done = pathstk_init();
+    pathstk_t* done = pathstk_init();
+    if (!done) {
+        free(stk);
+        free(lnkbuf);
+        free(pbuf);
+        return -ENOMEM;
+    }
 
-        while (stk->cnt) {
-            char* comp = stk->items[stk->cnt - 1];
-            stk->cnt--;
+    while (stk->cnt) {
+        char* comp = stk->items[stk->cnt - 1];
+        stk->cnt--;
 
-            if (streq(comp, ".")) continue;
+        if (streq(comp, ".")) continue;
 
-            if (streq(comp, "..")) {
-                if (depth == 0) {
-                    ino = mnt->root_ino;
-                    continue;
-                }
-
-                ssize ret = mnt->ops->lookup(mnt, ino, "..");
-                if (ret < 0) {
-                    free(done);
-                    free(stk);
-                    return ret;
-                }
-
-                ino = (u32)ret;
-                depth--;
-
-                pathstk_pop(done);
+        if (streq(comp, "..")) {
+            if (depth == 0) {
+                ino = mnt->root_ino;
                 continue;
             }
 
-            ssize ret = mnt->ops->lookup(mnt, ino, comp);
+            ssize ret = mnt->ops->lookup(mnt, ino, "..");
             if (ret < 0) {
                 free(done);
                 free(stk);
+                free(lnkbuf);
+                free(pbuf);
                 return ret;
             }
 
-            u32 nxt = ret;
-            vinode_t inod;
-            if ((ret = mnt->ops->getino(mnt, nxt, &inod)) < 0) {
+            ino = (u32)ret;
+            depth--;
+
+            pathstk_pop(done);
+            continue;
+        }
+
+        ssize ret = mnt->ops->lookup(mnt, ino, comp);
+        if (ret < 0) {
+            free(done);
+            free(stk);
+            free(lnkbuf);
+            free(pbuf);
+            return ret;
+        }
+
+        u32 nxt = ret;
+        vinode_t inod;
+        if ((ret = mnt->ops->getino(mnt, nxt, &inod)) < 0) {
+            free(done);
+            free(stk);
+            free(lnkbuf);
+            free(pbuf);
+            return ret;
+        }
+
+        bool final = stk->cnt == 0;
+        if (S_TYPE(inod.mode) == S_IFLNK) {
+            if (flags & VFS_NO_SYMLINKS) {
                 free(done);
                 free(stk);
-                return ret;
+                free(lnkbuf);
+                free(pbuf);
+                return -ELOOP;
             }
 
-            bool final = stk->cnt == 0;
-            if (S_TYPE(inod.mode) == S_IFLNK) {
-                if (flags & VFS_NO_SYMLINKS) {
+            if (final && !(flags & VFS_FOLLOW_FINAL)) {
+                ino = nxt;
+                depth++;
+                if (flags & VFS_MUST_BE_DIR) {
                     free(done);
                     free(stk);
-                    return -ELOOP;
+                    free(lnkbuf);
+                    free(pbuf);
+                    return -ENOTDIR;
                 }
 
-                if (final && !(flags & VFS_FOLLOW_FINAL)) {
-                    ino = nxt;
-                    depth++;
-                    if (flags & VFS_MUST_BE_DIR) {
-                        free(done);
-                        free(stk);
-                        return -ENOTDIR;
-                    }
+                free(done);
+                free(stk);
+                free(lnkbuf);
+                free(pbuf);
+                return ino;
+            }
 
+            if (++symlnks > VFS_MAX_SYMLINKS) {
+                free(done);
+                free(stk);
+                free(lnkbuf);
+                free(pbuf);
+                return -ELOOP;
+            }
+            
+            if ((ret = mnt->ops->readsym(mnt, nxt, lnkbuf, VFS_PATH_MAX)) < 0) {
+                free(done);
+                free(stk);
+                free(lnkbuf);
+                free(pbuf);
+                return ret;
+            }
+            if (lnkbuf[0] == '/') {
+                ino = mnt->root_ino;
+                depth = 0;
+                free(done);
+                done = pathstk_init();
+                if (!done) {
+                    free(stk);
+                    free(lnkbuf);
+                    free(pbuf);
+                    return -ENOMEM;
+                }
+            }
+
+            {
+                pathstk_t* tgtcomps = pathstk_init();
+                if (!tgtcomps) {
                     free(done);
                     free(stk);
-                    return ino;
+                    free(lnkbuf);
+                    free(pbuf);
+                    return -ENOMEM;
                 }
 
-                if (++symlnks > VFS_MAX_SYMLINKS) {
-                    free(done);
-                    free(stk);
-                    return -ELOOP;
-                }
-                
-                if ((ret = mnt->ops->readsym(mnt, nxt, lnkbuf, sizeof(lnkbuf))) < 0) return ret;
-                if (lnkbuf[0] == '/') {
-                    ino = mnt->root_ino;
-                    depth = 0;
-                    free(done);
-                    done = pathstk_init();
-                }
+                char* tp = lnkbuf;
+                while (*tp) {
+                    while (*tp == '/') tp++;
+                    if (*tp == '\0') break;
 
-                {
-                    pathstk_t* tgtcomps = pathstk_init();
-                    if (!stk) {
-                        free(done);
-                        free(stk);
-                        return -ENOMEM;
-                    }
-
-                    char* tp = lnkbuf;
-                    while (*tp) {
-                        while (*tp == '/') tp++;
-                        if (*tp == '\0') break;
-
-                        char* st = tp;
-                        while (*tp != '/' && *tp != '\0') tp++;
-                        if (tp - st > VFS_NAME_MAX) {
-                            free(tgtcomps);
-                            free(done);
-                            free(stk);
-                            return -ENAMETOOLONG;
-                        }
-                        
-                        if (*tp) *tp++ = '\0';
-                        if (pathstk_push(tgtcomps, st) < 0) {
-                            free(tgtcomps);
-                            free(done);
-                            free(stk);
-                            return -ENAMETOOLONG;
-                        }
-                    }
-
-                    for (usize i = 0; i < tgtcomps->cnt; i++) {
-                        if (stk->cnt >= VFS_PATH_MAX / 2) {
-                            free(tgtcomps);
-                            free(done);
-                            free(stk);
-                            return -ENAMETOOLONG;
-                        }
-                        for (usize j = stk->cnt; j > 0; j--) {
-                            stk->items[j + tgtcomps->cnt - 1] = stk->items[j - 1];
-                        }
-
-                        break;
-                    }
-
-                    usize ocnt = stk->cnt;
-                    if (ocnt + tgtcomps->cnt > VFS_PATH_MAX / 2) {
+                    char* st = tp;
+                    while (*tp != '/' && *tp != '\0') tp++;
+                    if (tp - st > VFS_NAME_MAX) {
                         free(tgtcomps);
                         free(done);
                         free(stk);
+                        free(lnkbuf);
+                        free(pbuf);
                         return -ENAMETOOLONG;
                     }
-
-                    for (usize i = ocnt; i > 0; i--) {
-                        stk->items[i + tgtcomps->cnt - 1] = stk->items[i - 1];
-                    }
-
-                    for (usize i = 0; i < tgtcomps->cnt; i++) {
-                        stk->items[i] = tgtcomps->items[tgtcomps->cnt - 1 - i];
+                    
+                    if (*tp) *tp++ = '\0';
+                    if (pathstk_push(tgtcomps, st) < 0) {
+                        free(tgtcomps);
+                        free(done);
+                        free(stk);
+                        free(lnkbuf);
+                        free(pbuf);
+                        return -ENAMETOOLONG;
                     }
                 }
 
-                continue;
+                usize ocnt = stk->cnt;
+                if (ocnt + tgtcomps->cnt > VFS_PATH_MAX / 2) {
+                    free(tgtcomps);
+                    free(done);
+                    free(stk);
+                    free(lnkbuf);
+                    free(pbuf);
+                    return -ENAMETOOLONG;
+                }
+
+                for (usize i = ocnt; i > 0; i--) {
+                    stk->items[i + tgtcomps->cnt - 1] = stk->items[i - 1];
+                }
+
+                for (usize i = 0; i < tgtcomps->cnt; i++) {
+                    stk->items[i] = tgtcomps->items[tgtcomps->cnt - 1 - i];
+                }
+                free(tgtcomps);
             }
 
-            ino = nxt;
-            depth++;
-            if (done->cnt >= VFS_PATH_MAX / 2) {
-                free(done);
-                free(stk);
-                return -ENAMETOOLONG;
-            }
-            
-            pathstk_push(done, comp);
+            continue;
         }
+
+        ino = nxt;
+        depth++;
+        if (done->cnt >= VFS_PATH_MAX / 2) {
+            free(done);
+            free(stk);
+            free(lnkbuf);
+            free(pbuf);
+            return -ENAMETOOLONG;
+        }
+        
+        pathstk_push(done, comp);
     }
 
     if (flags & VFS_MUST_BE_DIR) {
         int ret = 0;
         vinode_t inod;
         if ((ret = mnt->ops->getino(mnt, ino, &inod)) < 0) {
+            free(done);
             free(stk);
+            free(lnkbuf);
+            free(pbuf);
             return ret;
         }
 
         if (S_TYPE(inod.mode) != S_IFDIR) {
+            free(done);
             free(stk);
+            free(lnkbuf);
+            free(pbuf);
             return -ENOTDIR;
         }
     }
 
+    free(done);
     free(stk);
+    free(lnkbuf);
+    free(pbuf);
     return ino;
 }
 
@@ -680,18 +744,16 @@ int open(const char* path, int flags, u16 mode) {
     vfs_t* mnt = vfs_getmnt(abs);
 
     ssize ino = vfs_resolve(mnt, abs, VFS_FOLLOW_FINAL);
-    if (ino < 0) return ino;
-    
-    if (ret == -ENOENT) {
+    if (ino == -ENOENT) {
         if (flags & O_CREAT) {
             if ((ret = vfs_basecreat(abs, mode | S_IFREG, (u64*)&ino)) < 0) {
                 return ret;
             }
         } else {
-            return ret;
+            return -ENOENT;
         }
-    } else if (ret < 0) {
-        return ret;
+    } else if (ino < 0) {
+        return ino;
     }
 
     vinode_t inod;

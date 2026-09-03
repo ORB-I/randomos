@@ -51,23 +51,27 @@ s32 atoi(const char* str) {
 }
 
 void* memset(void* dest, int c, size_t n) {
+    void* orig = dest;
     u8 val = (u8)c;
     asm volatile(
+        "cld\n\t"
         "rep stosb"
         : "+D"(dest), "+c"(n)
         : "a"(val)
         : "memory"
     );
-    return dest;
+    return orig;
 }
 
 void* memcpy(void* dest, const void* src, usize count) {
+    void* orig = dest;
     asm volatile(
+        "cld\n\t"
         "rep movsb"
         : "+D"(dest), "+S"(src), "+c"(count)
         :: "memory"
     );
-    return dest;
+    return orig;
 }
 
 int memcmp(const void* s1, const void* s2, usize n) {
