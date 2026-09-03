@@ -11,7 +11,7 @@
 typedef struct {
     void (*fn)(void*);
     void* arg;
-} __attribute__((packed)) ap_runreq_t;
+} __packed ap_runreq_t;
 
 typedef struct {
     lock_t lock;
@@ -53,7 +53,7 @@ typedef struct {
     u64 rflags;
     u64 rsp;
     u64 ss;
-} __attribute__((packed)) ap_state;
+} __packed ap_state;
 
 extern ap_state* apstates;
 extern ap_req_t* apreqvec;

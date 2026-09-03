@@ -2,9 +2,15 @@
 #include <core/liballoc.h>
 
 usize strlen(const char* str) {
-    const char* ststr = str;
-    while (*str != '\0') str++;
-    return str - ststr;
+    const char* orig = str;
+    asm volatile(
+        "cld\n\t"
+        "repne scasb\n\t"
+        : "+D"(str)
+        : "a"(0), "c"(-1)
+        : "memory", "cc"
+    );
+    return (str - orig) - 1;
 }
 
 s32 streq(const char* s1, const char* s2) {
@@ -139,10 +145,16 @@ int strncmp(const char* s1, const char* s2, usize n) {
     return 0;
 }
 
-void* strcpy(const char* str) {
+char* strdup(const char* str) {
     usize sz = strlen(str) + 1;
     char* nstr = malloc(sz);
     if (!nstr) return NULL;
     memcpy(nstr, str, sz);
     return nstr;
+}
+
+char* strcpy(char* dst, const char* str) {
+    usize sz = strlen(str) + 1;
+    memcpy(dst, str, sz);
+    return dst;
 }

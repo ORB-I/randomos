@@ -2,7 +2,7 @@
 #include <core/mem/vmm.h>
 #include <core/asmh.h>
 #include <drivers/apic.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/idt.h>
 #include <drivers/time/hpet.h>
 #include <core/errno.h>
@@ -14,7 +14,7 @@ typedef struct {
     u8 hpetno;
     u16 mcmctpm; // main count clock tick in periodic mode
     u8 attrs;
-} __attribute__((packed)) hpet_acpitbl_t;
+} __packed hpet_acpitbl_t;
 
 hpet_acpitbl_t* hpet_acpitbl = NULL;
 
@@ -109,8 +109,8 @@ int hpet_init(u64 (**getms)(void)) {
     hpet_write64(0x100, tm0cfg);
     u64 counter = hpet_read64(0xF0);
     u64 period = 1000000000000ULL / clkperiod;
-    serial_printf("HPET period: %u fs\n", clkperiod);
-    serial_printf("HPET ticks/ms: %llu\n", period);
+    kprint("HPET period: %u fs\n", clkperiod);
+    kprint("HPET ticks/ms: %lu\n", period);
     hpet_write64(0x108, counter + period);
 
     idt_regintr(NULL, 0x40, hpet_hdlr, 0x8E, 1);

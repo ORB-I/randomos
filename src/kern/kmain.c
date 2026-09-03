@@ -6,9 +6,10 @@
 #include <core/asmh.h>
 #include <core/idt.h>
 #include <core/udevr.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/fpu.h>
 #include <core/cmdline.h>
+#include <core/kprint.h>
 
 #include <lib/loader.h>
 #include <lib/syscall.h>
@@ -98,10 +99,10 @@ int try_init(const char* path) {
 }
 
 void ap_testtask() {
-    serial_printf("Hello from SMP%d\n", get_apicid());
+    kprint("Hello from SMP%d\n", get_apicid());
 }
 
-__attribute__((noreturn)) void __stack_chk_fail() {
+__noreturn void __stack_chk_fail() {
     panic("stack smashing detected");
 }
 
@@ -109,7 +110,7 @@ u64 __stack_chk_guard = 0;
 
 int init_lwip();
 void kmain_aftergdt() {
-    init_fpu();
+    // init_fpu(); we're emulating fpu with -msoft-float now
     if (init_clock(CLOCK_TSC) < 0) {
         for (;;) asm("hlt");
     }
@@ -120,6 +121,9 @@ void kmain_aftergdt() {
 
     init_allterm();
     init_cmdline();
+    if (kprint_init() < 0) {
+        panic("failed to initialize logging");
+    }
 
     asm("cli");
     pic_remap(0x20, 0x28);
@@ -136,10 +140,12 @@ void kmain_aftergdt() {
     }
 
     if (udevr_init() < 0) {
-        printf("Failed to create User Device Register\n");
+        kprint("Failed to create User Device Register\n");
     }
 
-    printf("IO: Initializing APIC & IOAPIC\n");
+    kprint_initdev();
+
+    kprint("IO: Initializing APIC & IOAPIC\n");
     apic_init();
 
     // Register the SCI interrupt now that apic_init() has built the
@@ -147,7 +153,7 @@ void kmain_aftergdt() {
     init_irq(acpi.fadt->sci_int, sci_hdlr);
 
     if (init_clock(CLOCK_HPET) < 0) {
-        printf("Switch to HPET failed\n");
+        kprint("Switch to HPET failed\n");
     }
     asm("sti");
 
@@ -164,7 +170,7 @@ void kmain_aftergdt() {
     }
 
     if (mount(NULL, "/tmp", "ramfs") < 0) {
-        printf("Didn't mount tmpfs\n");
+        kprint("Didn't mount tmpfs\n");
     }
 
     int kbtype = KBD_USBHID;
@@ -182,12 +188,12 @@ void kmain_aftergdt() {
 
     init_syscalls();
 
-    printf("IO: Requesting keyboard type %d\n", kbtype);
+    kprint("IO: Requesting keyboard type %d\n", kbtype);
     init_kbd(kbtype);
-    printf("IO: Requesting mouse type %d\n", mbtype);
+    kprint("IO: Requesting mouse type %d\n", mbtype);
     init_mouse(mbtype);
 
-    printf("Testing AP\n");
+    kprint("Testing AP\n");
     while (ap_run(ap_testtask, NULL) < 0);
 
     if (init_scheduler() < 0) panic("Failed to initialize scheduler\n");

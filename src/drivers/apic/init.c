@@ -6,7 +6,7 @@
 #include <drivers/apic.h>
 #include <drivers/pic.h>
 #include <lai/core.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/asmh.h>
 
 uintptr_t lapic_phys_addr = 0xFEE00000;
@@ -47,7 +47,7 @@ static inline void ioapic_write(ioapic_info_t* ioapic, u32 reg, u32 val) {
     *iowin = val;
 }
 
-static inline u64 ioapic_read64(ioapic_info_t* ioapic, u32 reg) {
+__maybe_unused static inline u64 ioapic_read64(ioapic_info_t* ioapic, u32 reg) {
     u32 low = ioapic_read(ioapic, reg);
     u32 high = ioapic_read(ioapic, reg + 1);
     return ((u64)high << 32) | low;
@@ -228,7 +228,7 @@ static void enable_lapic() {
     apic_enable_current();
 
     bsp_lapic_id = (lapic_read(LAPIC_ID_REG) >> 24) & 0xFF;
-    printf("LAPIC ID %d\n", bsp_lapic_id);
+    kprint("LAPIC ID %d\n", bsp_lapic_id);
 }
 
 void apic_init() {
@@ -248,7 +248,7 @@ void apic_init() {
     parse_madt(madt);
 
     lapic_virt_addr = (volatile u32*)(lapic_phys_addr + HHDM_START);
-    serial_printf("Using Local APIC at virtual address %p\n", lapic_virt_addr);
+    kprint("Using Local APIC at virtual address %p\n", lapic_virt_addr);
     enable_lapic();
 
     for (usize i = 0; i < num_ioapics; i++) {

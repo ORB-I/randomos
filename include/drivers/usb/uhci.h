@@ -82,7 +82,7 @@ typedef struct {
     u8  iProduct;
     u8  iSerialNumber;
     u8  bNumConfigurations;
-} __attribute__((packed)) usb_device_descriptor_t;
+} __packed usb_device_descriptor_t;
 
 typedef struct usb_interface_descriptor_t {
     u8  bLength;
@@ -94,7 +94,7 @@ typedef struct usb_interface_descriptor_t {
     u8  bInterfaceSubClass;
     u8  bInterfaceProtocol;
     u8  iInterface;
-} __attribute__((packed)) usb_interface_descriptor_t;
+} __packed usb_interface_descriptor_t;
 
 typedef struct {
     u8  bLength;
@@ -105,20 +105,20 @@ typedef struct {
     u8  iConfiguration;
     u8  bmAttributes;
     u8  bMaxPower;
-} __attribute__((packed)) usb_config_descriptor_t;
+} __packed usb_config_descriptor_t;
 
 typedef struct uhci_td {
     u32 link;
     u32 ctrl;
     u32 token;
     u32 buffer;
-} __attribute__((packed, aligned(16))) uhci_td_t;
+} __packed __align(16) uhci_td_t;
 
 typedef struct uhci_qh {
     u32 head;
     u32 element;
     u32 resv[2];
-} __attribute__((aligned(16), packed)) uhci_qh_t;
+} __packed __align(16) uhci_qh_t;
 
 typedef struct {
     u8 bus;
@@ -142,7 +142,7 @@ typedef struct {
     u16 val;
     u16 idx;
     u16 len;
-} __attribute__((packed)) usb_device_request_t;
+} __packed usb_device_request_t;
 
 typedef struct {
     uhci_controller_t* ctrl;

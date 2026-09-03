@@ -2,7 +2,6 @@
 #include <flanterm/flanterm.h>
 #include <flanterm/flanterm_backends/fb.h>
 #include <core/limreqs.h>
-#include <lib/printf.h>
 #include <lib/string.h>
 #include <drivers/hid/kbd.h>
 #include <drivers/display/fb.h>

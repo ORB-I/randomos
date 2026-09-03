@@ -18,7 +18,7 @@ typedef struct {
     u16 gso_size;
     u16 csum_start;
     u16 csum_offset;
-} __attribute__((packed)) virtio_net_hdr_t;
+} __packed virtio_net_hdr_t;
 
 typedef void (*virtio_net_rx_callback_t)(const void* data, u16 len);
 

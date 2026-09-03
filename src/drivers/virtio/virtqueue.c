@@ -1,7 +1,7 @@
 #include <core/std.h>
 #include <core/asmh.h>
 #include <core/errno.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/mem/pmm.h>
 #include <core/mem/vmm.h>
 #include <lib/string.h>

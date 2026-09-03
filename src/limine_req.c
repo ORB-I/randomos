@@ -2,10 +2,9 @@
 #include <core/std.h>
 #include <core/limreqs.h>
 
-#define LIMINE_REQ __attribute__((used, section(".limine_requests")))
 
-__attribute__((used, section(".limine_requests_start")))
-static volatile u64 _limreq_sm[] = LIMINE_REQUESTS_START_MARKER;
+#define LIMINE_REQ __always_emit __section(.limine_requests)
+__always_emit __section(.limine_requests_start) static volatile u64 _limreq_sm[] = LIMINE_REQUESTS_START_MARKER;
 
 LIMINE_REQ volatile u64 limine_base_revision[] = LIMINE_BASE_REVISION(6);
 LIMINE_REQ volatile struct limine_framebuffer_request fb_req = {
@@ -38,5 +37,4 @@ LIMINE_REQ volatile struct limine_executable_cmdline_request cmdline_req = {
     .revision = 0
 };
 
-__attribute__((used, section(".limine_requests_end")))
-static volatile u64 _limreq_em[] = LIMINE_REQUESTS_END_MARKER;
+__always_emit __section(.limine_requests_end) static volatile u64 _limreq_em[] = LIMINE_REQUESTS_END_MARKER;

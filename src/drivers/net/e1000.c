@@ -3,7 +3,7 @@
 #include <core/idt.h>
 #include <core/mem/pmm.h>
 #include <core/mem/vmm.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/std.h>
 #include <drivers/apic.h>
 #include <drivers/net/e1000.h>
@@ -255,10 +255,10 @@ void c_e1000_hdlr(void) {
                     E1000_STATUS_SPEED_100M) {
             speed_str = "100 Mbps";
         }
-        printf("e1000: Link status UP (%s, %s)\n", speed_str,
+        kprint("e1000: Link status UP (%s, %s)\n", speed_str,
                 (status & E1000_STATUS_FD) ? "Full-Duplex" : "Half-Duplex");
         } else {
-        printf("e1000: Link status DOWN\n");
+        kprint("e1000: Link status DOWN\n");
         }
     }
 
@@ -283,11 +283,11 @@ void c_e1000_hdlr(void) {
 
 int e1000_init(void) {
     if (e1000_find_pci() < 0) {
-        printf("e1000: No Intel E1000 network adapter found on PCI\n");
+        kprint("e1000: No Intel E1000 network adapter found on PCI\n");
         return -ENOEXIST;
     }
 
-    printf("e1000: Found device %04x on PCI %02x:%02x.%x\n", e1000_device_id,
+    kprint("e1000: Found device %04x on PCI %02x:%02x.%x\n", e1000_device_id,
             e1000_bus, e1000_slot, e1000_fn);
 
     /* Read BAR0 (MMIO Base) */
@@ -299,7 +299,7 @@ int e1000_init(void) {
 
     e1000_mmio_phys = ((u64)bar0_high << 32) | (bar0_low & ~0xFULL);
     if (!e1000_mmio_phys) {
-        printf("e1000: Invalid BAR0 MMIO address\n");
+        kprint("e1000: Invalid BAR0 MMIO address\n");
         return -EINVAL;
     }
 
@@ -332,7 +332,7 @@ int e1000_init(void) {
 
     /* Read MAC address */
     e1000_read_mac();
-    printf("e1000: Hardware MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", e1000_mac[0],
+    kprint("e1000: Hardware MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", e1000_mac[0],
             e1000_mac[1], e1000_mac[2], e1000_mac[3], e1000_mac[4], e1000_mac[5]);
 
     /* Clear Multicast Table Array (MTA) */
@@ -366,7 +366,7 @@ int e1000_init(void) {
     e1000_initialized = true;
 
     u32 status = e1000_read(E1000_REG_STATUS);
-    printf("e1000: Controller initialized (Link: %s)\n",
+    kprint("e1000: Controller initialized (Link: %s)\n",
             (status & E1000_STATUS_LU) ? "UP" : "DOWN");
 
     return 0;
@@ -479,7 +479,7 @@ void _e1000_netif_rxcb(const void* packet, u16 len) {
 }
 
 err_t e1000_netifinit(struct netif* nf) {
-    serial_printf("Initializing E1000 NetIF\n");
+    kprint("Initializing E1000 NetIF\n");
     nf->name[0] = 'e';
     nf->name[1] = 'n';
 

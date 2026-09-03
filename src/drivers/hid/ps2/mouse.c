@@ -62,7 +62,7 @@ typedef struct {
     uint8_t y_sign        : 1;
     uint8_t x_overflow    : 1;
     uint8_t y_overflow    : 1;
-} __attribute__((packed)) mouse_status_t;
+} __packed mouse_status_t;
 
 static u8 ps2mscycle = 0;
 static u8 ps2mspkt[3];

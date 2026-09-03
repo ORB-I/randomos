@@ -5,7 +5,8 @@
 #define UDEV_WR 0x0002
 #define UDEV_RW (UDEV_RDO | UDEV_WRO)
 
-#define UDEV_RNG 0x0001
+#define UDEV_RNG  0x0001
+#define UDEV_KLOG 0x0002
 
 typedef u16 udev_t;
 typedef ssize (*udevfn_t)(udev_t dev, void* buf, usize sz);

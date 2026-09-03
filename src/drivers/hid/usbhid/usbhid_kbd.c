@@ -5,7 +5,7 @@
 #include <lib/string.h>
 #include <drivers/hid/kbd.h>
 #include <core/mem/pmm.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <drivers/hid/usbhid/usbhid.h>
 #include <core/mem/vmm.h>
 

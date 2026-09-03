@@ -13,27 +13,27 @@ typedef struct {
     u32 len;
     u16 flags;
     u16 next;
-} __attribute__((packed)) vring_desc_t;
+} __packed vring_desc_t;
 
 /* VirtQueue Available Ring */
 typedef struct {
     u16 flags;
     u16 idx;
     u16 ring[];
-} __attribute__((packed)) vring_avail_t;
+} __packed vring_avail_t;
 
 /* VirtQueue Used Ring Element */
 typedef struct {
     u32 id;
     u32 len;
-} __attribute__((packed)) vring_used_elem_t;
+} __packed vring_used_elem_t;
 
 /* VirtQueue Used Ring */
 typedef struct {
     u16 flags;
     u16 idx;
     vring_used_elem_t ring[];
-} __attribute__((packed)) vring_used_t;
+} __packed vring_used_t;
 
 /* In-memory representation of a VirtQueue */
 typedef struct {

@@ -9,11 +9,11 @@ typedef struct {
     u16 isr_mid;
     u32 isr_high;
     u32 reserved;
-} __attribute__((packed)) idt_entry_t;
+} __packed idt_entry_t;
 
 typedef struct {
     u16 limit;
     u64 base;
-} __attribute__((packed)) idtr_t;
+} __packed idtr_t;
 
 #define IDT_SIZE 256

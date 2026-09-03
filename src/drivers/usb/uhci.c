@@ -6,7 +6,7 @@
 #include <drivers/pci.h>
 #include <drivers/usb/uhci.h>
 #include <drivers/time/clock.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <drivers/hid/kbd.h>
 #include <lib/string.h>
 
@@ -201,7 +201,7 @@ static int uhci_init_controller(u8 bus, u8 slot, u8 fn) {
     hc->exists = true;
     num_controllers++;
 
-    printf("UHCI: Controller initialized at I/O 0x%04x\n", io_base);
+    kprint("UHCI: Controller initialized at I/O 0x%04x\n", io_base);
 
     uhci_reset_port(hc, UHCI_PORTSC1);
     uhci_reset_port(hc, UHCI_PORTSC2);
@@ -344,9 +344,9 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
 
         u32 nnerr = uhci_ctrl_err(*statctrl);
         if (nnerr < nerr) {
-            printf("New error detected: 0x%08x\n", *statctrl);
+            kprint("New error detected: 0x%08x\n", *statctrl);
             if (nnerr == 0) {
-                printf("Max errors reached, terminating (flags: 0x%08x, ec: 0x%x)\n",  status_td->ctrl, (status_td->ctrl >> 16) & 0x0000000F);
+                kprint("Max errors reached, terminating (flags: 0x%08x, ec: 0x%x)\n",  status_td->ctrl, (status_td->ctrl >> 16) & 0x0000000F);
                 ret = -1;
             }
             nerr = nnerr;
@@ -357,10 +357,10 @@ int uhci_control_transfer(uhci_controller_t* hc, u8 dev_addr, bool low_speed, us
 
     hc->queue_head->element = UHCI_TD_PTR_T;
     if (status_td->ctrl & UHCI_TD_CTRL_ACT) {
-        printf("UHCICT: Controller didn't clear TDActive (Timeout, flags: 0x%08x, error code: 0x%x)\n", status_td->ctrl, (status_td->ctrl >> 16) & 0x0000000F);
+        kprint("UHCICT: Controller didn't clear TDActive (Timeout, flags: 0x%08x, error code: 0x%x)\n", status_td->ctrl, (status_td->ctrl >> 16) & 0x0000000F);
         ret = -1;
     } else if (status_td->ctrl & 0x1F0000) {
-        printf("UHCICT: Transfer failed with status error flags: 0x%08x\n", status_td->ctrl);
+        kprint("UHCICT: Transfer failed with status error flags: 0x%08x\n", status_td->ctrl);
         ret = -1;
     }
 
@@ -389,7 +389,7 @@ int is_usb_devicetype(uhci_controller_t* hc, u8 dev_addr, bool low_speed, u8 cls
     req.len = 255;
 
     if (uhci_control_transfer(hc, dev_addr, low_speed, &req, (void*)buf_phys, 255) < 0) {
-        printf("Failed to read configuration space\n");
+        kprint("Failed to read configuration space\n");
         pmm_ffree(buf_phys, 1);
         return 0;
     }

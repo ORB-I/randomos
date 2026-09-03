@@ -141,7 +141,7 @@ typedef struct {
     volatile u8  status;
     volatile u8  errors;
     volatile u16 special;
-} __attribute__((packed)) e1000_rx_desc_t;
+} __packed e1000_rx_desc_t;
 
 /* Legacy Transmit Descriptor */
 typedef struct {
@@ -152,7 +152,7 @@ typedef struct {
     volatile u8  status;
     volatile u8  css;
     volatile u16 special;
-} __attribute__((packed)) e1000_tx_desc_t;
+} __packed e1000_tx_desc_t;
 
 typedef void (*e1000_rx_callback_t)(const void* packet, u16 len);
 

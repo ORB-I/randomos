@@ -10,7 +10,7 @@
 typedef struct {
     s8 x, y;
     u8 buttons;
-} __attribute__((packed)) mouse_info_t;
+} __packed mouse_info_t;
 
 void enqueue_mouse(mouse_info_t info);
 mouse_info_t dequeue_mouse();

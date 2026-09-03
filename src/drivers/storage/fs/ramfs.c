@@ -3,7 +3,6 @@
 #include <lib/string.h>
 #include <core/liballoc.h>
 #include <core/errno.h>
-#include <core/printf.h>
 
 static u32 findfreeino(vfs_t* vfs) {
     ramfs_info* fs = RAMFS(vfs);
@@ -30,7 +29,6 @@ static ramfs_inode* getinod(vfs_t* vfs, u32 ino) {
     if (fs->inodtbl[ino-1].used) {
         return &fs->inodtbl[ino-1];
     } else {
-        serial_printf("inode %d does not exist on tmpfs\n", ino);
         return NULL;
     }
 }
@@ -210,9 +208,6 @@ ssize ramfs_readdir(vfs_t* vfs, u32 dino, u64* prv, char* name, usize namlen, vi
 
     usize ndirs = dinod->size / sizeof(ramfs_dirent);
     ramfs_dirent* dir = dinod->dptr;
-
-    serial_printf("ramfs_readdir: dino=%u size=%zu ndirs=%zu pos=%llu\n",
-        dino, dinod->size, ndirs, *prv);
 
     if (*prv >= ndirs) {
         return -1;

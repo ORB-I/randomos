@@ -1,14 +1,15 @@
 include ../../mk/tools.mk
 
 ASFLAGS := -felf64
-CCFLAGS := -m64 -nostdlib -fno-builtin \
-    -fno-stack-protector -Iinclude \
-    -nostartfiles -nodefaultlibs \
+CCFLAGS := -m64 -nostdlib \
+	-fno-builtin -Iinclude -nodefaultlibs \
     -ffreestanding -Wall -Wextra -g \
-	-MMD -MP -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
-	-Wl,--allow-shlib-undefined
+	-MMD -MP -mno-mmx -mno-sse -mno-sse2 \
+	-mno-red-zone -msoft-float -mno-fp-ret-in-387 \
+	-Werror 
+
 CCFLAGS_SO := $(CCFLAGS) -fPIC
-LDFLAGS_SO := -shared -Wl,-soname,/lib/libc.so -Wl,-shared -m64 -nostdlib -ffreestanding
+LDFLAGS_SO := -shared -Wl,-soname,/lib/libc.so -Wl,-shared -m64 -nostdlib -ffreestanding -nostartfiles 
 
 LIBC_SO := libc.so
 LIBC := libc.a

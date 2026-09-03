@@ -11,7 +11,7 @@
 struct gdtr {
     u16 limit;
     u64 base;
-} __attribute__((packed));
+} __packed;
 
 struct gdt_entry {
     u16 limlow;
@@ -20,7 +20,7 @@ struct gdt_entry {
     u8 acc;
     u8 gran;
     u8 base_high;
-} __attribute__((packed));
+} __packed;
 
 struct gdt_tss_entry {
     u16 limit_low;
@@ -31,7 +31,7 @@ struct gdt_tss_entry {
     u8  base_mid2;
     u32 base_high;
     u32 reserved;
-} __attribute__((packed));
+} __packed;
 
 struct tss_entry {
     u32 reserved0;
@@ -43,7 +43,7 @@ struct tss_entry {
     u64 reserved2;
     u16 reserved3;
     u16 iomap_base;
-} __attribute__((packed));
+} __packed;
 
 void set_gdt_tss(struct gdt_entry* gdt, int n, u64 base, u32 lim, u8 acc);
 void set_gdtent(struct gdt_entry* gdt, int n, u32 base, u32 lim, u8 acc, u8 gran);

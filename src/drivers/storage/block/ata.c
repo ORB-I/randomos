@@ -4,7 +4,7 @@
 #include <core/std.h>
 #include <core/panic.h>
 #include <core/errno.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 
 #define D1IOB 0x1F0
 #define D1CTRLB 0x3F6

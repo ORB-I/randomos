@@ -3,7 +3,7 @@
 #include <core/idt.h>
 #include <core/mem/pmm.h>
 #include <core/mem/vmm.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/std.h>
 #include <drivers/apic.h>
 #include <drivers/net/virtio_net.h>
@@ -103,7 +103,7 @@ int virtio_net_init() {
         return -ENOEXIST;
     }
 
-    serial_printf("virtio-net: Found device at %02x:%02x.%d (iobase=0x%x, irq=%d)\n",
+    kprint("virtio-net: Found device at %02x:%02x.%d (iobase=0x%x, irq=%d)\n",
                   net_dev.bus, net_dev.slot, net_dev.fn, net_dev.iobase, net_dev.irq);
 
     /* Reset device */
@@ -128,18 +128,18 @@ int virtio_net_init() {
     for (int i = 0; i < 6; i++) {
         net_mac[i] = virtio_read_config8(&net_dev, (u8)i);
     }
-    serial_printf("virtio-net: MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
+    kprint("virtio-net: MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
                   net_mac[0], net_mac[1], net_mac[2], net_mac[3], net_mac[4], net_mac[5]);
 
     /* Initialize RX and TX VirtQueues */
     if (virtqueue_init(&net_dev, VIRTIO_NET_RX_QUEUE, &rx_vq) < 0) {
-        printf("virtio-net: Failed to initialize RX queue\n");
+        kprint("virtio-net: Failed to initialize RX queue\n");
         virtio_set_status(&net_dev, VIRTIO_STATUS_FAILED);
         return -EDISK;
     }
 
     if (virtqueue_init(&net_dev, VIRTIO_NET_TX_QUEUE, &tx_vq) < 0) {
-        printf("virtio-net: Failed to initialize TX queue\n");
+        kprint("virtio-net: Failed to initialize TX queue\n");
         virtio_set_status(&net_dev, VIRTIO_STATUS_FAILED);
         return -EDISK;
     }
@@ -148,7 +148,7 @@ int virtio_net_init() {
     usize rx_pages = (VIRTIO_NET_NUM_RX_BUFS * VIRTIO_NET_BUF_SIZE + 4095) / 4096;
     rx_buf_phys = (u64)pmm_falloc(rx_pages);
     if (!rx_buf_phys) {
-        printf("virtio-net: Failed to allocate RX buffers\n");
+        kprint("virtio-net: Failed to allocate RX buffers\n");
         virtio_set_status(&net_dev, VIRTIO_STATUS_FAILED);
         return -ENOMEM;
     }
@@ -157,7 +157,7 @@ int virtio_net_init() {
 
     tx_buf_phys = (u64)pmm_falloc(1);
     if (!tx_buf_phys) {
-        printf("virtio-net: Failed to allocate TX buffer\n");
+        kprint("virtio-net: Failed to allocate TX buffer\n");
         virtio_set_status(&net_dev, VIRTIO_STATUS_FAILED);
         return -ENOMEM;
     }
@@ -268,7 +268,7 @@ static void _virtio_netif_rxcb(const void* packet, u16 len) {
 }
 
 err_t virtio_net_netifinit(struct netif* nf) {
-    serial_printf("Initializing VirtIO NetIF\n");
+    kprint("Initializing VirtIO NetIF\n");
     nf->name[0] = 'v';
     nf->name[1] = 'n';
 

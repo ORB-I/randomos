@@ -4,7 +4,7 @@
 #include <lib/loader.h>
 #include <core/asmh.h>
 #include <drivers/time/clock.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <drivers/display/fb.h>
 #include <drivers/storage/fs.h>
 #include <core/errno.h>
@@ -64,7 +64,7 @@ void ctx2proc(process_state_t* dst, procctx_t* src) {
     process_state_t* proc = &proctbl[current_pid];
     procctx_t ctx;
     proc2ctx(&ctx, proc);
-    //serial_printf("Switching to %d\n", current_pid);
+    //kprint("Switching to %d\n", current_pid);
 
     hpet_start_preemptive(&_schdlr_timer);
     reset_kgsb();

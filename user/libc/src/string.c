@@ -3,9 +3,15 @@
 #include <mem.h>
 
 usize strlen(const char* str) {
-    const char* ststr = str;
-    while (*str != '\0') str++;
-    return str - ststr;
+    const char* orig = str;
+    asm volatile(
+        "cld\n\t"
+        "repne scasb\n\t"
+        : "+D"(str)
+        : "a"(0), "c"(-1)
+        : "memory", "cc"
+    );
+    return (str - orig) - 1;
 }
 
 s32 streq(const char* s1, const char* s2) {
@@ -51,21 +57,28 @@ s32 atoi(const char* str) {
     return sign * res;
 }
 
-void* memset(void *dest, int val, usize count) {
-    u8* temp = (u8*)dest;
-    for (usize i = 0; i < count; i++) {
-        temp[i] = (u8)val;
-    }
-    return dest;
+void* memset(void* dest, int c, size_t n) {
+    void* orig = dest;
+    u8 val = (u8)c;
+    asm volatile(
+        "cld\n\t"
+        "rep stosb"
+        : "+D"(dest), "+c"(n)
+        : "a"(val)
+        : "memory"
+    );
+    return orig;
 }
 
 void* memcpy(void* dest, const void* src, usize count) {
-    const u8* sp = (const u8*)src;
-    u8* dp = (u8*)dest;
-    for (usize i = 0; i < count; i++) {
-        dp[i] = sp[i];
-    }
-    return dest;
+    void* orig = dest;
+    asm volatile(
+        "cld\n\t"
+        "rep movsb"
+        : "+D"(dest), "+S"(src), "+c"(count)
+        :: "memory"
+    );
+    return orig;
 }
 
 int memcmp(const void* s1, const void* s2, usize n) {

@@ -28,7 +28,7 @@ syms.sort(key=lambda sym: int(sym.addr, 16))
     
 with open('ksyms.c', 'w') as f:
     print("#include <core/debug.h>\n", file=f)
-    print("__attribute__((section(\".ksyms\"))) struct kern_symbol ksymtbl[] = {", file=f)
+    print("__section(.ksyms) struct kern_symbol ksymtbl[] = {", file=f)
     for sym in syms:
         print("(struct kern_symbol){ 0x" + sym.addr + ", \"" + sym.name + "\" },", file=f)
     print("};", file=f)

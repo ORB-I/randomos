@@ -1,8 +1,9 @@
 #include <core/std.h>
+#include <core/printf.h>
 #include <core/errno.h>
 #include <core/lock.h>
 #include <lib/string.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/liballoc.h>
 #include <drivers/storage/block/block.h>
 #include <drivers/storage/block/ata.h>
@@ -95,8 +96,8 @@ int block_register(u8 type, u64 priv) {
     dev->id = BLKDEV_ID(type, nblkdevtyp[type]++);
     dev->priv = priv;
     lock_init(&dev->lock);
-    snprintf(dev->name, 128, "%s%llu", blkdevnams[type], BLKDEV_DEVNO(dev->id));
-    serial_printf("Registered block device %s\n", dev->name);
+    snprintf(dev->name, 128, "%s%u", blkdevnams[type], BLKDEV_DEVNO(dev->id));
+    kprint("Registered block device %s\n", dev->name);
     return 0;
 }
 

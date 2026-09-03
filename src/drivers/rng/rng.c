@@ -4,7 +4,7 @@
 #include <core/asmh.h>
 #include <core/udevr.h>
 #include <core/kqueue.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/liballoc.h>
 
 #define RNG_RDRAND 1
@@ -34,7 +34,7 @@ int rng_init() {
     if (!entq) return -1;
 
     if (udevr_register(UDEV_RNG, "rng", UDEV_RD, rng_read, NULL) < 0) {
-        serial_printf("Failed to register RNG with UDEVR\n");
+        kprint("Failed to register RNG with UDEVR\n");
         return 0;
     }
 

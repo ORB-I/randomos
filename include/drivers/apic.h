@@ -35,12 +35,12 @@ typedef struct {
     sdt_header_t hdr;
     u32 lapic_addr;
     u32 flags;
-} __attribute__((packed)) madt_hdr_t;
+} __packed madt_hdr_t;
 
 typedef struct {
     u8 type;
     u8 len;
-} __attribute__((packed)) madt_entry_hdr_t;
+} __packed madt_entry_hdr_t;
 
 #define ENT_PROCLOCAL_APIC 0x00
 typedef struct {
@@ -48,7 +48,7 @@ typedef struct {
     u8 smpid;
     u8 apicid;
     u32 flags;
-} __attribute__((packed)) madt_plapic_t;
+} __packed madt_plapic_t;
 
 #define ENT_IOAPIC 0x01
 typedef struct {
@@ -57,7 +57,7 @@ typedef struct {
     u8 __resv;
     u32 addr;
     u32 gsi_base;
-} __attribute__((packed)) madt_ioapic_t;
+} __packed madt_ioapic_t;
 
 #define ENT_IOAPIC_SRC_OVERRIDE 0x02
 typedef struct {
@@ -66,14 +66,14 @@ typedef struct {
     u8 irqsrc;
     u32 gsi;
     u16 flags;
-} __attribute__((packed)) madt_ioaintso_t;
+} __packed madt_ioaintso_t;
 
 #define ENT_LOCALAPIC_ADDR_OVERRIDE 0x05
 typedef struct {
     madt_entry_hdr_t hdr;
     u16 __resv;
     u64 addr;
-} __attribute__((packed)) madt_laddro_t;
+} __packed madt_laddro_t;
 
 typedef struct {
     madt_entry_hdr_t hdr;

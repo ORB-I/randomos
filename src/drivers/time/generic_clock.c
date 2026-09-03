@@ -1,7 +1,7 @@
 #include <drivers/time/clock.h>
 #include <drivers/time/hpet.h>
 #include <drivers/time/tsc.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/errno.h>
 
 u64 (*getms)(void) = NULL;

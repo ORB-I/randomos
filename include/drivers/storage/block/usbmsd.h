@@ -24,14 +24,14 @@ typedef struct {
     u8  lun;
     u8  cdb_len;
     u8  cdb[16];
-} __attribute__((packed)) usbmsd_cbw_t;
+} __packed usbmsd_cbw_t;
 
 typedef struct {
     u32 signature;
     u32 tag;
     u32 data_residue;
     u8  status;
-} __attribute__((packed)) usbmsd_csw_t;
+} __packed usbmsd_csw_t;
 
 void usbmsd_enumerate();
 int usbmsd_secread(u64 drv, u32 lba, u8* buf);

@@ -1,7 +1,7 @@
 #include <core/std.h>
 #include <core/asmh.h>
 #include <core/panic.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/errno.h>
 #include <core/mem/pmm.h>
 #include <lib/string.h>
@@ -262,7 +262,7 @@ int usbmsd_secread(u64 drv, u32 lba, u8* buf) {
 
     int ret = 0;
     if ((ret = usbmsd_do_bot(dev, &cbw, buf, 512)) < 0) {
-        printf("USBMSD: Read error at LBA %d\n", lba);
+        kprint("USBMSD: Read error at LBA %d\n", lba);
     }
     return ret;
 }
@@ -288,7 +288,7 @@ int usbmsd_secwrite(u64 drv, u32 lba, u8* buf) {
 
     int ret = 0;
     if ((ret = usbmsd_do_bot(dev, &cbw, buf, 512)) < 0) {
-        printf("USBMSD: Write error at LBA %d\n", lba);
+        kprint("USBMSD: Write error at LBA %d\n", lba);
     }
 
     return ret;

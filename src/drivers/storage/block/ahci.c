@@ -2,7 +2,7 @@
 #include <core/asmh.h>
 #include <core/errno.h>
 #include <core/panic.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/mem/pmm.h>
 #include <lib/string.h>
 #include <core/mem/vmm.h>
@@ -69,7 +69,7 @@ typedef struct {
     u8 icc;
     u8 ctrl;
     u8 reserved[44];
-} __attribute__((packed)) fis_reg_h2d_t;
+} __packed fis_reg_h2d_t;
 
 typedef struct {
     volatile u16 info;
@@ -77,19 +77,19 @@ typedef struct {
     volatile u32 prdbc;
     volatile u64 ctba;
     volatile u8 reserved[16];
-} __attribute__((packed)) hba_cmd_header_t;
+} __packed hba_cmd_header_t;
 
 typedef struct {
     u8 cfis[64];
     u8 acmd[16];
     u8 reserved[48];
-} __attribute__((packed)) hba_cmd_table_t;
+} __packed hba_cmd_table_t;
 
 typedef struct {
     volatile u64 dba;
     volatile u32 dbc;
     volatile u32 reserved;
-} __attribute__((packed)) hba_prdt_entry_t;
+} __packed hba_prdt_entry_t;
 
 typedef struct {
     volatile u32 cap;
@@ -105,7 +105,7 @@ typedef struct {
     u8 reserved[0xA0 - 0x28];
     volatile u32 orch;
     u8 reserved2[0x100 - 0xAC];
-} __attribute__((packed)) hba_global_t;
+} __packed hba_global_t;
 
 typedef struct {
     volatile u32 clb;
@@ -126,7 +126,7 @@ typedef struct {
     volatile u32 snf;
     volatile u32 fbs;
     u8 reserved[0x80 - 0x44];
-} __attribute__((packed)) ahci_port_regs_t;
+} __packed ahci_port_regs_t;
 
 typedef struct {
     volatile hba_global_t* hba;
@@ -352,7 +352,7 @@ int ahci_secread(u64 drv, u64 lba, u8* buf) {
 
     int ret = 0;
     if ((ret = ahci_issue_cmd(dev, dev->port, lba, 1, buf, 0)) < 0) {
-        printf("AHCI: Read error at LBA %d\n", lba);
+        kprint("AHCI: Read error at LBA %zu\n", lba);
     }
 
     return ret;
@@ -363,7 +363,7 @@ int ahci_secwrite(u64 drv, u64 lba, u8* buf) {
 
     int ret = 0;
     if ((ret = ahci_issue_cmd(dev, dev->port, lba, 1, buf, 1)) < 0) {
-        printf("AHCI: Write error at LBA %d\n", lba);
+        kprint("AHCI: Write error at LBA %zu\n", lba);
     }
 
     return ret;

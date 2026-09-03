@@ -1,7 +1,7 @@
 #include <core/std.h>
 #include <core/asmh.h>
 #include <core/errno.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/liballoc.h>
 #include <core/mem/pmm.h>
 #include <core/mem/vmm.h>
@@ -123,12 +123,12 @@ static int virtio_blk_transfer(virtblk_dev_t* dev, u32 type, u64 lba, u8* buf) {
     virtqueue_free_chain(&dev->vq, (u16)d0);
 
     if (res < 0) {
-        printf("virtio-blk: Request timed out\n");
+        kprint("virtio-blk: Request timed out\n");
         return -ETIME;
     }
 
     if (*status_ptr != VIRTIO_BLK_S_OK) {
-        printf("virtio-blk: I/O error status=%d\n", *status_ptr);
+        kprint("virtio-blk: I/O error status=%d\n", *status_ptr);
         return -EDISK;
     }
 

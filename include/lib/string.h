@@ -17,5 +17,5 @@ char* strchr(const char* str, char c);
 int strcmp(const char* s1, const char* s2);
 int strncmp(const char* s1, const char* s2, usize n);
 
-// its actually strdup lol
-void* strcpy(const char* str);
+char* strdup(const char* str);
+char* strcpy(char* dst, const char* str);

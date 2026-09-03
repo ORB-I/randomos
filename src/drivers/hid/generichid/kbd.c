@@ -1,7 +1,7 @@
 #include <core/std.h>
 #include <core/asmh.h>
 #include <core/idt.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/kqueue.h>
 
 #include <drivers/hid/kbd.h>
@@ -50,26 +50,26 @@ void init_kbd(int kbd_type) {
     kb_type = kbd_type;
     kbchq = kqueue_init(512);
     if (!kbchq) {
-        printf("Could not create character queue\n");
+        kprint("Could not create character queue\n");
         return;
     }
 
     kbscq = kqueue_init(512);
     if (!kbscq) {
-        printf("Could not create scancode queue\n");
+        kprint("Could not create scancode queue\n");
         return;
     }
 
     if (kb_type == KBD_PS2) {
         init_kbdps2();
-        printf("KBD: Using PS/2 Keyboard\n");
+        kprint("KBD: Using PS/2 Keyboard\n");
     } else {
         if (usb_hid_kbd_init() < 0) {
             init_kbdps2();
             kb_type = KBD_PS2;
-            printf("KBD: Using PS/2 Keyboard (USB HID Failed)\n");
+            kprint("KBD: Using PS/2 Keyboard (USB HID Failed)\n");
         } else {
-            printf("KBD: Using USB HID Keyboard\n");
+            kprint("KBD: Using USB HID Keyboard\n");
         }
     }
 }

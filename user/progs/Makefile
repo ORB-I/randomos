@@ -3,36 +3,21 @@ include ../../mk/tools.mk
 # compile and link are separate steps and the link goes straight to
 # ld.lld, same reason as the kernel makefile: clang would delegate to
 # host gcc and every machine interprets that differently
-CCFLAGS := -nostdlib -fno-builtin -fno-stack-protector \
-    -I../libc/include -ffreestanding -I../libs/libmcrypto \
-	-fno-pie \
-	-g -MMD -MP -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
-	-Wall -Wextra
+CCFLAGS := -m64 -nostdlib -fno-builtin \
+    -I../libc/include -ffreestanding \
+	-I../libs/libmcrypto -fno-pie -g -MMD \
+	-MP -mno-mmx -mno-sse -mno-sse2 \
+	-mno-red-zone -msoft-float \
+	-mno-fp-ret-in-387 -Wall -Wextra -Werror
 LDFLAGS := -m elf_x86_64 --no-pie
 
-PROGS := init \
-		 sh \
-		 echo \
-		 cat \
-		 ls \
-		 mkfile \
-		 poweroff \
-		 reboot \
-		 sleep \
-		 clear \
-		 rm \
-		 wm \
-		 fbtest \
-		 dspinfo \
-		 wintest \
-		 keytest \
-		 mousetest \
-		 id \
-		 whoami \
-		 serialtest \
-		 environ \
-		 random \
-		 man
+PROGS := init sh echo cat \
+		 ls mkfile poweroff \
+		 reboot sleep clear \
+		 rm wm fbtest dspinfo \
+		 wintest keytest mousetest \
+		 id whoami serialtest environ \
+		 random man
 
 PROGS_C := login
 

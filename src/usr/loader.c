@@ -3,11 +3,11 @@
 #include <lib/string.h>
 #include <core/mem/vmm.h>
 #include <core/liballoc.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <drivers/display/term.h>
 #include <lib/loader.h>
 #include <lib/syscall.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/asmh.h>
 #include <core/errno.h>
 
@@ -45,7 +45,7 @@ segment_ld_t load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp, u64 load
 
     int ret = 0;
     if ((ret = lseek(fd, phdr->p_offset, SEEK_SET)) < 0) {
-        printf("Loader: failed to seek phdr offset\n");
+        kprint("Loader: failed to seek phdr offset\n");
         return SEGLD_ERR(ret);
     }
 
@@ -55,7 +55,7 @@ segment_ld_t load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp, u64 load
 
     ssize nread = read(fd, addr, phdr->p_filesz);
     if (nread < 0 || (usize)nread < phdr->p_filesz) {
-        printf("Loader: failed to read program data\n");
+        kprint("Loader: failed to read program data\n");
         return SEGLD_ERR(nread);
     }
 
@@ -85,7 +85,7 @@ dyninfo_t loaded_exe;
 usize nloaded = 0;
 
 #define MSR_KERNEL_GS_BASE 0xC0000102
-extern __attribute__((aligned(16))) u8 kern_stack[65536];
+extern __align(16) u8 kern_stack[65536];
 static u64 gsblk[2];
 void reset_kgsb() {
     gsblk[0] = 0x00007FFFFFFFF000;
@@ -144,7 +144,7 @@ int apply_rela(Elf64_Rela* rela, dyninfo_t* info) {
             } else {
                 symaddr = locate_extern(info->dynstr + sym->st_name, NULL);
                 if (!symaddr) {
-                    printf("Loader: symbol resolution failed for %s\n", info->dynstr + sym->st_name);
+                    kprint("Loader: symbol resolution failed for %s\n", info->dynstr + sym->st_name);
                     return -ENOEXIST;
                 }
             }
@@ -161,7 +161,7 @@ int apply_rela(Elf64_Rela* rela, dyninfo_t* info) {
             } else {
                 symaddr = locate_extern(info->dynstr + sym->st_name, &sz);
                 if (!symaddr) {
-                    printf("Loader: symbol resolution failed for %s\n", info->dynstr + sym->st_name);
+                    kprint("Loader: symbol resolution failed for %s\n", info->dynstr + sym->st_name);
                     return -ENOEXIST;
                 }
             }
@@ -171,7 +171,7 @@ int apply_rela(Elf64_Rela* rela, dyninfo_t* info) {
         default: return 0;
     }
 
-    //printf("Relocating %p => %p\n", tgt_vaddr, v2r);
+    //kprint("Relocating %p => %p\n", tgt_vaddr, v2r);
 
     *((u64*)tgt_vaddr) = v2r;
     return 0;
@@ -203,7 +203,7 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
         return LOADLIB_ERR(fd);
     }
 
-    serial_printf("Loading library %s at base %p\n", path, base);
+    kprint("Loading library %s at base %lu\n", path, base);
 
     Elf64_Ehdr ehdr;
     ssize nread = read(fd, &ehdr, sizeof(ehdr));
@@ -409,7 +409,7 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
                 free(dynsym);
                 free(dynstr);
                 close(fd);
-                printf("Failed to apply relocations while loading library %s\n", path);
+                kprint("Failed to apply relocations while loading library %s\n", path);
                 return LOADLIB_ERR(ret);
             }
         }
@@ -444,7 +444,7 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
                 free(dynsym);
                 free(dynstr);
                 close(fd);
-                printf("Failed to apply relocations while loading library %s\n", path);
+                kprint("Failed to apply relocations while loading library %s\n", path);
                 return LOADLIB_ERR(ret);
             }
         }
@@ -588,7 +588,7 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
                 free(relas);
                 free(dynsym);
                 free(dynstr);
-                printf("Failed to apply relocations while loading program\n");
+                kprint("Failed to apply relocations while loading program\n");
                 return ret;
             }
         }
@@ -617,7 +617,7 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
                 free(relas);
                 free(dynsym);
                 free(dynstr);
-                printf("Failed to apply relocations while loading program\n");
+                kprint("Failed to apply relocations while loading program\n");
                 return ret;
             }
         }
@@ -643,17 +643,17 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
 loadprog_res_t load_program(const char* path, char** argv, char** environ) {
     int fd = open(path, O_RDONLY, 0);
     if (fd < 0) {
-        printf("Loader: failed to open file %s\n", path);
+        kprint("Loader: failed to open file %s\n", path);
         return LOADPROG_ERR(fd);
     }
 
-    serial_printf("Loading program %s\n", path);
+    kprint("Loading program %s\n", path);
 
     Elf64_Ehdr ehdr;
     ssize nread = read(fd, &ehdr, sizeof(ehdr));
     if (nread < 0 || (usize)nread < sizeof(ehdr)) {
         close(fd);
-        printf("Loader: failed to read ehdr\n");
+        kprint("Loader: failed to read ehdr\n");
         return LOADPROG_ERR(nread);
     }
 
@@ -664,7 +664,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
         ehdr.e_ident[EI_CLASS]   != ELFCLASS64  ||
         ehdr.e_ident[EI_DATA]    != ELFDATA2LSB) {
             close(fd);
-            printf("Loader: invalid or unsupported file\n");
+            kprint("Loader: invalid or unsupported file\n");
             return LOADPROG_ERR(-EBADEXE);
     }
 
@@ -673,14 +673,14 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
         ehdr.e_machine != EM_X86_64 ||
         ehdr.e_version != EV_CURRENT) {
             close(fd);
-            printf("Loader: invalid or unsupported file\n");
+            kprint("Loader: invalid or unsupported file\n");
             return LOADPROG_ERR(-EBADEXE);
     }
 
     int ret = 0;
     if ((ret = lseek(fd, ehdr.e_phoff, SEEK_SET)) < 0) {
         close(fd);
-        printf("Loader: failed to get phdrs\n");
+        kprint("Loader: failed to get phdrs\n");
         return LOADPROG_ERR(ret);
     }
 
@@ -692,14 +692,14 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
         ssize nread = read(fd, &phdrs[i], sizeof(Elf64_Phdr));
         if (nread < 0 || (usize)nread != ehdr.e_phentsize) {
             close(fd);
-            printf("Loader: failed to read phdrs\n");
+            kprint("Loader: failed to read phdrs\n");
             return LOADPROG_ERR(nread);
         }
 
         u64 seg_vaddr = phdrs[i].p_vaddr;
         if ((seg_vaddr + phdrs[i].p_memsz) >= USER_END) {
             close(fd);
-            printf("Loader: program tried to load to invalid address\n");
+            kprint("Loader: program tried to load to invalid address\n");
             return LOADPROG_ERR(-ERANGE);
         }
 
@@ -737,7 +737,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
             }
 
             if (!streq(interp, "kernel")) {
-                printf("Aborting due to requested interpreter not kernel\n");
+                kprint("Aborting due to requested interpreter not kernel\n");
                 clrksegs(segs, nldsegs);
                 free(interp);
                 close(fd);
@@ -822,7 +822,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
 
     void* stkptr = vmm_map_pages(vmm_cpml4v(), rsp - USTACK, 0, USTACKPGS, MAP_ANYPHYS | PAGE_WRITE | MAP_CONT);
     if (!stkptr) {
-        printf("Loader: failed to allocate the user stack\n");
+        kprint("Loader: failed to allocate the user stack\n");
         return LOADPROG_ERR(-ENOMEM);
     }
 
@@ -877,7 +877,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
 
     u64 paddr = vmm_get_phys(vmm_cpml4v(), (u64)(rsp - USTACK));
     if (!vmm_map_pages(nasp, rsp - USTACK, paddr, USTACKPGS, MAP_CONT | PAGE_USER | PAGE_WRITE)) {
-        printf("Loader: failed to map stack\n");
+        kprint("Loader: failed to map stack\n");
         return LOADPROG_ERR(-ENOMEM);
     }
     vmm_unmap_pages(vmm_cpml4v(), (u64)(rsp - USTACK), USTACKPGS, UNMAP_KEEPPHYS);

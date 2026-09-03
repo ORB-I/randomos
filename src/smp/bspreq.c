@@ -37,7 +37,7 @@ void bsp_request_hdlr_c() {
         }
         case BSP_REQ_PANIC: {
             ipi_send(0, IPI_SHRTDST_ALLE, IPI_TRIGGER_EDGE, IPI_LEVEL_ASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_NMI, AP_STOPVEC);
-            panic("SMP %d Panicked", global_bspreq_buf.apicid);
+            panic("SMP %lu Panicked", global_bspreq_buf.apicid);
         }
     }
     atomic_store(&global_bspreq_buf.done, 1);

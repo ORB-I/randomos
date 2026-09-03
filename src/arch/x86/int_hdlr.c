@@ -1,7 +1,7 @@
 #include <core/debug.h>
 #include <core/panic.h>
 #include <core/std.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/mem/vmm.h>
 #include <core/idt.h>
 #include <drivers/display/term.h>
@@ -11,14 +11,14 @@
 #include <scheduler/scheduler.h>
 #include <lib/loader.h>
 
-extern __attribute__((aligned(16))) u8 kern_stack[65536];
+extern __align(16) u8 kern_stack[65536];
 
 struct CpuState {
     u64 r15, r14, r13, r12, r11, r10, r9, r8;
     u64 rbp, rdi, rsi, rdx, rcx, rbx, rax;
     u64 intr_no, error_code;
     u64 rip, cs, rflags, rsp, ss;
-} __attribute__((packed));
+} __packed;
 
 // kill the faulting user process and hand control back to the scheduler.
 // if no processes remain, fall through to the kernel panic path below.
@@ -31,15 +31,15 @@ static void kill_user_process(struct CpuState* regs, const char* msg, va_list ls
     va_copy(flst, lst);
     va_copy(slst, lst);
 
-    printf("user fault (pid %d): ", current_pid);
-    vprintf(msg, flst);
-    printf("\nRIP=%016lx  RBP=%016lx RSP=%016lx  CS=%04lx\n",
+    kprint("user fault (pid %d): ", current_pid);
+    kvprint(msg, flst);
+    kprint("\nRIP=%016lx  RBP=%016lx RSP=%016lx  CS=%04lx\n",
            regs->rip, regs->rbp, regs->rsp, regs->cs);
     va_end(flst);
 
-    serial_printf("user fault (pid %d): ", current_pid);
+    kprint("user fault (pid %d): ", current_pid);
     serial_vprintf(msg, slst);
-    serial_printf("\nRIP=%016lx  RBP=%016lx RSP=%016lx  CS=%04lx\n",
+    kprint("\nRIP=%016lx  RBP=%016lx RSP=%016lx  CS=%04lx\n",
                   regs->rip, regs->rbp, regs->rsp, regs->cs);
     va_end(slst);
 
@@ -73,8 +73,8 @@ void backtrace(u64 rbp) {
         rbp = fp[0];
         struct kern_symbol* sym = locate_symbol(fp[1]);
         const char* syms = (sym) ? sym->name : "unknown";
-        printf("%d: %s (%p)\n", i, syms, fp[1]);
-        serial_printf("%d: %s (%p)\n", i, syms, fp[1]);
+        kprint("%zu: %s (%lu)\n", i, syms, fp[1]);
+        kprint("%zu: %s (%lu)\n", i, syms, fp[1]);
         if (!rbp) break;
     }
 }
@@ -94,29 +94,29 @@ void except_panic(struct CpuState* regs, const char* msg, ...) {
         return;
     }
 
-    printf("*** KERNEL EXCEPTION ***\n");
-    vprintf(msg, lst);
-    printf("\n\n");
+    kprint("*** KERNEL EXCEPTION ***\n");
+    kvprint(msg, lst);
+    kprint("\n\n");
 
-    printf("RAX: %016lx  RBX: %016lx  RCX: %016lx  RDX: %016lx\n", regs->rax, regs->rbx, regs->rcx, regs->rdx);
-    printf("RSI: %016lx  RDI: %016lx  RBP: %016lx  RSP: %016lx\n", regs->rsi, regs->rdi, regs->rbp, regs->rsp);
-    printf("RIP: %016lx  RFLAGS: %016lx\n", regs->rip, regs->rflags);
-    printf("ERR: %016lx  INTR: %016lx\n", regs->error_code, regs->intr_no);
-    printf("CS:  %016lx  SS: %016lx\n\n", regs->cs, regs->ss);
+    kprint("RAX: %016lx  RBX: %016lx  RCX: %016lx  RDX: %016lx\n", regs->rax, regs->rbx, regs->rcx, regs->rdx);
+    kprint("RSI: %016lx  RDI: %016lx  RBP: %016lx  RSP: %016lx\n", regs->rsi, regs->rdi, regs->rbp, regs->rsp);
+    kprint("RIP: %016lx  RFLAGS: %016lx\n", regs->rip, regs->rflags);
+    kprint("ERR: %016lx  INTR: %016lx\n", regs->error_code, regs->intr_no);
+    kprint("CS:  %016lx  SS: %016lx\n\n", regs->cs, regs->ss);
 
     serial_puts("*** KERNEL EXCEPTION ***\n");
     serial_vprintf(msg, slst);
     serial_puts("\n\n");
 
-    serial_printf("RAX: %016lx  RBX: %016lx  RCX: %016lx  RDX: %016lx\n", regs->rax, regs->rbx, regs->rcx, regs->rdx);
-    serial_printf("RSI: %016lx  RDI: %016lx  RBP: %016lx  RSP: %016lx\n", regs->rsi, regs->rdi, regs->rbp, regs->rsp);
-    serial_printf("RIP: %016lx  RFLAGS: %016lx\n", regs->rip, regs->rflags);
-    serial_printf("ERR: %016lx  INTR: %016lx\n", regs->error_code, regs->intr_no);
-    serial_printf("CS:  %016lx  SS: %016lx\n", regs->cs, regs->ss);
+    kprint("RAX: %016lx  RBX: %016lx  RCX: %016lx  RDX: %016lx\n", regs->rax, regs->rbx, regs->rcx, regs->rdx);
+    kprint("RSI: %016lx  RDI: %016lx  RBP: %016lx  RSP: %016lx\n", regs->rsi, regs->rdi, regs->rbp, regs->rsp);
+    kprint("RIP: %016lx  RFLAGS: %016lx\n", regs->rip, regs->rflags);
+    kprint("ERR: %016lx  INTR: %016lx\n", regs->error_code, regs->intr_no);
+    kprint("CS:  %016lx  SS: %016lx\n", regs->cs, regs->ss);
     backtrace(regs->rbp);
 
     serial_puts("\n*** HALTING NOW ***\n");
-    printf("\n*** HALTING NOW ***\n");
+    kprint("\n*** HALTING NOW ***\n");
 
     va_end(lst);
     va_end(slst);
@@ -130,10 +130,10 @@ void c_int_hdlr(struct CpuState* regs) {
     switch (regs->intr_no) {
         case 0:  except_panic(regs, "Division Error (at %s)", syms); break;
         case 1:
-            serial_printf("#DB: debug exception\n");
+            kprint("#DB: debug exception\n");
             uint64_t dr6;
             asm volatile("mov %%dr6, %0" : "=r"(dr6));
-            serial_printf("DR6 = %016llx\n", dr6);
+            kprint("DR6 = %016lx\n", dr6);
             asm volatile("mov %0, %%dr6" :: "r"(0ULL));
             return;
 

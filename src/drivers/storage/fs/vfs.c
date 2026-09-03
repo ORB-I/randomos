@@ -1,4 +1,5 @@
 #include <core/std.h>
+#include <core/kprint.h>
 #include <core/printf.h>
 #include <core/errno.h>
 #include <lib/string.h>
@@ -479,7 +480,7 @@ vfs_t* vfs_getmnt(const char* path) {
         mntlen = len;
     }
 
-    serial_printf("Resolved %s to mount %s (id %d)\n", path, (mnt) ? mnt->path : "none", (mnt) ? mnt->mntno : 0);
+    kprint("Resolved %s to mount %s (id %zu)\n", path, (mnt) ? mnt->path : "none", (mnt) ? mnt->mntno : 0);
     return mnt;
 }
 
@@ -681,7 +682,7 @@ int mount(const char* dev, const char* path, const char* type) {
         return ret;
     }
 
-    serial_printf("Mounted device %s at %s (type %s mountid %d)\n", (fs->flags & FSFLAG_NOBLK) ? "ram" : dev, path, type, mntid);
+    kprint("Mounted device %s at %s (type %s mountid %zu)\n", (fs->flags & FSFLAG_NOBLK) ? "ram" : dev, path, type, mntid);
 
     return 0;
 }
@@ -719,7 +720,7 @@ int mknod(const char* path, u32 dev, int mode) {
     ssize ino = 0;
     if ((ino = mnt->ops->mknod(mnt, mode, proctbl[current_pid].euid, proctbl[current_pid].egid, dev)) < 0) return ino;
 
-    serial_printf("Linking inode %d to directory %d\n", ino, dino);
+    kprint("Linking inode %zu to directory %zu\n", ino, dino);
     if ((ret = mnt->ops->mklink(mnt, ino, mode, dino, base)) < 0) {
         return ret;
     }
@@ -919,12 +920,12 @@ int readdir(int dd, struct stat* st) {
 
     struct fdinfo* fdinfo;
     if ((ret = getfd(dd, &fdinfo)) < 0) {
-        serial_printf("(1) readddir returning %d\n", ret);
+        kprint("(1) readddir returning %d\n", ret);
         return ret;
     }
 
     if (fdinfo->type != FDTYPE_DIR) {
-        serial_printf("(2) readddir returning %d\n", -ENOTDIR);
+        kprint("(2) readddir returning %d\n", -ENOTDIR);
         return -ENOTDIR;
     }
     struct file* ent = &fdinfo->data.dir;

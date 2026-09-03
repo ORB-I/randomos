@@ -50,7 +50,7 @@ typedef struct {
     u32 s_rev_level;
     u16 s_def_resuid;
     u16 s_def_resgid;
-} __attribute__((packed)) ext2_sb_t;
+} __packed ext2_sb_t;
 
 typedef struct {
     ext2_sb_t sb;
@@ -64,7 +64,7 @@ typedef struct {
     char s_volume_name[16];
     char s_last_mounted[64];
     u32 s_algo_bitmap;
-} __attribute__((packed)) ext2_dynrev_sb_t;
+} __packed ext2_dynrev_sb_t;
 
 typedef struct {
     u32 bg_block_bitmap;
@@ -75,7 +75,7 @@ typedef struct {
     u16 bg_used_dirs_count;
     u16 bg_pad;
     char bg_reserved[12];
-} __attribute__((packed)) ext2_bg_t;
+} __packed ext2_bg_t;
 
 #define EXT2_FT_UNKNOWN  0
 #define EXT2_FT_REG_FILE 1
@@ -93,7 +93,7 @@ typedef struct {
     u16 rec_len;
     u16 name_len;
     char name[255];
-} __attribute__((packed)) ext2_dir0_t;
+} __packed ext2_dir0_t;
 
 typedef struct {
     u32 inode;
@@ -101,7 +101,7 @@ typedef struct {
     u8 name_len;
     u8 file_type;
     char name[255];
-} __attribute__((packed)) ext2_dir1_t;
+} __packed ext2_dir1_t;
 
 #define EXT2_BAD_INO         1
 #define EXT2_ROOT_INO        2
@@ -168,7 +168,7 @@ typedef struct {
     u32 i_dir_acl;
     u32 i_faddr;
     char i_osd2[12];
-} __attribute__((packed)) ext2_ino_t;
+} __packed ext2_ino_t;
 
 struct ext2_entry {
     ext2_ino_t inod;

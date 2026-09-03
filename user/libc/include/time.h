@@ -1,10 +1,10 @@
 #pragma once
 #include <sys/types.h>
 
-struct millitime {
+struct __attribute__((packed)) millitime {
     u64 epoch;
     u64 ms;
-} __attribute__((packed));
+};
 
 typedef struct {
     u64 epoch; // unix epoch

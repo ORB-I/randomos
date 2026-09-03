@@ -3,7 +3,7 @@
 #include <core/panic.h>
 #include <core/std.h>
 #include <core/limreqs.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 
 #include <lib/string.h>
 
@@ -70,7 +70,7 @@ void init_acpi(core_acpi_t* acpi) {
     acpi->rsdp = xlate_limptr(rsdp_req.response->address);
     if (!acpi->rsdp) panic("CANNOT LOCATE VALID RSDP");
 
-    printf("ACPI: Loading LAI AML interpreter (RSDP Rev: %d)\n", acpi->rsdp->rev);
+    kprint("ACPI: Loading LAI AML interpreter (RSDP Rev: %d)\n", acpi->rsdp->rev);
 
     if (acpi->rsdp->rev >= 2 && acpi->rsdp->xsdt_addr != 0) {
         acpi->xsdt = (xsdt_t*)(acpi->rsdp->xsdt_addr + HHDM_START);
@@ -85,7 +85,7 @@ void init_acpi(core_acpi_t* acpi) {
 
         acpi->rsdt = (rsdt_t*)((u64)acpi->rsdp->rsdt_addr + HHDM_START);
         if (!strneq(acpi->rsdt->hdr.sig, "RSDT", 4)) {
-            panic("RSDT SIGNATURE INVALID: Got %04s", acpi->rsdt->hdr.sig);
+            panic("RSDT SIGNATURE INVALID: Got %4s", acpi->rsdt->hdr.sig);
         }
 
         acpi->fadt = find_acpitbl_32(acpi->rsdt, "FACP");

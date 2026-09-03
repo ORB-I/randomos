@@ -1,7 +1,7 @@
 #include <core/std.h>
 #include <core/asmh.h>
 #include <core/errno.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/mem/pmm.h>
 #include <core/mem/vmm.h>
 #include <lib/string.h>
@@ -23,7 +23,7 @@ int virtio_rng_init() {
         return -ENOEXIST;
     }
 
-    serial_printf("virtio-rng: Found entropy device at %02x:%02x.%d (iobase=0x%x)\n",
+    kprint("virtio-rng: Found entropy device at %02x:%02x.%d (iobase=0x%x)\n",
                   rng_dev.bus, rng_dev.slot, rng_dev.fn, rng_dev.iobase);
 
     /* Reset device */
@@ -38,7 +38,7 @@ int virtio_rng_init() {
 
     /* Initialize VirtQueue 0 */
     if (virtqueue_init(&rng_dev, 0, &rng_vq) < 0) {
-        serial_printf("virtio-rng: Failed to initialize virtqueue\n");
+        kprint("virtio-rng: Failed to initialize virtqueue\n");
         virtio_set_status(&rng_dev, VIRTIO_STATUS_FAILED);
         return -EDISK;
     }
@@ -46,7 +46,7 @@ int virtio_rng_init() {
     /* Allocate DMA buffer page */
     rng_dma_phys = (u64)pmm_falloc(1);
     if (!rng_dma_phys) {
-        serial_printf("virtio-rng: Failed to allocate DMA page\n");
+        kprint("virtio-rng: Failed to allocate DMA page\n");
         virtio_set_status(&rng_dev, VIRTIO_STATUS_FAILED);
         return -ENOMEM;
     }
@@ -57,7 +57,7 @@ int virtio_rng_init() {
     virtio_add_status(&rng_dev, VIRTIO_STATUS_DRIVER_OK);
 
     rng_initialized = true;
-    serial_printf("virtio-rng: Entropy source active\n");
+    kprint("virtio-rng: Entropy source active\n");
     return 0;
 }
 
@@ -93,7 +93,7 @@ usize virtio_rng_read(u8* buf, usize len) {
         u32 out_len = 0;
         int res = virtqueue_poll_used(&rng_vq, &out_len, 1000000);
 
-        serial_printf(
+        kprint(
             "RNG completion: res=%d len=%u used=%u last=%u\n",
             res,
             out_len,
@@ -101,7 +101,7 @@ usize virtio_rng_read(u8* buf, usize len) {
             rng_vq.last_used_idx
         );
 
-        serial_printf(
+        kprint(
             "RNG DMA after: %02x %02x %02x %02x %02x %02x %02x %02x\n",
             rng_dma_virt[0],
             rng_dma_virt[1],

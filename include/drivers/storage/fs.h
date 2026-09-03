@@ -16,7 +16,7 @@ int fs_probe_mount(void); /* detect what's on the drive and mount it */
 
 typedef s64 off_t;
 
-struct stat {
+struct __packed stat {
     char st_name[1024];
     u16 st_uid;
     u32 st_atime;
@@ -26,7 +26,7 @@ struct stat {
     u16 st_mode;
     usize st_size;
     u64 st_ino;
-} __attribute__((packed));
+};
 
 int mount(const char* dev, const char* path, const char* type);
 int umount(const char* path);

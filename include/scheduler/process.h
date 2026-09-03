@@ -79,7 +79,7 @@ typedef struct {
   u64 fsb, gsb;
 
   u64 cr3;
-} __attribute__((packed)) procctx_t;
+} __packed procctx_t;
 
 extern process_state_t proctbl[MAX_PROCESSES];
 extern u8 current_pid;

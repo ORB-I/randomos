@@ -50,3 +50,4 @@ __pycache__/
 Thumbs.dbtesting
 
 testing/qemu.log
+qemu.log

@@ -19,7 +19,7 @@ typedef struct {
     u32 type;
     u32 reserved;
     u64 sector;
-} __attribute__((packed)) virtio_blk_req_hdr_t;
+} __packed virtio_blk_req_hdr_t;
 
 /* VirtIO Block Configuration in PCI space */
 typedef struct {
@@ -32,7 +32,7 @@ typedef struct {
         u8 sectors;
     } geometry;
     u32 blk_size;
-} __attribute__((packed)) virtio_blk_config_t;
+} __packed virtio_blk_config_t;
 
 typedef struct {
     virtio_dev_t vd;

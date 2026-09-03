@@ -2,7 +2,7 @@
 #include <core/panic.h>
 #include <core/liballoc.h>
 #include <core/asmh.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 
 #include <lib/string.h>
 
@@ -17,8 +17,13 @@ s32 vchksum(sdt_header_t* hdr);
 core_acpi_t* __lai_core_acpi__;
 void set_lai_acpi(core_acpi_t* acpi) { __lai_core_acpi__ = acpi; }
 
-void laihost_log(int _, const char* msg) { (void)_; printf("ACPI: %s\n", msg); }
-__attribute__((noreturn)) void laihost_panic(const char* msg) { panic(msg); }
+void laihost_log(int _, const char* msg) { (void)_; kprint("ACPI: %s\n", msg); }
+__noreturn void laihost_panic(const char* msg) { 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-security"
+    panic(msg); 
+#pragma GCC diagnostic pop
+}
 
 void* laihost_malloc(size_t sz) { return malloc(sz); }
 void* laihost_realloc(void* ptr, size_t newsize, size_t _) { (void)_; return realloc(ptr, newsize); }

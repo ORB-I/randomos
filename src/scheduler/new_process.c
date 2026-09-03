@@ -1,6 +1,6 @@
 #include <lib/loader.h>
 #include <scheduler/process.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/fd.h>
 #include <core/liballoc.h>
 #include <lib/string.h>
@@ -32,12 +32,12 @@ ssize copy_fds(u8 dst, u8 src) {
 }
 
 int kexecve(const char* path, char** argv, char** envp, u8 cpid) {
-    serial_printf("New process %s requested\n", path);
+    kprint("New process %s requested\n", path);
     process_state_t* proc = &proctbl[cpid];
 
     loadprog_res_t res = load_program(path, argv, envp);
     if (res.status < 0) {
-        serial_printf("failed to load program with code %d\n", res.status);
+        kprint("failed to load program with code %d\n", res.status);
         return res.status;
     }
 
@@ -87,7 +87,7 @@ int kexecve(const char* path, char** argv, char** envp, u8 cpid) {
     }
     
     vmm_setumapbase(proc->pid, res.load_high);
-    serial_printf("New process %s created\n", path);
+    kprint("New process %s created\n", path);
     return 0;
 }
 
@@ -121,21 +121,21 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
 
     loadprog_res_t res = load_program(path, argv, envp);
     if (res.status < 0) {
-        serial_printf("failed to load program with code %d\n", res.status);
+        kprint("failed to load program with code %d\n", res.status);
         return res.status;
     }
 
     struct stat st;
     int ret = 0;
     if ((ret = stat(path, &st)) < 0) {
-        serial_printf("stat failed %d\n", ret);
+        kprint("stat failed %d\n", ret);
         return ret;
     }
 
     if (pid == 0) {
         struct fdinfo* new_fds = malloc(sizeof(struct fdinfo) * 4);
         if (!new_fds) {
-            serial_printf("no memory for fds\n");
+            kprint("no memory for fds\n");
             return -ENOMEM;
         }
 
@@ -176,7 +176,7 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
     } else {
         copy_fds(pid, ppid);
         proc->currfb = get_currfb();
-        proc->pwd = strcpy(proctbl[proc->ppid].pwd);
+        proc->pwd = strdup(proctbl[proc->ppid].pwd);
         if (!proc->pwd) return -ENOMEM;
     }
 
@@ -237,6 +237,6 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
 
     vmm_setumapbase(proc->pid, res.load_high);
 
-    serial_printf("created new process %s with PID %d\n", path, proc->pid);
+    kprint("created new process %s with PID %d\n", path, proc->pid);
     return proc->pid;
 }

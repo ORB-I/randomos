@@ -1,5 +1,5 @@
 #include <core/std.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <arch/idt.h>
 
 static idt_entry_t _idt[IDT_SIZE];
@@ -22,7 +22,7 @@ void idt_regintr(idt_entry_t* idt, u8 vector, void* isr, u8 flags, int ist) {
 extern void (*int_hdlr_table[])();
 
 void idt_init() {
-    printf("IO: Initializing IDT\n");
+    kprint("IO: Initializing IDT\n");
     s32 vectors[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19};
     s32 count = sizeof(vectors) / sizeof(vectors[0]);
 

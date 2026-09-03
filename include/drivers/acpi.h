@@ -11,7 +11,7 @@ typedef struct {
     u32 oem_rev;
     u32 creat_id;
     u32 creat_rev;
-} __attribute__((packed)) sdt_header_t;
+} __packed sdt_header_t;
 
 typedef struct {
     char sig[8];
@@ -24,17 +24,17 @@ typedef struct {
     u64 xsdt_addr;
     u8 ext_chksum;
     u8 reserved[3];
-} __attribute__((packed)) rsdp_t;
+} __packed rsdp_t;
 
 typedef struct {
     sdt_header_t hdr;
     uint64_t entries[];
-} __attribute__((packed)) xsdt_t;
+} __packed xsdt_t;
 
 typedef struct {
     sdt_header_t hdr;
     u32 entries[];
-} __attribute__((packed)) rsdt_t;
+} __packed rsdt_t;
 
 #define ADDRSPACE_SYS     0
 #define ADDRSPACE_IO      1
@@ -59,7 +59,7 @@ typedef struct {
   u8 bitoff;
   u8 accsz;
   uint64_t addr;
-} __attribute__((packed)) genaddr_t;
+} __packed genaddr_t;
 
 typedef struct {
     sdt_header_t hdr;
@@ -126,7 +126,7 @@ typedef struct {
     genaddr_t xpmtimer_block;
     genaddr_t xgpe0_block;
     genaddr_t xgpe1_block;
-} __attribute__((packed)) fadt_t;
+} __packed fadt_t;
 
 
 typedef struct {

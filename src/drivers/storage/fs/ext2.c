@@ -1,7 +1,7 @@
 #include <core/std.h>
 #include <core/lock.h>
 #include <core/liballoc.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/fd.h>
 #include <lib/string.h>
 #include <drivers/storage/fs.h>

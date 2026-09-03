@@ -1,3 +1,4 @@
 #pragma once
+#include <core/std.h>
 
-[[noreturn]] void panic(const char* msg, ...);
+__noreturn __no_protect void panic(const char* msg, ...) __printf(1, 2);

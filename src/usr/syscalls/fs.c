@@ -3,7 +3,7 @@
 #include <drivers/storage/fs.h>
 #include <lib/string.h>
 #include <core/liballoc.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <scheduler/process.h>
 #include "ssc.h"
 
@@ -65,7 +65,6 @@ DEFSYSCALL(sys_stat) {
 DEFSYSCALL(sys_readdir) {
     if (!ensure_pointer((void*)args->a1, sizeof(struct stat), 1)) return -EINVAL;
     u64 r = readdir((int)args->a0, (struct stat*)args->a1);
-    serial_printf("returning %d\n", r);
     return r;
 }
 
@@ -103,10 +102,8 @@ DEFSYSCALL(sys_getpwd) {
 
 #define PWD_PATH_MAX 1024
 
-#include <drivers/display/serial.h>
 DEFSYSCALL(sys_setpwd) {
     if (!ensure_string((char*)args->a0, 256, 0)) {
-        serial_printf("invalid string\n");
         return -EINVAL;
     }
 
@@ -118,7 +115,6 @@ DEFSYSCALL(sys_setpwd) {
     usize len = strlen(newpath) + 1;
     void* newpwd = malloc(len);
     if (!newpwd) {
-        serial_printf("malloc failed\n");
         return -ENOMEM;
     }
     memcpy(newpwd, newpath, len);

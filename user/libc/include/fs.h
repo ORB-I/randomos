@@ -37,7 +37,7 @@
 
 typedef s64 off_t;
 
-struct stat {
+struct __attribute__((packed)) stat {
     char st_name[1024];
     u16 st_uid;
     u32 st_atime;
@@ -47,7 +47,7 @@ struct stat {
     u16 st_mode;
     usize st_size;
     u64 st_ino;
-} __attribute__((packed));
+};
 
 int creat(char* path, int mode);
 int unlink(char* path);

@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include <core/std.h>
 #include <drivers/display/serial.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <arch/gdt.h>
 #include <arch/idt.h>
 #include <smp/smp.h>
@@ -58,7 +58,7 @@ void smp_main(u64 apic_id) {
     ssize i = smp_find_core((u8)apic_id);
     if (i < 0) {
         // a core the madt never told us about has no stack or gdt to go back to
-        serial_printf("SMP: apicid %lld is not ours, halting\n", apic_id);
+        kprint("SMP: apicid %lu is not ours, halting\n", apic_id);
         for (;;) asm volatile("cli\n\thlt");
     }
 
@@ -126,13 +126,13 @@ static void clear_ctx(ssize i) {
    has to happen here or the vector stays in-service and every later
    request on it gets swallowed */
 void smp_request_hdlr_c(intctx_t* ctx) {
-    serial_printf("AP received request\n");
+    kprint("AP received request\n");
     lapic_eoi();
 
     u8 apicid = get_apicid();
     ssize i = smp_find_core(apicid);
     if (i < 0) {
-        serial_printf("SMP: request for untracked apicid %d\n", apicid);
+        kprint("SMP: request for untracked apicid %d\n", apicid);
         return;
     }
     ap_req_t* req = &apreqvec[i];
@@ -140,11 +140,11 @@ void smp_request_hdlr_c(intctx_t* ctx) {
 
     switch (req->type) {
         case AP_REQ_RUN: {
-            serial_printf("AP %d received RUN request\n", apicid);
+            kprint("AP %d received RUN request\n", apicid);
             // only safe to launch out of the idle loop, yanking a paused
             // or running core would orphan whatever frame it was wearing
             if (apstates[i].state != AP_WAITING) {
-                serial_printf("AP %d will not RUN\n", apicid);
+                kprint("AP %d will not RUN\n", apicid);
                 atomic_store(&req->done, 1); // ack anyway or the bsp spins forever
                 smp_contloop(i);
             }
@@ -157,7 +157,7 @@ void smp_request_hdlr_c(intctx_t* ctx) {
             smp_contloop(i);
         }
         case AP_REQ_PAUSE: {
-            serial_printf("AP %d received PAUSE request\n", apicid);
+            kprint("AP %d received PAUSE request\n", apicid);
             lock_acquire(&apstates[i].lock, &rflags);
             apstates[i].state = AP_PAUSED;
             store_ctx(ctx, i);
@@ -166,7 +166,7 @@ void smp_request_hdlr_c(intctx_t* ctx) {
             smp_contloop(i);
         }
         case AP_REQ_CONT: {
-            serial_printf("AP %d received CONT request\n", apicid);
+            kprint("AP %d received CONT request\n", apicid);
             lock_acquire(&apstates[i].lock, &rflags);
             apstates[i].state = AP_RUNNING;
             lock_release(&apstates[i].lock, &rflags);
@@ -174,7 +174,7 @@ void smp_request_hdlr_c(intctx_t* ctx) {
             break;
         }
         case AP_REQ_STOP: {
-            serial_printf("AP %d received STOP request\n", apicid);
+            kprint("AP %d received STOP request\n", apicid);
             lock_acquire(&apstates[i].lock, &rflags);
             apstates[i].state = AP_WAITING;
             lock_release(&apstates[i].lock, &rflags);
@@ -267,7 +267,7 @@ void smp_mainloop(ssize i) {
                 __builtin_unreachable();
             }
             case AP_START: {
-                serial_printf("AP %d START\n", get_apicid());
+                kprint("AP %d START\n", get_apicid());
                 asm("cli");
 
                 void(*fn)(void*) = apstates[i].rreq.fn;

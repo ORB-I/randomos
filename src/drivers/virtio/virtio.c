@@ -1,7 +1,7 @@
 #include <core/errno.h>
 #include <core/std.h>
 #include <core/asmh.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <drivers/pci.h>
 #include <drivers/virtio/virtio.h>
 

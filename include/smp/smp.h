@@ -31,7 +31,7 @@ typedef struct {
 typedef struct {
     u64 apicid;
     u8 stack[16384];
-} __attribute__((packed)) smp_stack_t;
+} __packed smp_stack_t;
 
 extern u64 bsp_apicid;
 extern smp_info_t* smp_info;

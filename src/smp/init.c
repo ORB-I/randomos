@@ -5,7 +5,7 @@
 #include <core/panic.h>
 #include <drivers/time/clock.h>
 #include <core/liballoc.h>
-#include <core/printf.h>
+#include <core/kprint.h>
 #include <core/idt.h>
 #include <smp/ipi.h>
 #include <smp/smp.h>
@@ -135,7 +135,7 @@ void init_smpreqs() {
         tidt->idtr.limit = sizeof(tidt->idt) - 1;
         tidt->idtr.base = (u64)&tidt->idt;
 
-        apreqvec[i] = (ap_req_t){{0,0},0,smp_info[i].apicid,0,NULL,0};
+        apreqvec[i] = (ap_req_t){{0},0,smp_info[i].apicid,0,NULL,0};
     }
 }
 
@@ -203,7 +203,7 @@ int init_cores() {
     for (usize i = 0; i < numcores; i++) {
         u32 apicid = smp_info[i].apicid;
         if (apicid == bsp_lapic_id) continue;
-        serial_printf("Starting SMP %d\n", apicid);
+        kprint("Starting SMP %d\n", apicid);
         ipi_send(apicid, IPI_SHRTDST_NONE, IPI_TRIGGER_LVL, IPI_LEVEL_ASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_INIT, 0);
         sleepms(10);
         ipi_send(apicid, IPI_SHRTDST_NONE, IPI_TRIGGER_LVL, IPI_LEVEL_DEASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_INIT, 0);
@@ -223,7 +223,7 @@ int smp_getactive() {
     int n = 0;
     for (usize i = 0; i < ncores; i++) {
         if (smp_info[i].acpi_ent->flags & 1) {
-            serial_printf("CPU%d active\n", i);
+            kprint("CPU%zu active\n", i);
             n++;
         }
     }
