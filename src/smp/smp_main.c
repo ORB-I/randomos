@@ -10,6 +10,7 @@
 #include <smp/ipi.h>
 #include <lib/string.h>
 #include <core/errno.h>
+#include <scheduler/process.h>
 
 extern usize ncores;
 extern thread_idt_t* tidts;
@@ -198,6 +199,27 @@ static void smp_main_finish(ssize i) {
     smp_mainloop(i);
 }
 
+static int nextproc_core(ssize i) {
+    int pid = -1;
+    spinlock_acquire(&proctbl_lock);
+    u8 current = smp_info[i].current_pid;
+    int start = current == 0xFF ? -1 : (int)current;
+
+    for (int step = 0; step < MAX_PROCESSES; step++) {
+        int cand = (start + 1 + step) % MAX_PROCESSES;
+        if (start >= 0 && cand == start) break;
+
+        process_state_t* proc = &proctbl[cand];
+        if (proc->used && !proc->is_dead && !proc->is_blocked) {
+            pid = cand;
+            break;
+        }
+    }
+
+    spinlock_release(&proctbl_lock);
+    return pid;
+}
+
 void smp_mainloop(ssize i) {
     u64 apic_id = get_apicid();
     for (;;) {
@@ -210,6 +232,72 @@ void smp_mainloop(ssize i) {
                 break;
             }
             case AP_RUNNING: {
+                int pid = nextproc_core(i);
+                if (pid < 0) {
+                    lock_release(&apstates[i].lock, &rflags);
+                    asm volatile(
+                        "sti\n\t"
+                        "hlt\n\t"
+                        "cli\n\t"
+                    );
+                    continue;
+                }
+                if (pid >= 0) {
+                    u8 prev = smp_info[i].current_pid;
+                    process_state_t* proc = NULL;
+                    spinlock_acquire(&proctbl_lock);
+                    proc = &proctbl[pid];
+                    smp_info[i].current_pid = (u8)pid;
+
+                    if (prev != 0xFF && prev < MAX_PROCESSES) {
+                        process_state_t* prevproc = &proctbl[prev];
+                        prevproc->r15 = apstates[i].r15;
+                        prevproc->r14 = apstates[i].r14;
+                        prevproc->r13 = apstates[i].r13;
+                        prevproc->r12 = apstates[i].r12;
+                        prevproc->r11 = apstates[i].r11;
+                        prevproc->r10 = apstates[i].r10;
+                        prevproc->r9  = apstates[i].r9;
+                        prevproc->r8  = apstates[i].r8;
+                        prevproc->rbp = apstates[i].rbp;
+                        prevproc->rdi = apstates[i].rdi;
+                        prevproc->rsi = apstates[i].rsi;
+                        prevproc->rdx = apstates[i].rdx;
+                        prevproc->rcx = apstates[i].rcx;
+                        prevproc->rbx = apstates[i].rbx;
+                        prevproc->rax = apstates[i].rax;
+                        prevproc->rip = apstates[i].rip;
+                        prevproc->cs  = apstates[i].cs;
+                        prevproc->rflags = apstates[i].rflags;
+                        prevproc->rsp = apstates[i].rsp;
+                        prevproc->ss  = apstates[i].ss;
+                        prevproc->cr3 = apstates[i].cr3;
+                    }
+
+                    apstates[i].r15 = proc->r15;
+                    apstates[i].r14 = proc->r14;
+                    apstates[i].r13 = proc->r13;
+                    apstates[i].r12 = proc->r12;
+                    apstates[i].r11 = proc->r11;
+                    apstates[i].r10 = proc->r10;
+                    apstates[i].r9  = proc->r9;
+                    apstates[i].r8  = proc->r8;
+                    apstates[i].rbp = proc->rbp;
+                    apstates[i].rdi = proc->rdi;
+                    apstates[i].rsi = proc->rsi;
+                    apstates[i].rdx = proc->rdx;
+                    apstates[i].rcx = proc->rcx;
+                    apstates[i].rbx = proc->rbx;
+                    apstates[i].rax = proc->rax;
+                    apstates[i].rip = proc->rip;
+                    apstates[i].cs  = proc->cs;
+                    apstates[i].rflags = proc->rflags;
+                    apstates[i].rsp = proc->rsp;
+                    apstates[i].ss  = proc->ss;
+                    apstates[i].cr3 = proc->cr3;
+                    spinlock_release(&proctbl_lock);
+                }
+
                 // we need to copy the current state before we release the lock
                 // since an interrupt could fire mid-switch and change the state
                 // causing a broken state, and we cant keep the lock acquired until
@@ -233,6 +321,8 @@ void smp_mainloop(ssize i) {
                     "mov %c12(%%r15), %%r12\n\t"
                     "mov %c13(%%r15), %%r13\n\t"
                     "mov %c14(%%r15), %%r14\n\t"
+                    "mov %c21(%%r15), %%rax\n\t"
+                    "mov %%rax, %%cr3\n\t"
 
                     "pushq %c19(%%r15)\n\t" // ss
                     "pushq %c18(%%r15)\n\t" // rsp
@@ -262,7 +352,8 @@ void smp_mainloop(ssize i) {
                        "i"(offsetof(ap_state, rflags)),
                        "i"(offsetof(ap_state, rsp)),
                        "i"(offsetof(ap_state, ss)),
-                       "i"(offsetof(ap_state, r15))
+                       "i"(offsetof(ap_state, r15)),
+                       "i"(offsetof(ap_state, cr3))
                     : "memory");
                 __builtin_unreachable();
             }

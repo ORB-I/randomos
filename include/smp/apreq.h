@@ -53,6 +53,7 @@ typedef struct {
     u64 rflags;
     u64 rsp;
     u64 ss;
+    u64 cr3;
 } __packed ap_state;
 
 extern ap_state* apstates;

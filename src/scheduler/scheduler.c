@@ -23,6 +23,7 @@ void hpet_pause_preemptive(preemptive_timer_t* timer);
 int hpet_active();
 
 preemptive_timer_t _schdlr_timer;
+spinlock_t proctbl_lock = SPINLOCK_INIT;
 u8 current_pid = 0;
 
 extern void preempt_hdlr();
@@ -61,9 +62,11 @@ void ctx2proc(process_state_t* dst, procctx_t* src) {
 
 [[noreturn]] void switch_ctx(procctx_t* ctx);
 [[noreturn]] void start_scheduler() {
+    spinlock_acquire(&proctbl_lock);
     process_state_t* proc = &proctbl[current_pid];
     procctx_t ctx;
     proc2ctx(&ctx, proc);
+    spinlock_release(&proctbl_lock);
     //kprint("Switching to %d\n", current_pid);
 
     hpet_start_preemptive(&_schdlr_timer);
@@ -77,8 +80,10 @@ void ctx2proc(process_state_t* dst, procctx_t* src) {
 // next runnable process after current_pid (dead and blocked ones dont
 // count), or -1 when there is nobody left to run
 int nextproc() {
+    int pid = -1;
+    spinlock_acquire(&proctbl_lock);
     int start = (int)current_pid;
-    int pid = start;
+    pid = start;
     do {
         pid = (pid + 1) % MAX_PROCESSES;
         if (proctbl[pid].used && !proctbl[pid].is_dead) {
@@ -87,13 +92,16 @@ int nextproc() {
                 if (proctbl[pid].wake_ms != 0 && getms && getms() >= proctbl[pid].wake_ms) {
                     proctbl[pid].is_blocked = 0;
                     proctbl[pid].wake_ms = 0;
+                    spinlock_release(&proctbl_lock);
                     return pid;
                 }
             } else {
+                spinlock_release(&proctbl_lock);
                 return pid;
             }
         }
     } while (pid != start);
+    spinlock_release(&proctbl_lock);
     return -ENOPROC;
 }
 
@@ -116,10 +124,12 @@ void scheduler_switch(procctx_t* proc) {
         tgtpid = nextproc();
     }
 
+    spinlock_acquire(&proctbl_lock);
     if (tgtpid == (int)current_pid && !proctbl[current_pid].is_dead) {
         if (scheduler_execve) {
             scheduler_execve = 0;
         } else {
+            spinlock_release(&proctbl_lock);
             return;
         }
     }
@@ -129,6 +139,7 @@ void scheduler_switch(procctx_t* proc) {
 
     ctx2proc(currproc, proc);
     current_pid = (u8)tgtpid;
+    spinlock_release(&proctbl_lock);
 
     reset_kgsb();
     procctx_t ctx;

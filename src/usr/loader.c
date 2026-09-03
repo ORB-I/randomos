@@ -235,19 +235,25 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
         return LOADLIB_ERR(ret);
     }
 
-    Elf64_Phdr phdrs[ehdr.e_phnum];
+    Elf64_Phdr* phdrs = malloc(sizeof(*phdrs) * ehdr.e_phnum);
+    if (!phdrs) {
+        close(fd);
+        return LOADLIB_ERR(-ENOMEM);
+    }
     u64 load_high = USER_START;
     u64 load_low = USER_END;
     usize nloads = 0;
     for (int i = 0; i < ehdr.e_phnum; i++) {
         ssize nread = read(fd, &phdrs[i], sizeof(Elf64_Phdr));
         if (nread < 0 || (usize)nread != ehdr.e_phentsize) {
+            free(phdrs);
             close(fd);
             return LOADLIB_ERR(nread);
         }
 
         u64 seg_vaddr = base + phdrs[i].p_vaddr;
         if ((seg_vaddr + phdrs[i].p_memsz) >= USER_END) {
+            free(phdrs);
             close(fd);
             return LOADLIB_ERR(-ERANGE);
         }
@@ -257,7 +263,12 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
         if (phdrs[i].p_type == PT_LOAD) nloads++;
     }
 
-    segment_ld_t segs[nloads];
+    segment_ld_t* segs = malloc(sizeof(*segs) * nloads);
+    if (!segs) {
+        free(phdrs);
+        close(fd);
+        return LOADLIB_ERR(-ENOMEM);
+    }
     usize nldsegs = 0;
 
     for (int i = 0; i < ehdr.e_phnum; i++) {
@@ -265,6 +276,7 @@ loadlib_res_t load_library(const char* path, u64 base, page_table_t* nasp) {
             segment_ld_t seg = load_segment(&phdrs[i], fd, nasp, base);
             if (seg.code < 0) {
                 clrksegs(segs, nldsegs);
+                free(segs);
                 close(fd);
                 return LOADLIB_ERR(seg.code);
             }
@@ -532,9 +544,15 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
             free(dynstr);
             return ret;
         }
-        Elf64_Dyn dyns[ndyns];
+        Elf64_Dyn* dyns = malloc(sizeof(*dyns) * ndyns);
+        if (!dyns) {
+            free(dynsym);
+            free(dynstr);
+            return -ENOMEM;
+        }
         ssize nread = read(fd, dyns, dynshdr->sh_size);
         if (nread < 0 || (usize)nread != dynshdr->sh_size) {
+            free(dyns);
             free(dynsym);
             free(dynstr);
             return nread;
@@ -548,6 +566,7 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
 
                 loadlib_res_t res = load_library(dynstr + dyns[i].d_un.d_ptr, lib_base, nasp);
                 if (res.code < 0) {
+                        free(dyns);
                     free(dynsym);
                     free(dynstr);
                     return res.code;
@@ -557,6 +576,7 @@ int program_processdyn(int fd, u64 load_low, u64* load_high, Elf64_Ehdr* ehdr,
                 }
             }
         }
+        free(dyns);
     }
 
     dyninfo_t info = {
@@ -684,13 +704,18 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
         return LOADPROG_ERR(ret);
     }
 
-    Elf64_Phdr phdrs[ehdr.e_phnum];
+    Elf64_Phdr* phdrs = malloc(sizeof(*phdrs) * ehdr.e_phnum);
+    if (!phdrs) {
+        close(fd);
+        return LOADPROG_ERR(-ENOMEM);
+    }
     u64 load_high = USER_START;
     u64 load_low = USER_END;
     usize nloads = 0;
     for (int i = 0; i < ehdr.e_phnum; i++) {
         ssize nread = read(fd, &phdrs[i], sizeof(Elf64_Phdr));
         if (nread < 0 || (usize)nread != ehdr.e_phentsize) {
+            free(phdrs);
             close(fd);
             kprint("Loader: failed to read phdrs\n");
             return LOADPROG_ERR(nread);
@@ -698,6 +723,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
 
         u64 seg_vaddr = phdrs[i].p_vaddr;
         if ((seg_vaddr + phdrs[i].p_memsz) >= USER_END) {
+            free(phdrs);
             close(fd);
             kprint("Loader: program tried to load to invalid address\n");
             return LOADPROG_ERR(-ERANGE);
@@ -710,13 +736,20 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
 
     int is_dyn = 0;
     page_table_t* nasp = vmm_casp();
-    segment_ld_t segs[nloads];
+    segment_ld_t* segs = malloc(sizeof(*segs) * nloads);
+    if (!segs) {
+        free(phdrs);
+        close(fd);
+        return LOADPROG_ERR(-ENOMEM);
+    }
     usize nldsegs = 0;
     for (int i = 0; i < ehdr.e_phnum; i++) {
         if (phdrs[i].p_type == PT_LOAD) {
             segment_ld_t seg = load_segment(&phdrs[i], fd, nasp, 0x00);
             if (seg.code < 0) {
                 clrksegs(segs, nldsegs);
+                free(segs);
+                free(phdrs);
                 close(fd);
                 return LOADPROG_ERR(seg.code);
             }
@@ -749,6 +782,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
             is_dyn = 1;
         }
     }
+    free(phdrs);
 
     if ((ret = lseek(fd, ehdr.e_shoff, SEEK_SET)) < 0) {
         clrksegs(segs, nldsegs);
@@ -838,7 +872,10 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
         nenv++;
     }
 
-    u64 evaddrs[nenv + 1];
+    u64* evaddrs = malloc(sizeof(*evaddrs) * (nenv + 1));
+    if (!evaddrs) {
+        return LOADPROG_ERR(-ENOMEM);
+    }
     for (int i = nenv - 1; i >= 0; i--) {
         usize len = strlen(environ[i]) + 1;
         rsp_cpy -= (u64)len;
@@ -846,7 +883,11 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
         evaddrs[i] = rsp_cpy;
     }
 
-    u64 avaddrs[ARGMAX + 1] = {0};
+    u64* avaddrs = calloc(ARGMAX + 1, sizeof(*avaddrs));
+    if (!avaddrs) {
+        free(evaddrs);
+        return LOADPROG_ERR(-ENOMEM);
+    }
     for (int i = ac - 1; i >= 0; i--) {
         usize len = strlen(argv[i]) + 1;
         rsp_cpy -= (u64)len;
@@ -881,6 +922,10 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
         return LOADPROG_ERR(-ENOMEM);
     }
     vmm_unmap_pages(vmm_cpml4v(), (u64)(rsp - USTACK), USTACKPGS, UNMAP_KEEPPHYS);
+
+    free(avaddrs);
+    free(evaddrs);
+    free(segs);
 
     return (loadprog_res_t){
         .status = 0,

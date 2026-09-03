@@ -56,28 +56,59 @@ static u64 getisize(vfs_t* vfs, ext2_ino_t* inod) {
 #define BMP_GET 3
 static int modbmp(vfs_t* vfs, usize blkid, usize idx, int op) {
     ext2fs_t* fs = EXT2FS(vfs);
-    u8 bmp[fs->blocksz];
+    if (blkid >= fs->sb.sb.s_blocks_count) {
+        kprint("modbmp: block %zu >= blocks %u\n", blkid,
+               fs->sb.sb.s_blocks_count);
+        return -ERANGE;
+    }
+
+    u8* bmp = malloc(fs->blocksz);
+    if (!bmp) return -ENOMEM;
 
     int ret = 0;
-    if ((ret = rdblk(vfs, blkid, bmp)) < 0) return ret;
+    if ((ret = rdblk(vfs, blkid, bmp)) < 0) {
+        free(bmp);
+        return ret;
+    }
 
     if (op == BMP_SET) {
         bmp[idx / 8] |= (1 << (idx % 8));
     } else if (op == BMP_CLR) {
         bmp[idx / 8] &= ~(1 << (idx % 8));
     } else if (op == BMP_GET) {
-        return (bmp[idx / 8] & (1 << (idx % 8)));
+        ret = (bmp[idx / 8] & (1 << (idx % 8)));
+        free(bmp);
+        return ret;
     } else {
+        free(bmp);
         return -1;
     }
 
-    if ((ret = wrblk(vfs, blkid, bmp)) < 0) return ret;
+    if ((ret = wrblk(vfs, blkid, bmp)) < 0) {
+        free(bmp);
+        return ret;
+    }
+    free(bmp);
     return 0;
 }
 
 static int inodeused(vfs_t* vfs, u32 ino) {
     ext2fs_t* fs = EXT2FS(vfs);
-    int res = modbmp(vfs, fs->bgs[(ino - 1) / fs->sb.sb.s_inodes_per_group].bg_inode_bitmap, (ino - 1) % fs->sb.sb.s_inodes_per_group, BMP_GET);
+    u32 inobg = (ino - 1) / fs->sb.sb.s_inodes_per_group;
+    if (inobg >= fs->nbgs) {
+        kprint("inodeused: inobg %u >= nbgs %u\n", inobg, fs->nbgs);
+        return -ERANGE;
+    }
+
+    u32 bitmap = fs->bgs[inobg].bg_inode_bitmap;
+    if (bitmap >= fs->sb.sb.s_blocks_count) {
+        kprint("inodeused: bitmap %u >= blocks %u\n", bitmap,
+               fs->sb.sb.s_blocks_count);
+        return -ERANGE;
+    }
+
+    int res = modbmp(vfs, bitmap,
+                     (ino - 1) % fs->sb.sb.s_inodes_per_group, BMP_GET);
     if (res < 0) return res;
     else return res != 0;
 }
@@ -86,26 +117,48 @@ static int getino(vfs_t* vfs, u32 ino, ext2_ino_t* buf) {
     ext2fs_t* fs = EXT2FS(vfs);
     if (!buf || ino == 0) return -EINVAL;
 
+    u32 inobg = (ino - 1) / fs->sb.sb.s_inodes_per_group;
+    if (inobg >= fs->nbgs) {
+        kprint("getino: inobg %u >= nbgs %u\n", inobg, fs->nbgs);
+        return -ERANGE;
+    }
+
     int used = inodeused(vfs, ino);
     if (used < 0) return used;
     if (!used) return -ENOENT;
 
     usize inodsz = inosz(vfs);
 
-    u32 inobg = (ino - 1) / fs->sb.sb.s_inodes_per_group;
     ext2_bg_t* bg = &fs->bgs[inobg];
+
+    if (bg->bg_inode_table >= fs->sb.sb.s_blocks_count) {
+        kprint("getino: inode_table %u >= blocks %u\n",
+               bg->bg_inode_table, fs->sb.sb.s_blocks_count);
+        return -ERANGE;
+    }
 
     usize inoidx = (ino - 1) % fs->sb.sb.s_inodes_per_group;
 
     usize byteoff = inoidx * inodsz;
     usize inoblk = bg->bg_inode_table + (byteoff / fs->blocksz);
 
-    u8 blk[fs->blocksz];
+    if (inoblk >= fs->sb.sb.s_blocks_count) {
+        kprint("getino: inoblk %zu >= blocks %u\n",
+               inoblk, fs->sb.sb.s_blocks_count);
+        return -ERANGE;
+    }
+
+    u8* blk = malloc(fs->blocksz);
+    if (!blk) return -ENOMEM;
 
     int ret = 0;
-    if ((ret = rdblk(vfs, inoblk, blk)) < 0) return ret;
+    if ((ret = rdblk(vfs, inoblk, blk)) < 0) {
+        free(blk);
+        return ret;
+    }
 
     memcpy(buf, blk + (byteoff % fs->blocksz), sizeof(*buf));
+    free(blk);
     return 0;
 }
 
@@ -228,28 +281,33 @@ static ssize ino_getblkid(vfs_t* vfs, ext2_ino_t* inod, usize idx) {
     if (!inod) return -EINVAL;
 
     const u32 ppb = fs->ppb;
-    u32 indrs[3][fs->ppb];
+    u32 (*indrs)[fs->ppb] = malloc(3 * sizeof(*indrs));
+    if (!indrs) return -ENOMEM;
 
     int ret = 0;
     if (idx < 12) {
-        return inod->i_block[idx];
+        ret = inod->i_block[idx];
     } else if (idx < 12 + ppb) {
-        if ((ret = read_indr(vfs, inod->i_block[12], indrs[0])) < 0) return ret;
-        return indrs[0][idx-12];
+        if ((ret = read_indr(vfs, inod->i_block[12], indrs[0])) < 0) goto out;
+        ret = indrs[0][idx-12];
     } else if (idx < 12 + ppb + (ppb * ppb)) {
         u32 ridx = idx - 12 - ppb;
-        if ((ret = read_indr(vfs, inod->i_block[13], indrs[0])) < 0) return ret;
-        if ((ret = read_indr(vfs, indrs[0][ridx / ppb], indrs[1])) < 0) return ret;
-        return indrs[1][ridx % ppb];
+        if ((ret = read_indr(vfs, inod->i_block[13], indrs[0])) < 0) goto out;
+        if ((ret = read_indr(vfs, indrs[0][ridx / ppb], indrs[1])) < 0) goto out;
+        ret = indrs[1][ridx % ppb];
     } else {
         u32 ridx = idx - 12 - ppb - (ppb * ppb);
 
-        if ((ret = read_indr(vfs, inod->i_block[14], indrs[0])) < 0) return ret;
-        if ((ret = read_indr(vfs, indrs[0][ridx / (ppb * ppb)], indrs[1])) < 0) return ret;
-        if ((ret = read_indr(vfs, indrs[1][(ridx / ppb) % ppb], indrs[2])) < 0) return ret;
+        if ((ret = read_indr(vfs, inod->i_block[14], indrs[0])) < 0) goto out;
+        if ((ret = read_indr(vfs, indrs[0][ridx / (ppb * ppb)], indrs[1])) < 0) goto out;
+        if ((ret = read_indr(vfs, indrs[1][(ridx / ppb) % ppb], indrs[2])) < 0) goto out;
 
-        return indrs[2][ridx % ppb];
+        ret = indrs[2][ridx % ppb];
     }
+
+out:
+    free(indrs);
+    return ret;
 }
 
 static int membeq(void* ptr, u8 b, usize sz) {
@@ -637,12 +695,18 @@ static u8* getinodata(vfs_t* vfs, ext2_ino_t* inode, usize* outsz, int* status) 
                 goto err;
             }
         } else {
-            u8 tmp[fs->blocksz];
+            u8* tmp = malloc(fs->blocksz);
+            if (!tmp) {
+                *status = -ENOMEM;
+                goto err;
+            }
             if ((ret = rdblk(vfs, pblk, tmp)) < 0) {
                 *status = ret;
+                free(tmp);
                 goto err;
             }
             memcpy(dptr, tmp, b2cp);
+            free(tmp);
         }
     }
 
@@ -937,13 +1001,18 @@ ssize ext2fs_read(vfs_t* vfs, u32 ino, usize off, usize nb, void* buf) {
         ssize blkid = ino_getblkid(vfs, &inod, blk);
         if (blkid < 0) return nread;
 
-        u8 blkd[fs->blocksz];
-        if ((ret = rdblk(vfs, blkid, blkd)) < 0) return ret;
+        u8* blkd = malloc(fs->blocksz);
+        if (!blkd) return -ENOMEM;
+        if ((ret = rdblk(vfs, blkid, blkd)) < 0) {
+            free(blkd);
+            return ret;
+        }
 
         usize n = fs->blocksz - off;
         if (n > nb - nread) n = nb - nread;
         memcpy((u8*)buf + nread, blkd + off, n);
         nread += n;
+        free(blkd);
     }
     return nread;
 }
@@ -1203,7 +1272,7 @@ int ext2fs_mount(vfs_t* vfs) {
     }
 
     fs->blocksz = 1024 << sb->s_log_block_size;
-    fs->spb = 1024 / 512;
+    fs->spb = fs->blocksz / 512;
     fs->ppb = fs->blocksz / sizeof(u32);
     fs->gpb = fs->blocksz / sizeof(ext2_bg_t);
 
@@ -1219,12 +1288,22 @@ int ext2fs_mount(vfs_t* vfs) {
         return -ENOMEM;
     }
 
-    u8 rawdscblk[fs->blocksz];
+    u8* rawdscblk = malloc(fs->blocksz);
+    if (!rawdscblk) {
+        free(fs->bgs);
+        free(fs);
+        return -ENOMEM;
+    }
     u32 nbgsp = 0;
     ext2_bg_t* ptr = fs->bgs;
     u32 cblk = sb->s_first_data_block + 1;
     for (usize i = 0; i < fs->bgtbln; i++) {
-        if ((ret = rdblk(vfs, cblk, rawdscblk)) < 0) return ret;
+        if ((ret = rdblk(vfs, cblk, rawdscblk)) < 0) {
+            free(rawdscblk);
+            free(fs->bgs);
+            free(fs);
+            return ret;
+        }
 
         u8 dscib = fs->gpb;
         if (nbgsp + dscib > fs->nbgs) {
@@ -1236,6 +1315,7 @@ int ext2fs_mount(vfs_t* vfs) {
         nbgsp += dscib;
         cblk++;
     }
+    free(rawdscblk);
 
     vfs->root_ino = EXT2_ROOT_INO;
     if ((ret = ext2fs_mount_setops(vfs)) < 0) {
