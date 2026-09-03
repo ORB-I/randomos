@@ -119,7 +119,8 @@ int block_write(u64 id, const u8* buf, u32 lba, usize cnt) {
         return -EINVAL;
     }
 
-    lock_acquire(&dev.lock);
+    u64 rflags;
+    lock_acquire(&dev.lock, &rflags);
 
     int ret = 0;
     if (fn32) {
@@ -140,7 +141,7 @@ int block_write(u64 id, const u8* buf, u32 lba, usize cnt) {
         }
     }
 
-    lock_release(&dev.lock);
+    lock_release(&dev.lock, &rflags);
 
     return ret;
 }
@@ -164,7 +165,8 @@ int block_read(u64 id, u8* buf, u32 lba, usize cnt) {
         return -EINVAL;
     }
 
-    lock_acquire(&dev.lock);
+    u64 rflags;
+    lock_acquire(&dev.lock, &rflags);
 
     int ret = 0;
     if (fn32) {
@@ -185,7 +187,7 @@ int block_read(u64 id, u8* buf, u32 lba, usize cnt) {
         }
     }
 
-    lock_release(&dev.lock);
+    lock_release(&dev.lock, &rflags);
 
     return ret;
 }

@@ -129,7 +129,14 @@ void c_int_hdlr(struct CpuState* regs) {
     const char* syms = (sym) ? sym->name : "unknown";
     switch (regs->intr_no) {
         case 0:  except_panic(regs, "Division Error (at %s)", syms); break;
-        case 1:  except_panic(regs, "Debug Excepttion (at %s)", syms); break;
+        case 1:
+            serial_printf("#DB: debug exception\n");
+            uint64_t dr6;
+            asm volatile("mov %%dr6, %0" : "=r"(dr6));
+            serial_printf("DR6 = %016llx\n", dr6);
+            asm volatile("mov %0, %%dr6" :: "r"(0ULL));
+            return;
+
         case 3:  except_panic(regs, "Breakpoint reached (at %s)", syms); break;
         case 4:  except_panic(regs, "Overflow Exception (at %s)", syms); break;
         case 5:  except_panic(regs, "BOUND range exceeded (at %s)", syms); break;

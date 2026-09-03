@@ -48,19 +48,14 @@ ssize ramfs_umount(vfs_t* vfs) {
     return 0;
 }
 
-static ssize base_mkino(vfs_t* vfs, u32 ino, ramfs_inode* inod) {
+static ssize base_mkino(vfs_t* vfs, u32 ino, ramfs_inode* inod, u64 alloc) {
     ramfs_info* fs = RAMFS(vfs);
-    if (S_TYPE(inod->mode) != S_IFCHR && S_TYPE(inod->mode) != S_IFBLK) {
+    if (alloc) {
         void* dptr = malloc(1024);
         if (!dptr) return -ENOMEM;
         inod->allocd = 1024;
         inod->dptr = dptr;
-    } else {
-        inod->allocd = 0;
-        inod->dptr = NULL; // if this is a devnod we dont want to have actual
-                           // backing for it, just inodes and links
     }
-
     fs->inodtbl[ino-1] = *inod;
     return ino;
 }
@@ -72,7 +67,7 @@ ssize ramfs_mkino(vfs_t* vfs, u16 mode, u16 uid, u16 gid) {
         1, mode, uid, 0, 0, 
         0, gid, 0, 0, 0, NULL
     };
-    return base_mkino(vfs, ino, &inod);
+    return base_mkino(vfs, ino, &inod, 1);
 }
 
 ssize ramfs_rmino(vfs_t* vfs, u32 ino) {
@@ -278,7 +273,37 @@ ssize ramfs_mknod(vfs_t* vfs, u16 mode, u16 uid, u16 gid, u32 rdev) {
         1, mode, uid, 0, 0, 
         0, gid, 0, rdev, 0, NULL
     };
-    return base_mkino(vfs, ino, &inod);
+    return base_mkino(vfs, ino, &inod, 0);
+}
+
+ssize ramfs_symlink(vfs_t* vfs, u16 mode, u16 uid, u16 gid, const char* target) {
+    u32 ino = findfreeino(vfs);
+    if (!ino) return -ENOMEM;
+
+    usize tlen = strlen(target) + 1;
+    char* tptr = malloc(tlen);
+    if (!tptr) return -ENOMEM;
+    memcpy(tptr, target, tlen);
+
+    ramfs_inode inod = {
+        1, mode, uid, 0, 0,
+        0, gid, tlen, 0, tlen,
+        tptr
+    };
+
+    return base_mkino(vfs, ino, &inod, 0);
+}
+
+ssize ramfs_readsym(vfs_t* vfs, u32 ino, char* buf, usize buflen) {
+    ramfs_inode* inod = getinod(vfs, ino);
+    if (!inod) return -ENOENT;
+
+    if (inod->size > buflen) {
+        return -ETOOSMALL;
+    }
+
+    memcpy(buf, inod->dptr, inod->size);
+    return inod->size;
 }
 
 int ramfs_mount(vfs_t* vfs) {
@@ -317,6 +342,8 @@ int ramfs_mount(vfs_t* vfs) {
     vfs->ops->read = ramfs_read;
     vfs->ops->write = ramfs_write;
     vfs->ops->mknod = ramfs_mknod;
+    vfs->ops->symlink = ramfs_symlink;
+    vfs->ops->readsym = ramfs_readsym;
 
     ramfs_inode root_inod = {
         1, S_IFDIR | 0755, 0, 0, 0, 
@@ -324,7 +351,7 @@ int ramfs_mount(vfs_t* vfs) {
     };
 
     int ret = 0;
-    if ((ret = base_mkino(vfs, 1, &root_inod)) < 0) {
+    if ((ret = base_mkino(vfs, 1, &root_inod, 1)) < 0) {
         free(fs->inodtbl);
         free(fs);
         free(vfs->ops);

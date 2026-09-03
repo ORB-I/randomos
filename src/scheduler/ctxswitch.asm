@@ -1,13 +1,4 @@
 ; switch_ctx(procctx_t* ctx)
-;
-; Paints an iretq frame and jumps. We never come back; the stack we
-; were called on is just abandoned.
-;
-; cli only works at CPL 0. If this #GPs, we got here with a user CS —
-; usually because a saved context mixed user CS with a kernel RIP
-; (or the other way around) and iretq landed in this stub at ring 3.
-; Don't "fix" that by dropping cli; the snapshot is what is wrong.
-
 [bits 64]
 %include "scheduler/ctx.inc"
 

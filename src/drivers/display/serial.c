@@ -25,7 +25,9 @@ void serial_putchar(char c) {
     if (!serial_initialized) {
         serial_init();
     }
-    lock_acquire(&_serial_lock);
+
+    u64 rflags;
+    lock_acquire(&_serial_lock, &rflags);
 
     while (serial_isempty() == 0);
     if (c == '\n') {
@@ -35,7 +37,7 @@ void serial_putchar(char c) {
         outb(SERIAL_PORT, c);
     }
 
-    lock_release(&_serial_lock);
+    lock_release(&_serial_lock, &rflags);
 }
 
 void serial_puts(const char *str) {

@@ -1,4 +1,5 @@
 #include <core/liballoc.h>
+#include <core/lock.h>
 
 /**  Durand's Ridiculously Amazing Super Duper Memory functions.  */
 
@@ -17,6 +18,8 @@
 #ifdef DEBUG
 #include <stdio.h>
 #endif
+
+lock_t __liballoc_lk = {0};
 
 
 struct boundary_tag* l_freePages[MAXEXP];		//< Allowing for 2^MAXEXP blocks
@@ -280,7 +283,8 @@ void *malloc(size_t size)
 	void *ptr;
 	struct boundary_tag *tag = NULL;
 
-	liballoc_lock();
+    u64 rflags;
+    lock_acquire(&__liballoc_lk, &rflags);
 
 		if ( l_initialized == 0 )
 		{
@@ -322,7 +326,7 @@ void *malloc(size_t size)
 			{	
 				if ( (tag = allocate_new_tag( size )) == NULL )
 				{
-					liballoc_unlock();
+					lock_release(&__liballoc_lk, &rflags);
 					return NULL;
 				}
 				
@@ -381,7 +385,7 @@ void *malloc(size_t size)
 	#endif
 
 
-	liballoc_unlock();
+	lock_release(&__liballoc_lk, &rflags);
 	return ptr;
 }
 
@@ -396,14 +400,15 @@ void free(void *ptr)
 
 	if ( ptr == NULL ) return;
 
-	liballoc_lock();
+	u64 rflags;
+    lock_acquire(&__liballoc_lk, &rflags);
 	
 
 		tag = (struct boundary_tag*)((unsigned long)ptr - sizeof( struct boundary_tag ));
 	
 		if ( tag->magic != LIBALLOC_MAGIC ) 
 		{
-			liballoc_unlock();		// release the lock
+			lock_release(&__liballoc_lk, &rflags);		// release the lock
 			return;
 		}
 
@@ -459,7 +464,7 @@ void free(void *ptr)
 				dump_array();
 				#endif
 
-				liballoc_unlock();
+                lock_release(&__liballoc_lk, &rflags);
 				return;
 			}
 
@@ -478,7 +483,7 @@ void free(void *ptr)
 	dump_array();
 	#endif
 
-	liballoc_unlock();
+	lock_release(&__liballoc_lk, &rflags);
 }
 
 
@@ -513,10 +518,12 @@ void*   realloc(void *p, size_t size)
 	}
 	if ( p == NULL ) return malloc( size );
 
-	liballoc_lock();		// lockit
+	u64 rflags;
+    lock_acquire(&__liballoc_lk, &rflags);
+    		// lockit
 	tag = (struct boundary_tag*)((unsigned long)p - sizeof( struct boundary_tag ));
 	real_size = tag->size;
-	liballoc_unlock();
+    lock_release(&__liballoc_lk, &rflags);
 
 	if ( real_size > size ) real_size = size;
 

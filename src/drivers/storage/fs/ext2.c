@@ -560,7 +560,7 @@ static void encode_dev(ext2_ino_t* inod, u32 dev) {
 }
 
 static int mkino_base(vfs_t* vfs, ext2_ino_t* inode) {
-        ext2fs_t* fs = EXT2FS(vfs);
+    ext2fs_t* fs = EXT2FS(vfs);
     int ret = 0;
 
     for (usize grp = 0; grp < fs->nbgs; grp++) {
@@ -677,6 +677,85 @@ ssize ext2fs_lookup(vfs_t* vfs, u32 dino, const char* name) {
 
     free(ddata);
     return -ENOENT;
+}
+
+ssize ext2fs_symlink(vfs_t* vfs, u16 mode, u16 uid, u16 gid, const char* target) {
+    ext2fs_t* fs = EXT2FS(vfs);
+    int ret = 0;
+
+    u64 time = gettimeofday();
+    ext2_ino_t inode = {
+        mode, uid, 0,
+        time, time, time, 0,
+        gid, 0, 0, 0,
+        0, {0}, 0, 0,
+        0, 0, {0}
+    };
+
+    if (strlen(target) <= 60) {
+        char buf[60];
+        memset(buf, 0, 60);
+        memcpy(buf, target, strlen(target));
+
+        u32 blks[15] = {0};
+        for (usize i = 0; i < 15; i++) {
+            blks[i] = (buf[i] << 24)   |
+                      (buf[i+1] << 16) |
+                      (buf[i+2] << 8)  |
+                      (buf[i+3]);
+        }
+
+        memcpy(inode.i_block, blks, sizeof(blks));
+        inode.i_size = strlen(target);
+    } else {
+        ssize blk = allocblk(vfs, 0);
+        if (!blk) return blk;
+        inode.i_block[0] = blk;
+
+        char buf[fs->blocksz];
+        memset(buf, 0, fs->blocksz);
+        memcpy(buf, target, strlen(target));
+        if ((ret = wrblk(vfs, blk, (u8*)buf)) < 0) return ret;
+    }
+
+    return mkino_base(vfs, &inode);
+}
+
+ssize ext2fs_readsym(vfs_t* vfs, u32 ino, char* buf, usize buflen) {
+    ext2fs_t* fs = EXT2FS(vfs);
+    int ret = 0;
+
+    ext2_ino_t inod;
+    if ((ret = getino(vfs, ino, &inod)) < 0) return ret;
+
+    if (inod.i_size > buflen - 1) return -ETOOSMALL;
+
+    if (inod.i_size <= 60) {
+        char dbuf[60];
+        memset(dbuf, 0, 60);
+
+        for (usize i = 0; i < 15; i++) {
+            dbuf[i] = inod.i_block[i] >> 24;
+            dbuf[i+1] = (inod.i_block[i] >> 16) & 0xFF;
+            dbuf[i+2] = (inod.i_block[i] >> 8) & 0xFF;
+            dbuf[i+3] = inod.i_block[i] & 0xFF;
+        }
+
+        memcpy(buf, dbuf, inod.i_size);
+        buf[inod.i_size] = '\0';
+
+        return inod.i_size;
+    } else {
+        char dbuf[fs->blocksz];
+        memset(buf, 0, fs->blocksz);
+
+        if ((ret = rdblk(vfs, inod.i_block[0], (u8*)buf)) < 0) return ret;
+
+        memcpy(buf, dbuf, inod.i_size);
+        buf[inod.i_size] = '\0';
+
+        return inod.i_size;
+    }
 }
 
 ssize ext2fs_mkino(vfs_t* vfs, u16 mode, u16 uid, u16 gid) {
@@ -1081,6 +1160,8 @@ int ext2fs_mount_setops(vfs_t* vfs) {
     vfs->ops->read = ext2fs_read;
     vfs->ops->write = ext2fs_write;
     vfs->ops->mknod = ext2fs_mknod;
+    vfs->ops->symlink = ext2fs_symlink;
+    vfs->ops->readsym = ext2fs_readsym;
 
     return 0;
 }

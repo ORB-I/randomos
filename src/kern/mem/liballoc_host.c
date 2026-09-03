@@ -2,17 +2,6 @@
 #include <core/mem/vmm.h>
 #include <core/lock.h>
 
-lock_t __liballoc_lk = {0};
-int liballoc_lock() {
-    lock_acquire(&__liballoc_lk);
-    return 0;
-}
-
-int liballoc_unlock() {
-    lock_release(&__liballoc_lk);
-    return 0;
-}
-
 void* liballoc_alloc(int npg) {
     return vmm_map_pages(vmm_cpml4v(), 0, 0, npg, MAP_ANYPHYS | MAP_ANYVIRT | PAGE_WRITE);
 }

@@ -11,6 +11,15 @@ struct fdinfo* getnewfd(struct fdinfo* info) {
     struct fdinfo* fds = proctbl[current_pid].fds;
     usize nfds = proctbl[current_pid].nfds;
 
+    if (!fds) {
+        void* ptr = malloc(sizeof(struct fdinfo) * 10);
+        if (!ptr) return NULL;
+        fds = ptr;
+        
+        proctbl[current_pid].fds = ptr;
+        proctbl[current_pid].nfds += 10;
+    }
+
     for (usize i = 0; i < nfds; i++) {
         if (!fds[i].inuse) {
             memcpy(&fds[i], info, sizeof(*info));
@@ -36,6 +45,7 @@ struct fdinfo* getnewfd(struct fdinfo* info) {
 int getfd(int fd, struct fdinfo** info) {
     if (fd >= (int)proctbl[current_pid].nfds) return -EBADF;
     if (fd < 0) return -EBADF;
+
     if (!proctbl[current_pid].fds[fd].inuse) return -EBADF;
 
     *info = &proctbl[current_pid].fds[fd];

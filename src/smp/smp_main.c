@@ -136,6 +136,7 @@ void smp_request_hdlr_c(intctx_t* ctx) {
         return;
     }
     ap_req_t* req = &apreqvec[i];
+    u64 rflags;
 
     switch (req->type) {
         case AP_REQ_RUN: {
@@ -148,35 +149,35 @@ void smp_request_hdlr_c(intctx_t* ctx) {
                 smp_contloop(i);
             }
             ap_runreq_t* run = (ap_runreq_t*)req->data;
-            lock_acquire(&apstates[i].lock);
+            lock_acquire(&apstates[i].lock, &rflags);
             apstates[i].rreq = *run;
             apstates[i].state = AP_START;
-            lock_release(&apstates[i].lock);
+            lock_release(&apstates[i].lock, &rflags);
             atomic_store(&req->done, 1);
             smp_contloop(i);
         }
         case AP_REQ_PAUSE: {
             serial_printf("AP %d received PAUSE request\n", apicid);
-            lock_acquire(&apstates[i].lock);
+            lock_acquire(&apstates[i].lock, &rflags);
             apstates[i].state = AP_PAUSED;
             store_ctx(ctx, i);
-            lock_release(&apstates[i].lock);
+            lock_release(&apstates[i].lock, &rflags);
             atomic_store(&req->done, 1);
             smp_contloop(i);
         }
         case AP_REQ_CONT: {
             serial_printf("AP %d received CONT request\n", apicid);
-            lock_acquire(&apstates[i].lock);
+            lock_acquire(&apstates[i].lock, &rflags);
             apstates[i].state = AP_RUNNING;
-            lock_release(&apstates[i].lock);
+            lock_release(&apstates[i].lock, &rflags);
             atomic_store(&req->done, 1);
             break;
         }
         case AP_REQ_STOP: {
             serial_printf("AP %d received STOP request\n", apicid);
-            lock_acquire(&apstates[i].lock);
+            lock_acquire(&apstates[i].lock, &rflags);
             apstates[i].state = AP_WAITING;
-            lock_release(&apstates[i].lock);
+            lock_release(&apstates[i].lock, &rflags);
             send_bsp_request(apicid, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
             atomic_store(&req->done, 1);
             smp_contloop(i);
@@ -200,11 +201,12 @@ static void smp_main_finish(ssize i) {
 void smp_mainloop(ssize i) {
     u64 apic_id = get_apicid();
     for (;;) {
-        lock_acquire(&apstates[i].lock);
+        u64 rflags;
+        lock_acquire(&apstates[i].lock, &rflags);
         switch (apstates[i].state) {
             case AP_WAITING:
             case AP_PAUSED: {
-                lock_release(&apstates[i].lock);
+                lock_release(&apstates[i].lock, &rflags);
                 break;
             }
             case AP_RUNNING: {
@@ -214,7 +216,7 @@ void smp_mainloop(ssize i) {
                 // iretq since calling lock_release would clobber our new register states
                 ap_state state;
                 memcpy(&state, &apstates[i], sizeof(state));
-                lock_release(&apstates[i].lock);
+                lock_release(&apstates[i].lock, &rflags);
                 asm volatile(
                     "mov %0, %%r15\n\t"
                     "mov %c1(%%r15), %%rax\n\t"
@@ -272,18 +274,18 @@ void smp_mainloop(ssize i) {
                 void* arg = apstates[i].rreq.arg;
                 clear_ctx(i);
                 send_bsp_request(apic_id, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WORKING);
-                lock_release(&apstates[i].lock);
+                lock_release(&apstates[i].lock, &rflags);
 
                 asm("sti");
                 fn(arg);
                 asm("cli");
 
-                lock_acquire(&apstates[i].lock);
+                lock_acquire(&apstates[i].lock, &rflags);
 
                 clear_ctx(i);
                 apstates[i].state = AP_WAITING;
                 send_bsp_request(apic_id, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
-                lock_release(&apstates[i].lock);
+                lock_release(&apstates[i].lock, &rflags);
 
                 asm("sti");
                 continue;

@@ -248,6 +248,7 @@ void apic_init() {
     parse_madt(madt);
 
     lapic_virt_addr = (volatile u32*)(lapic_phys_addr + HHDM_START);
+    serial_printf("Using Local APIC at virtual address %p\n", lapic_virt_addr);
     enable_lapic();
 
     for (usize i = 0; i < num_ioapics; i++) {

@@ -101,13 +101,19 @@ void ap_testtask() {
     serial_printf("Hello from SMP%d\n", get_apicid());
 }
 
+__attribute__((noreturn)) void __stack_chk_fail() {
+    panic("stack smashing detected");
+}
+
+u64 __stack_chk_guard = 0;
+
 int init_lwip();
 void kmain_aftergdt() {
     init_fpu();
     if (init_clock(CLOCK_TSC) < 0) {
-        for (;;) asm("hlt"); // init_clock will try hpet first but fallback to tsc if necessary
-                             // but we do need a clock to function
+        for (;;) asm("hlt");
     }
+    __stack_chk_guard = rdtsc();
 
     pmm_init();
     vmm_init();

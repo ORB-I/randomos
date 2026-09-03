@@ -12,7 +12,8 @@ void send_ap_request(u64 tgt_apicid, int type, void* data, usize data2) {
     }
     if (i >= ncores) return; // not a core we manage
 
-    lock_acquire(&apreqvec[i].lock);
+    u64 rflags;
+    lock_acquire(&apreqvec[i].lock, &rflags);
     atomic_store(&apreqvec[i].done, 0);
     // apicid stays untouched here: it names the receiver and the handler
     // matches against it on the other side
@@ -22,8 +23,11 @@ void send_ap_request(u64 tgt_apicid, int type, void* data, usize data2) {
 
     ipi_send(tgt_apicid, 0, IPI_TRIGGER_EDGE, IPI_LEVEL_ASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_FIXED, AP_MSGVEC);
     
-    while (!atomic_load(&apreqvec[i].done));
-    lock_release(&apreqvec[i].lock);
+    while (!atomic_load(&apreqvec[i].done)) {
+        asm volatile("pause");
+    }
+    
+    lock_release(&apreqvec[i].lock, &rflags);
 }
 
 // if no SMP is available, will return -1, else will return apicid of proc

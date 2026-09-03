@@ -4,11 +4,11 @@
 // these are literally just
 // copied from EXT2 lol
 #define S_IFSOCK 0xC000
-#define S_IFLNK  0xA000
+#define S_IFLNK  0xA000 // handled
 #define S_IFREG  0x8000 // handled
-#define S_IFBLK  0x6000
+#define S_IFBLK  0x6000 // handled
 #define S_IFDIR  0x4000 // handled
-#define S_IFCHR  0x2000
+#define S_IFCHR  0x2000 // handled
 #define S_IFIFO  0x1000
 #define S_TYPE(MODE) (MODE & 0xF000)
 
@@ -60,8 +60,10 @@ typedef struct vfsops {
     ssize (*lookup)(vfs_t* vfs, u32 dino, const char* name); // lookup something inside a directory
     ssize (*readdir)(vfs_t* vfs, u32 dino, u64* prv, char* name, usize namlen, vinode_t* buf); // read a directory, prv should start as 0 and be updated by fs driver
 
-    ssize (*mknod)(vfs_t* vfs, u16 mode, u16 uid, u16 gid, u32 rdev);
+    ssize (*symlink)(vfs_t* vfs, u16 mode, u16 uid, u16 gid, const char* target); // create symlink inode
+    ssize (*mknod)(vfs_t* vfs, u16 mode, u16 uid, u16 gid, u32 rdev); // create device node inode
     ssize (*mkino)(vfs_t* vfs, u16 mode, u16 uid, u16 gid); // create inode
+
     ssize (*rmino)(vfs_t* vfs, u32 ino);
     ssize (*getino)(vfs_t* vfs, u32 ino, vinode_t* buf); // get vinode
     ssize (*setino)(vfs_t* vfs, u32 ino, vinode_t* vinod); // set ino stuff
@@ -70,6 +72,7 @@ typedef struct vfsops {
     ssize (*rmlink)(vfs_t* vfs, u32 dino, const char* name); // remove link
 
     ssize (*trunc)(vfs_t* vfs, u32 ino); // truncate ino completely
+    ssize (*readsym)(vfs_t* vfs, u32 ino, char* buf, usize buflen); // read a symlink
     ssize (*read)(vfs_t* vfs, u32 ino, usize off, usize nb, void* buf); // read nb bytes from ino at offset off into buf
     ssize (*write)(vfs_t* vfs, u32 ino, usize off, usize nb, void* buf); // write nb bytes to ino at offset off from buf
 } vfsops_t;

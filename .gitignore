@@ -10,6 +10,7 @@ compile_commands.json
 *.so.o
 *.d
 *.so.d
+*.su
 
 # Built libraries & binary executables
 *.a

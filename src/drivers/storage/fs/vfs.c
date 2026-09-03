@@ -14,8 +14,284 @@
 #include <drivers/storage/fs/ramfs.h>
 #include <scheduler/process.h>
 
-static vfs_t* mounts = NULL;
+#define VFS_PATH_MAX     4096
+#define VFS_NAME_MAX     255
+#define VFS_MAX_SYMLINKS 40
+#define VFS_NO_SYMLINKS  0x01
+#define VFS_MUST_BE_DIR  0x02
+#define VFS_FOLLOW_FINAL 0x04
+
+typedef struct {
+    char* items[VFS_PATH_MAX / 2];
+    usize cnt;
+} pathstk_t;
+
 char cwd[1024];
+
+static pathstk_t* pathstk_init() {
+    pathstk_t* stk = malloc(sizeof(*stk));
+    if (!stk) return NULL;
+    stk->cnt = 0;
+    memset(stk->items, 0, sizeof(stk->items));
+    return stk;
+}
+
+static int pathstk_push(pathstk_t* stk, char* comp) {
+    if (stk->cnt >= VFS_PATH_MAX / 2) {
+        return -EINVAL;
+    }
+
+    stk->items[stk->cnt++] = comp;
+    return 0;
+}
+
+static void pathstk_pop(pathstk_t* stk) {
+    if (stk->cnt) {
+        stk->cnt--;
+    }
+}
+
+ssize vfs_resolve(vfs_t* mnt, const char* path, u32 flags) {
+    if (!mnt || !path || *path == '\0') {
+        return -EINVAL;
+    }
+
+    char pbuf[VFS_PATH_MAX];
+    char lnkbuf[VFS_PATH_MAX];
+
+    pathstk_t* stk = pathstk_init();
+    if (!stk) return -ENOMEM;
+
+    usize len = strlen(path);
+    if (len >= sizeof(pbuf)) {
+        free(stk);
+        return -ENAMETOOLONG;
+    }
+
+    memcpy(pbuf, path, len + 1);
+
+    {
+        pathstk_t* comps = pathstk_init();
+        if (!stk) {
+            free(stk);
+            return -ENOMEM;
+        }
+
+        char* p = pbuf;
+        while (*p) {
+            while (*p == '/') p++;
+            if (*p == '\0') break;
+
+            char* st = p;
+            while (*p != '/' && *p != '\0') p++;
+
+            if (p - st > VFS_NAME_MAX) {
+                free(stk);
+                free(comps);
+                return -ENAMETOOLONG;
+            }
+
+            if (*p) {
+                *p++ = '\0';
+            }
+
+            if (pathstk_push(comps, st) < 0) {
+                free(stk);
+                free(comps);
+                return -ENAMETOOLONG;
+            }
+        }
+
+        for (usize i = comps->cnt; i > 0; i--) {
+            int ret = pathstk_push(stk, comps->items[i - 1]);
+            if (ret < 0) {
+                free(stk);
+                free(comps);
+                return ret;
+            }
+        }
+        free(comps);
+    }
+
+    u32 ino = mnt->root_ino;
+    usize symlnks = 0;
+    usize depth = 0;
+    {
+        pathstk_t* done = pathstk_init();
+
+        while (stk->cnt) {
+            char* comp = stk->items[stk->cnt - 1];
+            stk->cnt--;
+
+            if (streq(comp, ".")) continue;
+
+            if (streq(comp, "..")) {
+                if (depth == 0) {
+                    ino = mnt->root_ino;
+                    continue;
+                }
+
+                ssize ret = mnt->ops->lookup(mnt, ino, "..");
+                if (ret < 0) {
+                    free(done);
+                    free(stk);
+                    return ret;
+                }
+
+                ino = (u32)ret;
+                depth--;
+
+                pathstk_pop(done);
+                continue;
+            }
+
+            ssize ret = mnt->ops->lookup(mnt, ino, comp);
+            if (ret < 0) {
+                free(done);
+                free(stk);
+                return ret;
+            }
+
+            u32 nxt = ret;
+            vinode_t inod;
+            if ((ret = mnt->ops->getino(mnt, nxt, &inod)) < 0) {
+                free(done);
+                free(stk);
+                return ret;
+            }
+
+            bool final = stk->cnt == 0;
+            if (S_TYPE(inod.mode) == S_IFLNK) {
+                if (flags & VFS_NO_SYMLINKS) {
+                    free(done);
+                    free(stk);
+                    return -ELOOP;
+                }
+
+                if (final && !(flags & VFS_FOLLOW_FINAL)) {
+                    ino = nxt;
+                    depth++;
+                    if (flags & VFS_MUST_BE_DIR) {
+                        free(done);
+                        free(stk);
+                        return -ENOTDIR;
+                    }
+
+                    free(done);
+                    free(stk);
+                    return ino;
+                }
+
+                if (++symlnks > VFS_MAX_SYMLINKS) {
+                    free(done);
+                    free(stk);
+                    return -ELOOP;
+                }
+                
+                if ((ret = mnt->ops->readsym(mnt, nxt, lnkbuf, sizeof(lnkbuf))) < 0) return ret;
+                if (lnkbuf[0] == '/') {
+                    ino = mnt->root_ino;
+                    depth = 0;
+                    free(done);
+                    done = pathstk_init();
+                }
+
+                {
+                    pathstk_t* tgtcomps = pathstk_init();
+                    if (!stk) {
+                        free(done);
+                        free(stk);
+                        return -ENOMEM;
+                    }
+
+                    char* tp = lnkbuf;
+                    while (*tp) {
+                        while (*tp == '/') tp++;
+                        if (*tp == '\0') break;
+
+                        char* st = tp;
+                        while (*tp != '/' && *tp != '\0') tp++;
+                        if (tp - st > VFS_NAME_MAX) {
+                            free(tgtcomps);
+                            free(done);
+                            free(stk);
+                            return -ENAMETOOLONG;
+                        }
+                        
+                        if (*tp) *tp++ = '\0';
+                        if (pathstk_push(tgtcomps, st) < 0) {
+                            free(tgtcomps);
+                            free(done);
+                            free(stk);
+                            return -ENAMETOOLONG;
+                        }
+                    }
+
+                    for (usize i = 0; i < tgtcomps->cnt; i++) {
+                        if (stk->cnt >= VFS_PATH_MAX / 2) {
+                            free(tgtcomps);
+                            free(done);
+                            free(stk);
+                            return -ENAMETOOLONG;
+                        }
+                        for (usize j = stk->cnt; j > 0; j--) {
+                            stk->items[j + tgtcomps->cnt - 1] = stk->items[j - 1];
+                        }
+
+                        break;
+                    }
+
+                    usize ocnt = stk->cnt;
+                    if (ocnt + tgtcomps->cnt > VFS_PATH_MAX / 2) {
+                        free(tgtcomps);
+                        free(done);
+                        free(stk);
+                        return -ENAMETOOLONG;
+                    }
+
+                    for (usize i = ocnt; i > 0; i--) {
+                        stk->items[i + tgtcomps->cnt - 1] = stk->items[i - 1];
+                    }
+
+                    for (usize i = 0; i < tgtcomps->cnt; i++) {
+                        stk->items[i] = tgtcomps->items[tgtcomps->cnt - 1 - i];
+                    }
+                }
+
+                continue;
+            }
+
+            ino = nxt;
+            depth++;
+            if (done->cnt >= VFS_PATH_MAX / 2) {
+                free(done);
+                free(stk);
+                return -ENAMETOOLONG;
+            }
+            
+            pathstk_push(done, comp);
+        }
+    }
+
+    if (flags & VFS_MUST_BE_DIR) {
+        int ret = 0;
+        vinode_t inod;
+        if ((ret = mnt->ops->getino(mnt, ino, &inod)) < 0) {
+            free(stk);
+            return ret;
+        }
+
+        if (S_TYPE(inod.mode) != S_IFDIR) {
+            free(stk);
+            return -ENOTDIR;
+        }
+    }
+
+    free(stk);
+    return ino;
+}
+
+static vfs_t* mounts = NULL;
 usize avmounts = 0;
 
 #define FSFLAG_NOBLK 0x01
@@ -225,60 +501,6 @@ int vfs_basename(const char* path, char* base, usize baselen) {
     return 0;
 }
 
-int vfs_findino(vfs_t* mnt, const char* path, u64* ino) {
-    ssize fino = mnt->root_ino;
-    if (!path || *path == '\0' || !ino) {
-        return -EINVAL;
-    }
-
-    path += strlen(mnt->path);
-    if (*path == '\0') {
-        *ino = fino;
-        return 0;
-    }
-
-    if (path[0] == '/') {
-        path++;
-        if (*path == '\0') {
-            *ino = fino;
-            return 0;
-        }
-    }
-
-    while (*path) {
-        char comp[1024];
-        usize len = 0;
-        while (*path == '/') path++;
-        if (*path == '\0') break;
-
-        while (path[len] != '/' && path[len] != '\0') {
-            if (len >= sizeof(comp) - 1) {
-                return -EINVAL;
-            }
-            comp[len] = path[len];
-            len++;
-        }
-
-        comp[len] = '\0';
-        path += len;
-
-        if (streq(comp, ".")) continue;
-        if (streq(comp, "..")) {
-            fino = mnt->ops->lookup(mnt, fino, "..");
-            if (fino < 0) return fino;
-            continue;
-        }
-
-        
-        if ((fino = mnt->ops->lookup(mnt, fino, comp)) < 0) {
-            return fino;
-        }
-    }
-
-    *ino = fino;
-    return 0;
-}
-
 int vfs_basecreat(const char* path, int mode, u64* inop) {
     int ret = 0;
     char abs[1024];
@@ -290,11 +512,11 @@ int vfs_basecreat(const char* path, int mode, u64* inop) {
 
     vfs_t* mnt = vfs_getmnt(abs);
 
-    u64 dino = 0;
-    if ((ret = vfs_findino(mnt, dir, &dino)) < 0) return ret;
+    ssize dino = 0;
+    if ((dino = vfs_resolve(mnt, dir, VFS_FOLLOW_FINAL)) < 0) return dino;
 
-    u64 _fino = 0;
-    if ((ret = vfs_findino(mnt, abs, &_fino)) >= 0) return -EEXISTS;
+    ssize _fino = 0;
+    if ((_fino = vfs_resolve(mnt, abs, VFS_FOLLOW_FINAL)) >= 0) return -EEXISTS;
 
     ssize ino = 0;
     if ((ino = mnt->ops->mkino(mnt, mode, proctbl[current_pid].euid, proctbl[current_pid].egid)) < 0) return ino;
@@ -313,8 +535,8 @@ ssize vfs_getdino(vfs_t* mnt, const char* path) {
     char dir[1024];
     if ((ret = vfs_dirname(path, dir, sizeof(dir))) < 0) return ret;
 
-    u64 dino = 0;
-    if ((ret = vfs_findino(mnt, dir, &dino)) < 0) return ret;
+    ssize dino = 0;
+    if ((dino = vfs_resolve(mnt, dir, VFS_MUST_BE_DIR | VFS_FOLLOW_FINAL)) < 0) return dino;
 
     return dino;
 }
@@ -424,11 +646,11 @@ int mknod(const char* path, u32 dev, int mode) {
 
     vfs_t* mnt = vfs_getmnt(abs);
 
-    u64 dino = 0;
-    if ((ret = vfs_findino(mnt, dir, &dino)) < 0) return ret;
+    ssize dino = 0;
+    if ((dino = vfs_resolve(mnt, dir, VFS_FOLLOW_FINAL)) < 0) return dino;
 
-    u64 _fino = 0;
-    if ((ret = vfs_findino(mnt, abs, &_fino)) >= 0) return -EEXISTS;
+    ssize _fino = 0;
+    if ((_fino = vfs_resolve(mnt, abs, VFS_FOLLOW_FINAL)) >= 0) return -EEXISTS;
 
     ssize ino = 0;
     if ((ino = mnt->ops->mknod(mnt, mode, proctbl[current_pid].euid, proctbl[current_pid].egid, dev)) < 0) return ino;
@@ -457,12 +679,12 @@ int open(const char* path, int flags, u16 mode) {
 
     vfs_t* mnt = vfs_getmnt(abs);
 
-    u64 ino = 0;
-    ret = vfs_findino(mnt, abs, &ino);
+    ssize ino = vfs_resolve(mnt, abs, VFS_FOLLOW_FINAL);
+    if (ino < 0) return ino;
     
     if (ret == -ENOENT) {
         if (flags & O_CREAT) {
-            if ((ret = vfs_basecreat(abs, mode | S_IFREG, &ino)) < 0) {
+            if ((ret = vfs_basecreat(abs, mode | S_IFREG, (u64*)&ino)) < 0) {
                 return ret;
             }
         } else {
@@ -597,9 +819,9 @@ int opendir(const char* path) {
 
     vfs_t* mnt = vfs_getmnt(abs);
 
-    u64 ino = 0;
-    if ((ret = vfs_findino(mnt, abs, &ino)) < 0) {
-        return ret;
+    ssize ino = 0;
+    if ((ino = vfs_resolve(mnt, abs, VFS_FOLLOW_FINAL | VFS_MUST_BE_DIR)) < 0) {
+        return ino;
     }
 
     vinode_t inod;
@@ -745,8 +967,8 @@ int stat(const char* path, struct stat* st) {
 
     vfs_t* mnt = vfs_getmnt(abs);
 
-    u64 ino = 0;
-    if ((ret = vfs_findino(mnt, abs, &ino)) < 0) return ret;
+    ssize ino = 0;
+    if ((ino = vfs_resolve(mnt, abs, VFS_FOLLOW_FINAL)) < 0) return ino;
 
     vinode_t inod;
     if ((ret = mnt->ops->getino(mnt, ino, &inod)) < 0) return ret;
@@ -771,8 +993,8 @@ int unlink(const char* path) {
 
     vfs_t* mnt = vfs_getmnt(abs);
 
-    u64 ino = 0;
-    if ((ret = vfs_findino(mnt, abs, &ino)) < 0) return ret;
+    ssize ino = 0;
+    if ((ret = vfs_resolve(mnt, abs, VFS_FOLLOW_FINAL)) < 0) return ret;
 
     vinode_t inod;
     if ((ret = mnt->ops->getino(mnt, ino, &inod)) < 0) return ret;
@@ -791,8 +1013,8 @@ int rmdir(const char* path) {
 
     vfs_t* mnt = vfs_getmnt(abs);
 
-    u64 ino = 0;
-    if ((ret = vfs_findino(mnt, abs, &ino)) < 0) return ret;
+    ssize ino = 0;
+    if ((ret = vfs_resolve(mnt, abs, VFS_FOLLOW_FINAL | VFS_MUST_BE_DIR)) < 0) return ret;
 
     vinode_t inod;
     u64 pos = 0;
@@ -830,8 +1052,8 @@ int rename(const char* oname, const char* nname) {
         return -EINVAL;
     }
 
-    u64 ino = 0;
-    if ((ret = vfs_findino(omnt, oabs, &ino)) < 0) return ret;
+    ssize ino = 0;
+    if ((ino = vfs_resolve(omnt, oabs, VFS_FOLLOW_FINAL)) < 0) return ino;
 
     vinode_t inode;
     if ((ret = omnt->ops->getino(omnt, ino, &inode)) < 0) return ret;
@@ -865,6 +1087,31 @@ int mkdir(const char* path, int mode) {
 
     if ((ret = mnt->ops->mklink(mnt, dino, dinod.mode, ino, "..")) < 0) {
         rmdir(path);
+        return ret;
+    }
+
+    return 0;
+}
+
+int symlink(const char* path, const char* target, int mode) {
+    int ret = 0;
+    char abs[1024];
+    if ((ret = vfs_abspath(path, abs, 1024)) < 0) return ret;
+    
+    char abst[1024];
+    if ((ret = vfs_abspath(target, abst, 1024)) < 0) return ret;
+
+    char base[1024];
+    if ((ret = vfs_basename(path, base, 1024)) < 0) return ret;
+
+    vfs_t* mnt = vfs_getmnt(path);
+    ssize dino = vfs_getdino(mnt, abs);
+
+    ssize ino;
+    if ((ino = mnt->ops->symlink(mnt, mode | S_IFLNK, proctbl[current_pid].euid, proctbl[current_pid].egid, abst)) < 0) return ino;
+
+    if ((ret = mnt->ops->mklink(mnt, ino, mode | S_IFLNK, dino, base)) < 0) {
+        mnt->ops->rmino(mnt, ino);
         return ret;
     }
 

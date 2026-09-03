@@ -29,7 +29,8 @@
 #define EISDIR    27 // is a directory
 #define ENOTEMPTY 28 // directory not empty
 #define EEXISTS   29 // file or directory already exists
-
+#define ELOOP     30 // looped too much
+#define ENAMETOOLONG 31 // name too long, may also be returned as EINVAL
 #define FF_TO_ERRNO(FF)  \
     (FF == FR_OK ? EOK : \
      FF == FR_DISK_ERR ? EDISK : \

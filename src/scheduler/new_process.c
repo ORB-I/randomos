@@ -128,12 +128,14 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
     struct stat st;
     int ret = 0;
     if ((ret = stat(path, &st)) < 0) {
+        serial_printf("stat failed %d\n", ret);
         return ret;
     }
 
     if (pid == 0) {
         struct fdinfo* new_fds = malloc(sizeof(struct fdinfo) * 4);
         if (!new_fds) {
+            serial_printf("no memory for fds\n");
             return -ENOMEM;
         }
 
@@ -151,14 +153,6 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
             2, 1, FDTYPE_IO,
             .data = {.io = {0, 1, _stdout_write, NULL}}
         };
-
-        int cfb = get_currfb();
-        struct fdinfo* info;
-
-        int ret = 0;
-        if ((ret = getfd(cfb, &info)) < 0) {
-            return ret;
-        }
 
         new_fds[3] = (struct fdinfo){
             3, 1, FDTYPE_FB,

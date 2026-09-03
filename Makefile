@@ -5,9 +5,10 @@ LDFLAGS      := -m elf_x86_64 -T share/link.ld --no-pie -O0 -nostdlib -no-pie
 
 LIBS         := -Llib -llai -lflanterm -llwip
 CCFLAGS      := -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
-				-m64 -nostdlib -fno-builtin -fno-stack-protector -fno-pie -Iinclude \
+				-m64 -nostdlib -fno-builtin -fno-pie -Iinclude \
 		        -nodefaultlibs -ffreestanding -Wall -Wextra -g \
-		        -MMD -MP -O0
+		        -MMD -MP -O0 -fno-stack-protector \
+				-Wframe-larger-than=16384 -Werror=frame-larger-than
 				
 XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
         		-no-emul-boot -boot-load-size 4 -boot-info-table -hfsplus \
@@ -23,8 +24,8 @@ QFLAGS := -M pc -cpu qemu64 -boot d -smp 2 -m 1G -serial stdio -accel tcg \
 		  -device usb-mouse,bus=uhci.0,port=2 \
 		  -netdev user,id=net0 -device virtio-net-pci,netdev=net0 \
 		  -device virtio-rng-pci \
-		  -monitor unix:/tmp/qemu-monitor.sock,server=on,wait=off
-
+		  -monitor unix:/tmp/qemu-monitor.sock,server=on,wait=off \
+		  -d int,cpu_reset -D qemu.log
 QFLAGS_HEADLESS := -display none -serial file:qemu.log
 
 AS_SRC := $(shell find src -name '*.asm')
@@ -42,6 +43,7 @@ OBJ  := $(AS_SRC:.asm=.o) $(CC_SRC:.c=.o)
 EXE  := kern.elf
 ISO  := os.iso
 DEPS := $(CC_SRC:.c=.d)
+SUS  := $(CC_SRC:.c=.su)
 
 SUBDIRS := user/libs/libmcrypto user/libc user/progs share/etc share/man
 
