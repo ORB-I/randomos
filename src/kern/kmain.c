@@ -215,5 +215,11 @@ __no_protect void kmain_aftergdt() {
         }
     }
 
+    kprint("Starting AP scheduler\n");
+    for (usize i = 0; i < ncores; i++) {
+        if (smp_info[i].apicid == bsp_apicid) continue;
+        ap_continue(smp_info[i].apicid);
+    }
+
     start_scheduler();
 }
