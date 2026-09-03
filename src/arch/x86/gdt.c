@@ -6,9 +6,10 @@ struct gdt_entry _gdt[8];
 struct gdtr _gdtr;
 struct tss_entry _tss;
 
-__attribute__((aligned(16))) u8 kern_stack[16384];
-__attribute__((aligned(16))) u8 intr_stack[16384];
-__attribute__((aligned(16))) u8 exct_stack[16384];
+#define STACK_SIZE 65536
+__attribute__((aligned(16))) u8 kern_stack[STACK_SIZE];
+__attribute__((aligned(16))) u8 intr_stack[STACK_SIZE];
+__attribute__((aligned(16))) u8 exct_stack[STACK_SIZE];
 
 void set_gdtent(struct gdt_entry* gdt, int n, u32 base, u32 lim, u8 acc, u8 gran) {
     struct gdt_entry *e = &gdt[n];

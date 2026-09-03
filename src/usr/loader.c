@@ -85,11 +85,11 @@ dyninfo_t loaded_exe;
 usize nloaded = 0;
 
 #define MSR_KERNEL_GS_BASE 0xC0000102
-extern __attribute__((aligned(16))) u8 kern_stack[16384];
+extern __attribute__((aligned(16))) u8 kern_stack[65536];
 static u64 gsblk[2];
 void reset_kgsb() {
     gsblk[0] = 0x00007FFFFFFFF000;
-    gsblk[1] = (u64)kern_stack + 16384;
+    gsblk[1] = (u64)kern_stack + sizeof(kern_stack);
     wrmsr(MSR_KERNEL_GS_BASE, (u64)&gsblk);
 }
 

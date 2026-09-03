@@ -11,7 +11,7 @@
 #include <scheduler/scheduler.h>
 #include <lib/loader.h>
 
-extern __attribute__((aligned(16))) u8 kern_stack[16384];
+extern __attribute__((aligned(16))) u8 kern_stack[65536];
 
 struct CpuState {
     u64 r15, r14, r13, r12, r11, r10, r9, r8;
