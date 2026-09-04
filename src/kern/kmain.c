@@ -193,10 +193,10 @@ __no_protect void kmain_aftergdt() {
     init_syscalls();
 
     kprint("IO: Requesting keyboard type %d\n", kbtype);
-    if (virtio_input_available()) kbtype = KBD_VIRTIO;
+    if (virtio_input_kb_available()) kbtype = KBD_VIRTIO;
     init_kbd(kbtype);
     kprint("IO: Requesting mouse type %d\n", mbtype);
-    if (virtio_input_available()) mbtype = MOUSE_VIRTIO;
+    if (virtio_input_ptr_available()) mbtype = MOUSE_VIRTIO;
     init_mouse(mbtype);
 
     kprint("Testing AP\n");
