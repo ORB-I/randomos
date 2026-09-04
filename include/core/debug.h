@@ -12,3 +12,4 @@ extern ksymtab ksymtbl;
 extern usize nksyms;
 
 struct kern_symbol* locate_symbol(u64 rip);
+void backtrace(u64 rbp);

@@ -125,10 +125,10 @@ run: all
 	@echo "[QEMU]"
 	$(QEMU) $(QFLAGS) $(QEMUFLAGS) -cdrom $(ISO)
 
-run-headless: all
-	@echo "[QEMU headless]"
-	$(QEMU) $(QFLAGS) $(QFLAGS_HEADLESS) $(QEMUFLAGS) -cdrom $(ISO)
-
+debug: all
+	@echo "[QEMU DEBUG]"
+	$(QEMU) $(QFLAGS) $(QEMUFLAGS) -S -s -cdrom $(ISO)
+	
 clean:
 	@echo "[CLEAN]"
 	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS) ksyms.c ksyms.o ksyms.d lib/liblwip.a $(LWIP_OBJ) $(LWIP_DEPS) $(INITRD)

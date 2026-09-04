@@ -14,3 +14,4 @@ CompileFlags:
         - -I/Users/william/dev/work/coding/randomos/user/libc/include
         - -I/Users/william/dev/work/coding/randomos/include
         - -I/Users/william/dev/work/coding/randomos/user/libs/libmcrypto
+        - -I/Users/william/dev/work/coding/randomos/user/libc++/include

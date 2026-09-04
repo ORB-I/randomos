@@ -148,3 +148,26 @@ char* strtok(char* str, const char* delim) {
     }
     return tkstart;
 }
+
+void* memmove(void* dst, const void* src, usize n) {
+    char* d = (char*)dst;
+    const char* s = (const char*)src;
+
+    if (d == s || n == 0) {
+        return dst;
+    }
+
+    if (d < s) {
+        while (n--) {
+            *d++ = *s++;
+        }
+    } else {
+        d += n - 1;
+        s += n - 1;
+        while (n--) {
+            *d-- = *s--;
+        }
+    }
+
+    return dst;
+}

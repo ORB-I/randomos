@@ -1,5 +1,8 @@
 #pragma once
 #include <core/std.h>
+// sometime should implement more stuff
+// including GNU extensions (LSB Core Generic)
+// and ones in the new SysV ELF spec from Xinuos
 
 typedef u64 Elf64_Addr;
 typedef u64 Elf64_Off;
@@ -110,6 +113,7 @@ typedef struct {
 	Elf64_Xword	st_size;
 } Elf64_Sym;
 
+#define STN_UNDEF 0
 #define STT_NOTYPE 0
 #define STT_OBJECT 1
 #define STT_FUNC   2
@@ -127,6 +131,11 @@ typedef struct {
 typedef struct {
 	Elf64_Addr	r_offset;
 	Elf64_Xword	r_info;
+} Elf64_Rel;
+
+typedef struct {
+	Elf64_Addr	r_offset;
+	Elf64_Xword	r_info;
 	Elf64_Sxword	r_addend;
 } Elf64_Rela;
 
@@ -134,17 +143,37 @@ typedef struct {
 #define ELF64_R_TYPE(i)  ((i) & 0xFFFFFFFF)
 
 // d_tag values
-#define DT_NULL     0
-#define DT_NEEDED   1
+
+// dynld first pass
 #define DT_HASH     4
-#define DT_STRTAB   5
 #define DT_SYMTAB   6
+#define DT_SYMENT  11
+#define DT_STRTAB   5
+#define DT_STRSZ   10
+
+// dynld second pass
+#define DT_NEEDED   1
+
+#define DT_JMPREL  23
+#define DT_PLTRELSZ 2
+#define DT_PLTREL  20
+
 #define DT_RELA     7
 #define DT_RELASZ   8
-#define DT_RELAENT  9
-#define DT_STRSZ   10
-#define DT_SYMENT  11
-#define DT_JMPREL  23
+
+#define DT_REL     17
+#define DT_RELSZ   18
+
+#define DT_INIT    12
+#define DT_FINI    13
+#define DT_INITARRAY 25
+#define DT_FINIARRAY 26
+#define DT_INITARRAYSZ 27
+#define DT_FINIARRAYSZ 28
+#define DT_PREINITARRAY 32
+#define DT_PREINITARRAYSZ 33
+
+#define DT_NULL     0
 
 // reloc types (x86_64)
 #define R_X86_64_NONE      0
