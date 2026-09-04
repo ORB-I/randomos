@@ -3,19 +3,15 @@
 #include <sys/process.h>
 #include <sys/sysfn.h>
 
-#define BAR_WIDTH 28
 #define CORE_ROWS 4
 
 static void print_bar(const char* label, const char* value) {
-    printf("%-12s %3s [", label, value);
-    for (int i = 0; i < BAR_WIDTH; i++) {
-        putchar('=');
-    }
-    printf("]\n");
+    printf("%-12s %3s [============================]\n", label, value);
 }
 
 static void draw_dashboard(void) {
     termctl(TCTL_CLEAR, 0);
+    termctl(TCTL_AFLSH, 0);
     printf("RandomOS system monitor\n\n");
 
     for (int core = 0; core < CORE_ROWS; core++) {
@@ -30,6 +26,8 @@ static void draw_dashboard(void) {
     printf("%-24s | %-10s | %d\n", "rosyst", "N/A", getpid());
     printf("\nCurrent kernel ABI exposes only the caller PID.\n");
     printf("Press Ctrl+C to exit.\n");
+    termctl(TCTL_AFLSH, 1);
+    termctl(TCTL_FLUSH, 0);
 }
 
 int main(void) {
