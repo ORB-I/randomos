@@ -11,6 +11,7 @@
 #define VIRTIO_DEV_CONSOLE       0x1003
 #define VIRTIO_DEV_SCSI          0x1004
 #define VIRTIO_DEV_RNG           0x1005
+#define VIRTIO_DEV_INPUT        0x1012
 #define VIRTIO_DEV_9P            0x1009
 
 /* VirtIO Modern / Transitional Device IDs (Offset 0x1040) */
@@ -19,6 +20,7 @@
 #define VIRTIO_DEV_MODERN_CONSOLE 0x1043
 #define VIRTIO_DEV_MODERN_RNG    0x1044
 #define VIRTIO_DEV_MODERN_GPU    0x1050
+#define VIRTIO_DEV_MODERN_INPUT  0x1052
 
 /* VirtIO PCI Legacy Register Offsets (relative to BAR0 I/O base) */
 #define VIRTIO_REG_DEVICE_FEATURES 0x00 /* 32-bit R */
@@ -46,16 +48,25 @@ typedef struct {
     u16 devid;
     u16 iobase;
     u8 irq;
+    u8 modern;
+    volatile u8* common_cfg;
+    volatile u8* notify_cfg;
+    volatile u8* isr_cfg;
+    volatile u8* device_cfg;
+    u32 notify_off_multiplier;
 } virtio_dev_t;
 
 /* Core VirtIO Device API */
 int virtio_find_pci_device(u16 devid, virtio_dev_t* dev, u8 inten);
+int virtio_find_pci_device_nth(u16 devid, virtio_dev_t* dev, u8 inten, u8 nth);
 void virtio_reset(virtio_dev_t* dev);
 u8 virtio_get_status(virtio_dev_t* dev);
 void virtio_set_status(virtio_dev_t* dev, u8 status);
 void virtio_add_status(virtio_dev_t* dev, u8 status);
 u32 virtio_get_features(virtio_dev_t* dev);
 void virtio_set_features(virtio_dev_t* dev, u32 features);
+u64 virtio_get_features64(virtio_dev_t* dev);
+void virtio_set_features64(virtio_dev_t* dev, u64 features);
 u8 virtio_read_config8(virtio_dev_t* dev, u8 offset);
 u16 virtio_read_config16(virtio_dev_t* dev, u8 offset);
 u32 virtio_read_config32(virtio_dev_t* dev, u8 offset);

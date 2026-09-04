@@ -3,6 +3,7 @@
 
 #define MOUSE_PS2    1
 #define MOUSE_USBHID 2
+#define MOUSE_VIRTIO 3
 
 #define MOUSE_BUTTON_LEFT   0x01
 #define MOUSE_BUTTON_RIGHT  0x02

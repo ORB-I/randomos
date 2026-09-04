@@ -78,3 +78,10 @@ u32 pci_read_bar(u8 bus, u8 slot, u8 fn, u8 bar_idx) {
     }
     return pci_cfg_inl(bus, slot, fn, 0x10 + (bar_idx * 4));
 }
+
+u64 pci_read_bar64(u8 bus, u8 slot, u8 fn, u8 bar_idx) {
+    u32 low = pci_read_bar(bus, slot, fn, bar_idx);
+    if ((low & 0x06) != 0x04 || bar_idx >= 5) return low;
+    u32 high = pci_read_bar(bus, slot, fn, bar_idx + 1);
+    return ((u64)high << 32) | (low & ~0xFULL);
+}

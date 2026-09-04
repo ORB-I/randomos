@@ -8,6 +8,7 @@
 #include <drivers/display/term.h>
 #include <drivers/apic.h>
 #include <drivers/hid/usbhid/usbhid_kbd.h>
+#include <drivers/hid/virtio_input.h>
 #include <drivers/hid/ps2/kbd.h>
 #include <drivers/time/clock.h>
 
@@ -21,6 +22,8 @@ u8 kbd_get_raw(void) {
     while (!kb_has_sc()) {
         if (kb_type == KBD_USBHID) {
             usb_hid_kbd_poll(10);
+        } else if (kb_type == KBD_VIRTIO) {
+            virtio_input_poll();
         }
         asm volatile("pause");
     }
@@ -32,6 +35,8 @@ u8 kbd_get_raw(void) {
 u8 kbd_getrawto(u64 timeout) {
     if (kb_type == KBD_USBHID) {
         usb_hid_kbd_poll(timeout);
+    } else if (kb_type == KBD_VIRTIO) {
+        virtio_input_poll();
     } else {
         u64 c = 0;
         while (!kb_has_sc() && c < timeout) {
@@ -60,7 +65,9 @@ void init_kbd(int kbd_type) {
         return;
     }
 
-    if (kb_type == KBD_PS2) {
+    if (kb_type == KBD_VIRTIO) {
+        kprint("KBD: Using VirtIO Input Keyboard\n");
+    } else if (kb_type == KBD_PS2) {
         init_kbdps2();
         kprint("KBD: Using PS/2 Keyboard\n");
     } else {
