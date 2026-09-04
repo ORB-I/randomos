@@ -54,10 +54,12 @@
 
 void *memset(void *, int, size_t);
 void *memcpy(void *, const void *, size_t);
+void *memmove(void *, const void *, size_t);
 
 #if defined(__GNUC__) || defined(__clang__)
 #define memset __builtin_memset
 #define memcpy __builtin_memcpy
+#define memmove __builtin_memmove
 #endif
 
 static bool mul_size_overflow(size_t a, size_t b, size_t *out) {
@@ -874,6 +876,76 @@ static void flanterm_fb_revscroll(struct flanterm_context *_ctx) {
 static void flanterm_fb_scroll(struct flanterm_context *_ctx) {
     struct flanterm_fb_context *ctx = (void *)_ctx;
 
+    /* Whole-screen scroll (the only kind a plain console ever triggers): the
+     * rows above the one being cleared simply move up one text row, so there is
+     * no need to re-rasterize them. Shift the already-rendered scanlines, the
+     * character grid and the list of pending (not yet flushed) updates up with
+     * block copies and only mark the newly exposed bottom row as dirty. Rows
+     * that scroll off the top are dropped outright - nothing outside the
+     * visible screen is kept around. This turns a scroll into a handful of
+     * memmoves plus a one-line repaint instead of a glyph-by-glyph repaint of
+     * every visible line, which is what makes long bursts of output crawl once
+     * the screen fills up. Rotated terminals keep the generic path below. */
+    if (ctx->rotation == FLANTERM_FB_ROTATE_0
+     && _ctx->scroll_top_margin == 0
+     && _ctx->scroll_bottom_margin == _ctx->rows) {
+        /* Pending (queued, unflushed) characters: they move up one row with
+         * everything else, and any that were still on the top row scroll off
+         * the screen before ever being drawn, so drop them. The queue is
+         * compacted in place because the flush walker assumes every entry is
+         * still referenced by the map. */
+        size_t nq = 0;
+        for (size_t i = 0; i < ctx->queue_i; i++) {
+            struct flanterm_fb_queue_item *q = &ctx->queue[i];
+            if (q->y == 0) {
+                continue;
+            }
+            q->y--;
+            if (nq != i) {
+                ctx->queue[nq] = *q;
+            }
+            nq++;
+        }
+        ctx->queue_i = nq;
+
+        /* Rebuild the cell->queue-item map from the compacted queue so the
+         * flush walker never looks at an entry that no longer exists. */
+        memset(ctx->map, 0, _ctx->rows * _ctx->cols * sizeof(*ctx->map));
+        for (size_t i = 0; i < ctx->queue_i; i++) {
+            struct flanterm_fb_queue_item *q = &ctx->queue[i];
+            ctx->map[q->y * _ctx->cols + q->x] = q;
+        }
+
+        /* Shift the authoritative character grid up one row. The last row is
+         * left stale here on purpose: the blanks pushed below overwrite it, and
+         * until the next flush the stale grid row still matches the stale
+         * pixels below the memmove, so comparisons stay consistent. */
+        memmove(ctx->grid, ctx->grid + _ctx->cols,
+                (_ctx->rows - 1) * _ctx->cols * sizeof(*ctx->grid));
+
+        /* Shift the rendered scanlines up by one glyph height. Only the text
+         * region is moved; the letterboxing rows above and below it never hold
+         * anything but background. */
+        uintptr_t base = (uintptr_t)ctx->framebuffer + ctx->offset_y * ctx->pitch;
+        memmove((void *)base, (void *)(base + ctx->glyph_height * ctx->pitch),
+                (_ctx->rows - 1) * ctx->glyph_height * ctx->pitch);
+
+        /* Clear the last line of the screen (repainted from the queue, so it
+         * only costs one row of glyph work on the next flush). */
+        struct flanterm_fb_char empty;
+        empty.c  = ' ';
+        empty.fg = ctx->text_fg;
+        empty.bg = ctx->text_bg;
+        empty.fg_default = ctx->text_fg_default;
+        empty.bg_default = ctx->text_bg_default;
+        for (size_t i = 0; i < _ctx->cols; i++) {
+            push_to_queue(_ctx, &empty, i, _ctx->scroll_bottom_margin - 1);
+        }
+        return;
+    }
+
+    /* Generic scroll (scroll regions, rotated terminals): fall back to moving
+     * every cell through the queue, which repaints the scrolled region. */
     for (size_t i = (_ctx->scroll_top_margin + 1) * _ctx->cols;
          i < _ctx->scroll_bottom_margin * _ctx->cols; i++) {
         struct flanterm_fb_char *c;

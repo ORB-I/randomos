@@ -5,11 +5,8 @@
 #include <core/liballoc.h>
 #include <lib/string.h>
 
-#define LOGDEV_NONE   0
-#define LOGDEV_SERIAL 1
-#define LOGDEV_TERM   2
+#include <drivers/time/gettimeofday.h>
 
-static int logdev = LOGDEV_NONE;
 static int hasdevent = -1;
 
 kqueue_t* devqueue = NULL;
@@ -19,14 +16,9 @@ ssize klog_read(udev_t dev, void* buf, usize sz) {
 }
 
 int kprint_init() {
-    const char* dev = cmdline_get("logdev");
-    if (dev) {
-        if (streq("serial", dev)) {
-            logdev = LOGDEV_SERIAL;
-        } else if (streq("term", dev)) {
-            logdev = LOGDEV_TERM;
-        }
-    }
+    // Kernel log is unconditionally mirrored to both the serial port and the
+    // framebuffer terminal (see kvprint), so boot progress and panics are
+    // visible on-screen even on bare metal. `logdev` is no longer consulted.
     return 0;
 }
 
@@ -49,15 +41,35 @@ int kprint_initdev() {
     return 0;
 }
 
-int kvprint(const char* fmt, va_list ap) {
-    va_list ap1;
-    va_copy(ap1, ap);
+// The wall clock is anchored on the RTC, which only ticks once per second,
+// so log timestamps are hour/minute/second and never show subsecond digits.
+static int klog_stamp(char* out, usize cap) {
+    u64 tod = gettimeofday() % 86400;
+    return snprintf(out, cap, "[%02llu:%02llu:%02llu] ",
+                    tod / 3600, (tod % 3600) / 60, tod % 60);
+}
 
+int kvprint(const char* fmt, va_list ap) {
     int ret = 0;
-    if (logdev == LOGDEV_SERIAL) {
-        ret = serial_vprintf(fmt, ap);
-    } else if (logdev == LOGDEV_TERM) {
-        ret = vprintf(fmt, ap);
+
+    char stamp[16];
+    int stamp_len = klog_stamp(stamp, sizeof(stamp));
+    if (stamp_len < 0) stamp_len = 0;
+
+    // Mirror every kernel log line to both the serial port and the framebuffer terminal
+    {
+        va_list ap_serial;
+        va_copy(ap_serial, ap);
+        serial_printf("%s", stamp);
+        ret = serial_vprintf(fmt, ap_serial);
+        va_end(ap_serial);
+    }
+    {
+        va_list ap_term;
+        va_copy(ap_term, ap);
+        printf("%s", stamp);
+        ret = vprintf(fmt, ap_term);
+        va_end(ap_term);
     }
 
     if (hasdevent == 1) {
@@ -65,13 +77,14 @@ int kvprint(const char* fmt, va_list ap) {
         char* buf = malloc(1024 * 10);
         if (!buf) return 0;
 
-        ret = vsnprintf(buf, 1024 * 10, fmt, ap1);
+        memcpy(buf, stamp, stamp_len);
+        ret = vsnprintf(buf + stamp_len, 1024 * 10 - stamp_len, fmt, ap);
+        if (stamp_len + ret > 1024 * 10 - 1) ret = 1024 * 10 - 1 - stamp_len;
 
-        kqueue_enqueue(devqueue, (u8*)buf, ret);
+        kqueue_enqueue(devqueue, (u8*)buf, stamp_len + ret);
         free(buf);
     }
 
-    va_end(ap1);
     return ret;
 }
 

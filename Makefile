@@ -17,6 +17,8 @@ XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
 
 QFLAGS := -M pc -cpu qemu64 -boot d -smp 2 -m 1G -serial stdio -accel tcg \
 		  -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+		  -drive id=disk,file=drive.img,format=raw,if=none \
+		  -device virtio-blk-pci,drive=disk \
 		  -device piix3-usb-uhci,id=uhci \
 		  -device usb-kbd,bus=uhci.0,port=1 \
 		  -device usb-mouse,bus=uhci.0,port=2 \
@@ -24,7 +26,8 @@ QFLAGS := -M pc -cpu qemu64 -boot d -smp 2 -m 1G -serial stdio -accel tcg \
 		  -device virtio-rng-pci \
 		  -monitor unix:/tmp/qemu-monitor.sock,server=on,wait=off \
 		  -device virtio-keyboard-pci \
-		  -device virtio-tablet-pci
+		  -device virtio-tablet-pci \
+		  -d int,cpu_reset -D qemu.log
 QFLAGS_HEADLESS := -display none -serial file:qemu.log
 
 AS_SRC := $(shell find src -name '*.asm')
