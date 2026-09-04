@@ -28,7 +28,8 @@ static void draw_dashboard(void) {
 
     printf("\n%-24s | %-10s | %s\n", "Name", "CPU Usage", "PID");
     printf("%-24s | %-10s | %d\n", "rosyst", "N/A", getpid());
-    printf("\nPress Ctrl+C to exit.\n");
+    printf("\nCurrent kernel ABI exposes only the caller PID.\n");
+    printf("Press Ctrl+C to exit.\n");
 }
 
 int main(void) {
