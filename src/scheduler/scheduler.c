@@ -8,6 +8,7 @@
 #include <drivers/display/fb.h>
 #include <drivers/storage/fs.h>
 #include <core/errno.h>
+#include <smp/smp.h>
 
 // these arent defined
 // in a header because theyre only
@@ -87,6 +88,17 @@ int nextproc() {
     do {
         pid = (pid + 1) % MAX_PROCESSES;
         if (proctbl[pid].used && !proctbl[pid].is_dead) {
+            int in_use = 0;
+            if (smp_info) {
+                for (usize c = 0; c < ncores; c++) {
+                    if (smp_info[c].apicid != bsp_apicid && smp_info[c].current_pid == (u8)pid) {
+                        in_use = 1;
+                        break;
+                    }
+                }
+            }
+            if (in_use) continue;
+
             if (proctbl[pid].is_blocked) {
                 // If it's a sleep timer, check if it expired
                 if (proctbl[pid].wake_ms != 0 && getms && getms() >= proctbl[pid].wake_ms) {
@@ -145,6 +157,14 @@ void scheduler_switch(procctx_t* proc) {
 
     ctx2proc(currproc, proc);
     current_pid = (u8)tgtpid;
+    if (smp_info) {
+        for (usize c = 0; c < ncores; c++) {
+            if (smp_info[c].apicid == bsp_apicid) {
+                smp_info[c].current_pid = (u8)tgtpid;
+                break;
+            }
+        }
+    }
     spinlock_release(&proctbl_lock);
 
     reset_kgsb();

@@ -25,5 +25,5 @@ int user_mprotect(page_table_t *uasp, void *addr, u64 npgs, u64 flgs) {
         return -EINVAL;
     }
 
-    return vmm_setflgs(uasp, (u64)addr, npgs, flgs);
+    return vmm_setflgs(uasp, (u64)addr, npgs, flgs | PAGE_USER);
 }

@@ -12,6 +12,7 @@
 #include <core/errno.h>
 #include <scheduler/process.h>
 #include <core/mem/vmm.h>
+#include <lib/syscall.h>
 
 extern usize ncores;
 extern thread_idt_t* tidts;
@@ -189,6 +190,7 @@ static void smp_main_finish(ssize i) {
     /* INIT leaves this core's lapic software-disabled, without enabling
        it the bsp request IPI below is silently dropped */
     apic_enable_current();
+    init_syscalls();
     asm volatile(
         "lidt %0\n\t"
         "sti"
@@ -210,8 +212,17 @@ static int nextproc_core(ssize i) {
 
         process_state_t* proc = &proctbl[cand];
         if (proc->used && !proc->is_dead && !proc->is_blocked) {
-            pid = cand;
-            break;
+            int in_use = 0;
+            for (usize c = 0; c < ncores; c++) {
+                if ((ssize)c != i && smp_info[c].current_pid == (u8)cand) {
+                    in_use = 1;
+                    break;
+                }
+            }
+            if (!in_use) {
+                pid = cand;
+                break;
+            }
         }
     }
 
@@ -233,6 +244,9 @@ void smp_mainloop(ssize i) {
             case AP_RUNNING: {
                 int pid = nextproc_core(i);
                 if (pid < 0) {
+                    spinlock_acquire(&proctbl_lock);
+                    smp_info[i].current_pid = 0xFF;
+                    spinlock_release(&proctbl_lock);
                     lock_release(&apstates[i].lock, &rflags);
                     asm volatile(
                         "sti\n\t"

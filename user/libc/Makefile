@@ -10,14 +10,14 @@ CCFLAGS := -m64 -nostdlib \
 
 CCFLAGS_SO := $(CCFLAGS) -fPIC
 LDFLAGS_SO := -shared -Wl,-soname,/lib/libc.so -Wl,-shared -m64 -nostdlib -ffreestanding -nostartfiles \
-			  -Wl,--allow-shlib-undefined
+			  -Wl,--allow-shlib-undefined -Wl,--hash-style=both
 
 CFLAGS_LDSO := -m64 -nostdlib -fno-builtin -ffreestanding \
 			   -fPIC -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 			   -msoft-float -mno-fp-ret-in-387 -fno-unwind-tables \
 			   -fno-asynchronous-unwind-tables -fno-stack-check \
 			   -fno-stack-protector -Iinclude
-LDFLAGS_LDSO := -nostdlib -m elf_x86_64 -shared
+LDFLAGS_LDSO := -nostdlib -m elf_x86_64 -shared --hash-style=both
 
 LIBC_SO := libc.so
 LIBC := libc.a
@@ -72,7 +72,8 @@ $(LDSO): $(LDSO_OBJ)
 	$(LD) $(LDFLAGS_LDSO)  $^ -o $@
 
 copy: $(LIBC_SO) $(LDSO)
-	debugfs -w -R "rm /lib/$(LIBC_SO)" $(DRIVE)
+	debugfs -w -R "rm /lib/$(LIBC_SO)" $(DRIVE) || true
+	debugfs -w -R "rm /lib/$(LDSO)" $(DRIVE) || true
 	debugfs -w -R "write $(LIBC_SO) /lib/$(LIBC_SO)" $(DRIVE)
 	debugfs -w -R "write $(LDSO) /lib/$(LDSO)" $(DRIVE)
 
@@ -91,7 +92,7 @@ $(LDSO_OBJ): $(LDSOSRC)
 %.o: %.asm
 	$(AS) $(ASFLAGS) $< -o $@
 clean:
-	rm -f $(LIBC) $(CRT) $(LIBOBJ) $(ASMOBJ) $(DEPS) $(LIBC_SO) $(ALL_SOFILE_OBJS)
+	rm -f $(LIBC) $(CRT) $(LIBOBJ) $(ASMOBJ) $(DEPS) $(LIBC_SO) $(ALL_SOFILE_OBJS) $(LDSO) $(LDSO_OBJ)
 
 .PHONY: all copy clean
 .SECONDARY: $(ALL_SOFILE_OBJS) $(ALL_LIB_OBJS)
