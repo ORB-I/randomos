@@ -17,7 +17,7 @@ PROGS := init sh echo cat \
 		 rm wm fbtest dspinfo \
 		 wintest keytest mousetest \
 		 id whoami serialtest environ \
-		 random man
+			 random man rosyst
 
 PROGS_C := login
 
