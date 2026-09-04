@@ -25,6 +25,8 @@ QFLAGS := -M pc -cpu qemu64 -boot d -smp 2 -m 1G -serial stdio -accel tcg \
 		  -netdev user,id=net0 -device virtio-net-pci,netdev=net0 \
 		  -device virtio-rng-pci \
 		  -monitor unix:/tmp/qemu-monitor.sock,server=on,wait=off \
+		  -device virtio-keyboard-pci \
+		  -device virtio-tablet-pci \
 		  -d int,cpu_reset -D qemu.log
 QFLAGS_HEADLESS := -display none -serial file:qemu.log
 
@@ -45,6 +47,10 @@ ISO  := os.iso
 DEPS := $(CC_SRC:.c=.d)
 SUS  := $(CC_SRC:.c=.su)
 
+INITRD := initrd.img
+INITRD_STAGE := .initrd-stage
+PYTHON ?= python3
+
 SUBDIRS := user/libs/libmcrypto user/libc user/progs share/etc share/man
 
 all: subdirs $(ISO)
@@ -54,14 +60,15 @@ subdirs:
 		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)' || exit 1; \
 	done
 
-$(ISO): $(EXE)
+$(ISO): $(EXE) $(INITRD)
 	@$(MAKE) -C limine-binary
 	@echo "[ISO] $<"
 	@mkdir -p iso/boot/limine
 	@cp $< iso/boot/
+	@cp $(INITRD) iso/boot/initrd.img
 	@cp share/limine.conf limine-binary/limine-bios.sys \
 		limine-binary/limine-bios-cd.bin \
-      	limine-binary/limine-uefi-cd.bin \
+    	limine-binary/limine-uefi-cd.bin \
 		iso/boot/limine/
 	@mkdir -p iso/EFI/BOOT
 	@cp limine-binary/BOOTX64.EFI limine-binary/BOOTIA32.EFI iso/EFI/BOOT/
@@ -69,6 +76,27 @@ $(ISO): $(EXE)
 	./limine-binary/limine bios-install $@
 	@$(MAKE) -C limine-binary clean
 	@rm -rf iso
+
+# Pack the userland into a cpio "newc" archive the kernel unpacks at boot
+# (see src/kern/initramfs.c).  The archive must end up in the ISO as
+# /boot/initrd.img because share/limine.conf loads it as a module.
+$(INITRD): $(wildcard user/progs/*.elf) user/libc/libc.so \
+		user/libs/libmcrypto/libmcrypto.so \
+		$(wildcard share/etc/passwd share/etc/passwd.fmt) \
+		$(wildcard share/man/*.txt) mkinitrd.py
+	@echo "[INITRD] $@"
+	@rm -rf $(INITRD_STAGE)
+	@mkdir -p $(INITRD_STAGE)/bin $(INITRD_STAGE)/etc \
+		$(INITRD_STAGE)/lib $(INITRD_STAGE)/share/man
+	@for f in user/progs/*.elf; do \
+		cp "$$f" "$(INITRD_STAGE)/bin/$$(basename "$$f" .elf)"; \
+	done
+	@cp share/etc/passwd share/etc/passwd.fmt "$(INITRD_STAGE)/etc/"
+	@cp user/libc/libc.so "$(INITRD_STAGE)/lib/"
+	@cp user/libs/libmcrypto/libmcrypto.so "$(INITRD_STAGE)/lib/"
+	@cp share/man/*.txt "$(INITRD_STAGE)/share/man/"
+	$(PYTHON) mkinitrd.py "$(INITRD_STAGE)" "$@"
+	@rm -rf $(INITRD_STAGE)
 
 $(EXE): $(OBJ) lib/liblwip.a
 	@echo "[LD] $@"
@@ -103,7 +131,8 @@ debug: all
 	
 clean:
 	@echo "[CLEAN]"
-	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS) ksyms.c ksyms.o ksyms.d lib/liblwip.a $(LWIP_OBJ) $(LWIP_DEPS)
+	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS) ksyms.c ksyms.o ksyms.d lib/liblwip.a $(LWIP_OBJ) $(LWIP_DEPS) $(INITRD)
+	@rm -rf $(INITRD_STAGE)
 	@for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)' $@; \
 	done

@@ -37,4 +37,9 @@ LIMINE_REQ volatile struct limine_executable_cmdline_request cmdline_req = {
     .revision = 0
 };
 
+LIMINE_REQ volatile struct limine_module_request module_req = {
+    .id = LIMINE_MODULE_REQUEST_ID,
+    .revision = 0
+};
+
 __always_emit __section(.limine_requests_end) static volatile u64 _limreq_em[] = LIMINE_REQUESTS_END_MARKER;
