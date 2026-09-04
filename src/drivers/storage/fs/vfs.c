@@ -15,6 +15,8 @@
 #include <drivers/storage/fs/ramfs.h>
 #include <scheduler/process.h>
 
+int initramfs_mount(vfs_t* vfs);
+
 #define VFS_PATH_MAX     4096
 #define VFS_NAME_MAX     255
 #define VFS_MAX_SYMLINKS 40
@@ -368,7 +370,8 @@ struct av_vfs {
 
 struct av_vfs availfs[] = {
     {"ext2", 0, ext2fs_mount},
-    {"ramfs", FSFLAG_NOBLK, ramfs_mount}
+    {"ramfs", FSFLAG_NOBLK, ramfs_mount},
+    {"initramfs", FSFLAG_NOBLK, initramfs_mount}
 };
 static const usize navailfs = sizeof(availfs) / sizeof(availfs[0]);
 

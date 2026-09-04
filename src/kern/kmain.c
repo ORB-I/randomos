@@ -169,7 +169,10 @@ __no_protect void kmain_aftergdt() {
 
     const char* rootdev = cmdline_get("root");
     if (mount(rootdev, "/", "ext2") < 0) {
-        panic("Failed to mount a device\n");
+        kprint("Root block device unavailable, falling back to initramfs\n");
+        if (mount(NULL, "/", "initramfs") < 0) {
+            panic("Failed to mount a device\n");
+        }
     }
 
     if (mount(NULL, "/tmp", "ramfs") < 0) {

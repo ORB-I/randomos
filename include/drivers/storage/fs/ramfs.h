@@ -26,6 +26,7 @@ typedef struct {
 typedef struct {
     ramfs_inode* inodtbl;
     u32 ninodes;
+    u32 freehint; // next 0-based index to begin the free-inode scan at
 } ramfs_info;
 
 #define RAMFS(VFS) ((ramfs_info*)((VFS)->priv))
