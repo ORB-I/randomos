@@ -7,9 +7,11 @@
 #include <drivers/display/fb.h>
 #include <scheduler/process.h>
 #include <core/errno.h>
+#include <core/spinlock.h>
 
 struct flanterm_context* _term_ctx;
 int _term_flush = 1;
+static spinlock_t _term_lock = SPINLOCK_INIT;
 
 int init_term(int fb) {
     framebuf_info_t fbinfo;
@@ -44,6 +46,7 @@ void _term_flushscr() {
 // calling `term_putchar` is the absolute slowest way of writing stuff
 // due to it having to copy the framebuffer over EVERY TIME
 void term_putchar(char c) {
+    spinlock_acquire(&_term_lock);
     if (c == '\n') {
         flanterm_write(_term_ctx, "\r\n", 2);
         if (_term_flush) _term_flushscr();
@@ -51,16 +54,25 @@ void term_putchar(char c) {
         flanterm_write(_term_ctx, &c, 1);
         if (_term_flush) _term_flushscr();
     }
+    spinlock_release(&_term_lock);
 }
 
 void term_write(const char* buf, usize sz) {
-    int _term_flush_szd = _term_flush;
-    _term_flush = 0;
-    for (usize i = 0; i < sz; i++) {
-        term_putchar(buf[i]);
+    spinlock_acquire(&_term_lock);
+    usize start = 0;
+    for (usize i = 0; i <= sz; i++) {
+        if (i == sz || buf[i] == '\n') {
+            if (i > start) {
+                flanterm_write(_term_ctx, buf + start, i - start);
+            }
+            if (i < sz) {
+                flanterm_write(_term_ctx, "\r\n", 2);
+            }
+            start = i + 1;
+        }
     }
-    _term_flush = _term_flush_szd;
     if (_term_flush) _term_flushscr();
+    spinlock_release(&_term_lock);
 }
 
 void term_setfgcolor(term_color_t clr) {

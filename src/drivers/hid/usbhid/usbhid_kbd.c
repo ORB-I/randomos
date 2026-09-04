@@ -129,6 +129,14 @@ void usb_hid_kbd_poll(u64 timeout) {
     if (res) {
         memcpy(&rprt, (void*)res, sizeof(usb_hid_kbd_report_t));
         bool shift = (rprt.modifiers & 0x22) != 0;
+        bool ctrl = (rprt.modifiers & 0x11) != 0;
+        bool prev_ctrl = (prev_report.modifiers & 0x11) != 0;
+
+        if (ctrl && !prev_ctrl) {
+            enqueue_sc(0x1d);
+        } else if (!ctrl && prev_ctrl) {
+            enqueue_sc(0x9d);
+        }
 
         for (int i = 0; i < 6; i++) {
             u8 key = rprt.keys[i];

@@ -50,6 +50,8 @@ typedef struct {
 
     u64 phys_base;
     usize page_count;
+    u32 notify_offset;
+    u8 modern;
 } virtqueue_t;
 
 int virtqueue_init(virtio_dev_t* dev, u16 queue_index, virtqueue_t* vq);

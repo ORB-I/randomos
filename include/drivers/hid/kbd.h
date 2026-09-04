@@ -3,6 +3,7 @@
 
 #define KBD_USBHID 1
 #define KBD_PS2    2
+#define KBD_VIRTIO 3
 
 void init_kbd(int kbd_type);
 

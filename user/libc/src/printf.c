@@ -902,14 +902,36 @@ int fctprintf(void (*out)(char character, void* arg), void* arg, const char* for
   return ret;
 }
 
+struct output_buffer {
+  int fd;
+  char data[256];
+  usize used;
+};
+
+extern void _flush_stdout_buffer(void);
+
+static void flush_output_buffer(struct output_buffer* output) {
+  if (output->used != 0) {
+    write(output->fd, output->data, output->used);
+    output->used = 0;
+  }
+}
+
 void _fprintf_putchar(char c, void* arg) {
-    fputchar((int)(u64)arg, c);
+  struct output_buffer* output = (struct output_buffer*)arg;
+  output->data[output->used++] = c;
+  if (output->used == sizeof(output->data)) {
+    flush_output_buffer(output);
+  }
 }
 
 int vprintf(const char* format, va_list va) {
+  struct output_buffer output = {STDOUT, {0}, 0};
+  _flush_stdout_buffer();
     int flush = termctl(TCTL_GAFLH, 0);
     if (flush) termctl(TCTL_AFLSH, 0);
-    int ret = vfctprintf(_fprintf_putchar, (void*)(u64)STDOUT, format, va);
+  int ret = vfctprintf(_fprintf_putchar, &output, format, va);
+  flush_output_buffer(&output);
     if (flush) {
         termctl(TCTL_AFLSH, 1);
         termctl(TCTL_FLUSH, 0);
@@ -918,22 +940,37 @@ int vprintf(const char* format, va_list va) {
 }
 
 int fprintf(int fd, const char* fmt, ...) {
+  struct output_buffer output = {fd, {0}, 0};
+  if (fd == STDOUT) _flush_stdout_buffer();
+  int flush = fd == STDOUT && termctl(TCTL_GAFLH, 0);
+  if (flush) termctl(TCTL_AFLSH, 0);
     va_list lst;
     va_start(lst, fmt);
-    int ret = vfctprintf(_fprintf_putchar, (void*)(u64)fd, fmt, lst);
+  int ret = vfctprintf(_fprintf_putchar, &output, fmt, lst);
     va_end(lst);
+  flush_output_buffer(&output);
+  if (flush) {
+    termctl(TCTL_AFLSH, 1);
+    termctl(TCTL_FLUSH, 0);
+  }
     return ret;
 }
 
 void _serial_putchar(char c, void* arg) {
-    (void)arg;
-    serial_write(&c, 1);
+  struct output_buffer* output = (struct output_buffer*)arg;
+  output->data[output->used++] = c;
+  if (output->used == sizeof(output->data)) {
+    serial_write(output->data, output->used);
+    output->used = 0;
+  }
 }
 
 int serial_printf(const char* fmt, ...) {
+  struct output_buffer output = {0, {0}, 0};
     va_list lst;
     va_start(lst, fmt);
-    const int ret = vfctprintf(_serial_putchar, NULL, fmt, lst);
+  const int ret = vfctprintf(_serial_putchar, &output, fmt, lst);
     va_end(lst);
+  if (output.used != 0) serial_write(output.data, output.used);
     return ret;
 }

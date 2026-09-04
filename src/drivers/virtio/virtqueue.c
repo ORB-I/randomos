@@ -14,21 +14,25 @@ int virtqueue_init(virtio_dev_t* dev, u16 queue_index, virtqueue_t* vq) {
     vq->dev = dev;
     vq->queue_index = queue_index;
 
-    /* Select queue */
-    outw(dev->iobase + VIRTIO_REG_QUEUE_SELECT, queue_index);
-
-    /* Read queue size */
-    u16 size = inw(dev->iobase + VIRTIO_REG_QUEUE_SIZE);
+    u16 size;
+    if (dev->modern) {
+        *(volatile u16*)(dev->common_cfg + 0x16) = queue_index;
+        size = *(volatile u16*)(dev->common_cfg + 0x18);
+    } else {
+        outw(dev->iobase + VIRTIO_REG_QUEUE_SELECT, queue_index);
+        size = inw(dev->iobase + VIRTIO_REG_QUEUE_SIZE);
+    }
     if (size == 0 || size > 32768) {
         return -ENOEXIST;
     }
     vq->size = size;
 
-    /* Compute memory layout per legacy VirtIO spec (4096-byte alignment for used ring) */
+    /* Compute the split-ring layout for the selected transport. */
     usize desc_sz = (usize)size * sizeof(vring_desc_t);
     usize avail_sz = sizeof(u16) * (3 + size);
-    usize avail_end = desc_sz + avail_sz;
-    usize used_offset = (avail_end + 4095) & ~4095;
+    usize avail_offset = desc_sz;
+    usize avail_end = avail_offset + avail_sz;
+    usize used_offset = dev->modern ? ((avail_end + 3) & ~3) : ((avail_end + 4095) & ~4095);
     usize used_sz = sizeof(u16) * 3 + sizeof(vring_used_elem_t) * size;
     usize total_sz = used_offset + used_sz;
     usize page_cnt = (total_sz + 4095) / 4096;
@@ -43,8 +47,9 @@ int virtqueue_init(virtio_dev_t* dev, u16 queue_index, virtqueue_t* vq) {
     memset(virt, 0, page_cnt * 4096);
 
     vq->desc = (vring_desc_t*)virt;
-    vq->avail = (vring_avail_t*)(virt + desc_sz);
+    vq->avail = (vring_avail_t*)(virt + avail_offset);
     vq->used = (vring_used_t*)(virt + used_offset);
+    vq->modern = dev->modern;
 
     /* Initialize free descriptor list */
     for (u16 i = 0; i < size; i++) {
@@ -57,8 +62,16 @@ int virtqueue_init(virtio_dev_t* dev, u16 queue_index, virtqueue_t* vq) {
     vq->free_count = size;
     vq->last_used_idx = 0;
 
-    /* Program PFN (Page Frame Number) into queue address register */
-    outl(dev->iobase + VIRTIO_REG_QUEUE_ADDRESS, (u32)(vq->phys_base >> 12));
+    if (dev->modern) {
+        volatile u8* cfg = dev->common_cfg;
+        *(volatile u64*)(cfg + 0x20) = vq->phys_base;
+        *(volatile u64*)(cfg + 0x28) = vq->phys_base + avail_offset;
+        *(volatile u64*)(cfg + 0x30) = vq->phys_base + used_offset;
+        vq->notify_offset = *(volatile u16*)(cfg + 0x1e) * dev->notify_off_multiplier;
+        *(volatile u16*)(cfg + 0x1c) = 1;
+    } else {
+        outl(dev->iobase + VIRTIO_REG_QUEUE_ADDRESS, (u32)(vq->phys_base >> 12));
+    }
 
     return 0;
 }
@@ -66,9 +79,13 @@ int virtqueue_init(virtio_dev_t* dev, u16 queue_index, virtqueue_t* vq) {
 void virtqueue_free(virtqueue_t* vq) {
     if (!vq || !vq->phys_base) return;
 
-    /* Unlink from device */
-    outw(vq->dev->iobase + VIRTIO_REG_QUEUE_SELECT, vq->queue_index);
-    outl(vq->dev->iobase + VIRTIO_REG_QUEUE_ADDRESS, 0);
+    if (vq->dev->modern) {
+        *(volatile u16*)(vq->dev->common_cfg + 0x16) = vq->queue_index;
+        *(volatile u16*)(vq->dev->common_cfg + 0x1c) = 0;
+    } else {
+        outw(vq->dev->iobase + VIRTIO_REG_QUEUE_SELECT, vq->queue_index);
+        outl(vq->dev->iobase + VIRTIO_REG_QUEUE_ADDRESS, 0);
+    }
 
     pmm_ffree((void*)vq->phys_base, vq->page_count);
     memset(vq, 0, sizeof(virtqueue_t));
@@ -124,7 +141,11 @@ void virtqueue_submit_chain(virtqueue_t* vq, u16 head) {
 void virtqueue_kick(virtqueue_t* vq) {
     if (!vq || !vq->dev) return;
     asm volatile("" ::: "memory");
-    outw(vq->dev->iobase + VIRTIO_REG_QUEUE_NOTIFY, vq->queue_index);
+    if (vq->dev->modern) {
+        *(volatile u16*)(vq->dev->notify_cfg + vq->notify_offset) = vq->queue_index;
+    } else {
+        outw(vq->dev->iobase + VIRTIO_REG_QUEUE_NOTIFY, vq->queue_index);
+    }
 }
 
 bool virtqueue_has_used(virtqueue_t* vq) {
