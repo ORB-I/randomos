@@ -44,6 +44,7 @@ void* vmm_map_pages(page_table_t* pml4v, u64 vst, u64 pst, size_t pgcnt, u64 flg
 void vmm_unmap_page(page_table_t* pml4v, u64 virt, u64 flags);
 void vmm_unmap_pages(page_table_t* pml4v, u64 vst, size_t pgcnt, u64 flags);
 u64 vmm_get_phys(page_table_t* pml4v, u64 virt);
+int vmm_setflgs(page_table_t* pml4v, u64 svirt, usize npgs, u64 flgs);
 
 page_table_t* vmm_cpml4v();
 page_table_t* vmm_casp();
@@ -60,8 +61,9 @@ typedef struct {
 
 extern vmm_range_t vmm_umapr[255];
 
-void* user_mmap(page_table_t* uasp, void* reqaddr, u64 npages);
-int user_munmap(page_table_t* uasp, void* addr, u64 npages);
+void* user_mmap(page_table_t* uasp, void* reqaddr, u64 phys, u64 npages, u64 flags);
+int user_mprotect(page_table_t* uasp, void* addr, u64 npgs, u64 flgs);
+int user_munmap(page_table_t* uasp, void* addr, u64 npages, u64 flags);
 int vmm_rangeinusrmap(u64 addr, u64 npages);
 void vmm_setumapbase(u8 pid, u64 base);
 void vmm_remumap(u8 pid, page_table_t* uasp);

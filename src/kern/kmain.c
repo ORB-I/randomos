@@ -210,10 +210,12 @@ __no_protect void kmain_aftergdt() {
     if (init_pid < 0) {
         panic("init failed");
     }
+    serial_printf("init pid %d\n", init_pid);
     current_pid = (u8)init_pid;
 
     for (usize i = 0; i < ncores; i++) {
         if (smp_info[i].apicid == bsp_apicid) {
+            serial_printf("assigning pid to SMP APICID %lu\n", smp_info[i].apicid);
             smp_info[i].current_pid = (u8)init_pid;
             break;
         }

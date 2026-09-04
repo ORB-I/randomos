@@ -3,6 +3,7 @@
 #include <core/mem/vmm.h>
 #include <core/mem/pmm.h>
 #include <lib/string.h>
+#include <core/errno.h>
 
 extern u64 hhdm_offset;
 static page_table_t* pml4 = NULL;
@@ -524,4 +525,33 @@ void vmm_dasp(page_table_t* tpml4) {
 
     u64 ppml4 = (u64)tpml4 - hhdm_offset;
     pmm_ffree((void*)ppml4, 1);
+}
+
+int vmm_setflgs(page_table_t* pml4v, u64 svirt, usize npgs, u64 flgs) {
+    if (!pml4v) return -ENOEXIST;
+    for (usize i = 0; i < npgs; i++) {
+        u64 virt = svirt + (i * 4096);
+
+        u64 pml4e = pml4v[PML4_IDX(virt)];
+        if (!(pml4e & PAGE_PRESENT)) return -ENOEXIST;
+        page_table_t* pdpt_virt = (page_table_t*)(HHDM_START + (pml4e & ~0xFFFULL));
+
+        u64 pdpte = pdpt_virt[PDPT_IDX(virt)];
+        if (!(pdpte & PAGE_PRESENT)) return -ENOEXIST;
+        page_table_t* pd_virt = (page_table_t*)(HHDM_START + (pdpte & ~0xFFFULL));
+
+        u64 pde = pd_virt[PD_IDX(virt)];
+        if (!(pde & PAGE_PRESENT)) return -ENOEXIST;
+        page_table_t* pt_virt = (page_table_t*)(HHDM_START + (pde & ~0xFFFULL));
+
+        u64 pte = pt_virt[PT_IDX(virt)];
+        if (!(pte & PAGE_PRESENT)) return -ENOEXIST;
+
+        u64 phys = pte & ~0xFFFULL;
+        pt_virt[PT_IDX(virt)] = phys | flgs | PAGE_PRESENT;
+
+        asm volatile("invlpg (%0)" :: "r"(virt) : "memory");
+    }
+
+    return 0;
 }

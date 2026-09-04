@@ -88,7 +88,8 @@ syscall_hdlr_t syscall_tbl[] = {
     [SYS_GETPWD] = sys_getpwd,
     [SYS_SETPWD] = sys_setpwd,
     [SYS_SETCURS] = sys_setcurs,
-    [SYS_GETCURS] = sys_getcurs
+    [SYS_GETCURS] = sys_getcurs,
+    [SYS_MPROTECT] = sys_mprotect
 };
 
 bool syscall_c(struct sysregs* args) {

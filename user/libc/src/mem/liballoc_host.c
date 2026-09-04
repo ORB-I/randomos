@@ -21,10 +21,24 @@ int liballoc_unlock() {
     return 0;
 }
 
+extern u64 __uvmm_map_high__;
+extern u64 __uvmm_map_low__;
+u64 __alloc_anoncurrent = 0;
+
+#define PAGE_WRITE    (1ULL << 1)
+#define MAP_ANYVIRT   (1ULL << 62)
+
 void* liballoc_alloc(int npgs) {
-    return mmap(MMAP_ADDRANY, npgs);
+    u64 bytes = npgs * 4096;
+    if (__alloc_anoncurrent + bytes > __uvmm_map_high__) {
+        return NULL;
+    }
+    u64 vaddr = __alloc_anoncurrent;
+    __alloc_anoncurrent += bytes;
+
+    return mmap((void*)vaddr, 0, npgs, MAP_ANYVIRT | PAGE_WRITE);
 }
 
 int liballoc_free(void* addr, int npg) {
-    return munmap(addr, npg);
+    return munmap(addr, npg, 0);
 }

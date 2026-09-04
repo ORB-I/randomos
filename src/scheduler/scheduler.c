@@ -99,6 +99,8 @@ int nextproc() {
                 spinlock_release(&proctbl_lock);
                 return pid;
             }
+        } else if (proctbl[pid].used) {
+        } else {
         }
     } while (pid != start);
     spinlock_release(&proctbl_lock);
@@ -114,13 +116,16 @@ void scheduler_switch(procctx_t* proc) {
     krunpolls();
 
     int tgtpid = nextproc();
+
     while (tgtpid < 0) {
         // If all processes are blocked or sleeping, halt until next timer tick
+        hpet_start_preemptive(&_schdlr_timer);
         asm volatile(
             "sti\n\t"
             "hlt\n\t"
             "cli\n\t"
         );
+        hpet_pause_preemptive(&_schdlr_timer);
         tgtpid = nextproc();
     }
 
@@ -130,6 +135,7 @@ void scheduler_switch(procctx_t* proc) {
             scheduler_execve = 0;
         } else {
             spinlock_release(&proctbl_lock);
+            hpet_start_preemptive(&_schdlr_timer);
             return;
         }
     }

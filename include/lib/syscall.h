@@ -56,5 +56,6 @@
 #define SYS_SETPWD        60
 #define SYS_SETCURS       61
 #define SYS_GETCURS       62
+#define SYS_MPROTECT      63
 
 void init_syscalls();

@@ -9,7 +9,7 @@ CCFLAGS := -m64 -nostdlib -fno-builtin \
 	-MP -mno-mmx -mno-sse -mno-sse2 \
 	-mno-red-zone -msoft-float \
 	-mno-fp-ret-in-387 -Wall -Wextra -Werror
-LDFLAGS := -m elf_x86_64 --no-pie
+LDFLAGS := -m elf_x86_64 --no-pie --dynamic-linker=/lib/ld.so --allow-shlib-undefined
 
 PROGS := init sh echo cat \
 		 ls mkfile poweroff \

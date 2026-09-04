@@ -3,8 +3,8 @@
 
 #define MMAP_ADDRANY 0
 
-void* mmap(void* addr, u64 npages);
-int munmap(void* addr, u64 npages);
+void* mmap(void* addr, u64 phys, u64 npages, u64 flags);
+int munmap(void* addr, u64 npages, usize flags);
 
 void* malloc(usize size);
 void* realloc(void* ptr, usize size);

@@ -3,7 +3,6 @@
 #include <sys/process.h>
 #include <sys/sysfn.h>
 #include <time.h>
-#include <unistd.h>
 
 #define CORE_ROWS 4
 
@@ -34,14 +33,14 @@ static void draw_dashboard(void) {
 
 int main(void) {
     int ctrl_pressed = 0;
-    time_t last_update = 0;
+    u64 last_update = getclock(CLOCK_MONO);
 
     draw_dashboard();
 
     for (;;) {
         u8 scancode = kbd_get_raw_to(100);
         if (scancode == 0) {
-            time_t now = time(NULL);
+            u64 now = getclock(CLOCK_MONO);
             if (now - last_update >= 1) {
                 draw_dashboard();
                 last_update = now;

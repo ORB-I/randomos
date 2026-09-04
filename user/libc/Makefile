@@ -9,7 +9,8 @@ CCFLAGS := -m64 -nostdlib \
 	-Werror 
 
 CCFLAGS_SO := $(CCFLAGS) -fPIC
-LDFLAGS_SO := -shared -Wl,-soname,/lib/libc.so -Wl,-shared -m64 -nostdlib -ffreestanding -nostartfiles 
+LDFLAGS_SO := -shared -Wl,-soname,/lib/libc.so -Wl,-shared -m64 -nostdlib -ffreestanding -nostartfiles \
+			  -Wl,--allow-shlib-undefined
 
 LIBC_SO := libc.so
 LIBC := libc.a
@@ -18,6 +19,7 @@ CRT := crt0.o
 LIBSRC := $(shell find . -name "*.c")
 ASMSRC := $(shell find . -name "*.asm")
 
+LIBSRC   := $(filter-out ./ldso/ldso.c, $(LIBSRC))
 LIBA_SRC := $(filter-out ./src/crt.asm src/crt.asm, $(ASMSRC))
 
 LIBOBJ := $(LIBSRC:.c=.o)

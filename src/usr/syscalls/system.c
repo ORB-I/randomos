@@ -17,11 +17,15 @@ DEFSYSCALL(sys_poweroff) {
 }
 
 DEFSYSCALL(sys_mmap) {
-    return (u64)user_mmap(vmm_cpml4v(), (void*)args->a0, args->a1);
+    return (u64)user_mmap(vmm_cpml4v(), (void*)args->a0, args->a1, args->a2, args->a4);
 }
 
 DEFSYSCALL(sys_munmap) {
-    return user_munmap(vmm_cpml4v(), (void*)args->a0, args->a1);
+    return user_munmap(vmm_cpml4v(), (void*)args->a0, args->a1, args->a3);
+}
+
+DEFSYSCALL(sys_mprotect) {
+    return user_mprotect(vmm_cpml4v(), (void*)args->a0, args->a1, args->a2);
 }
 
 DEFSYSCALL(sys_random64) {

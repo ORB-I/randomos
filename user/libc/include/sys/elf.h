@@ -1,5 +1,5 @@
 #pragma once
-#include <core/std.h>
+#include <sys/types.h>
 // sometime should implement more stuff
 // including GNU extensions (LSB Core Generic)
 // and ones in the new SysV ELF spec from Xinuos
@@ -113,6 +113,9 @@ typedef struct {
 	Elf64_Xword	st_size;
 } Elf64_Sym;
 
+// we should also add symbol visibility support
+// sometime soon
+
 #define STN_UNDEF 0
 #define STT_NOTYPE 0
 #define STT_OBJECT 1
@@ -200,8 +203,14 @@ typedef struct {
 #define AT_STACK   6
 #define AT_STACKSZ 7
 
+// provided by ldso
+#define AT_MMAPLOW  8
+#define AT_MMAPHIGH 9
+
 #define NAUXV 8
 typedef struct {
     u64 type;
     u64 val;
 } Elf64_Auxv;
+
+u64 getauxval(u64 type);

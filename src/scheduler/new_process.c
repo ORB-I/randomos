@@ -119,6 +119,7 @@ int new_process(const char* path, char** argv, char** envp, u8 ppid) {
             break;
         }
     }
+    
     if (!proc) {
         spinlock_release(&proctbl_lock);
         return -EFULL;
