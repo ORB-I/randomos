@@ -1,6 +1,7 @@
 #include <core/panic.h>
 #include <core/std.h>
 #include <core/kprint.h>
+#include <core/debug.h>
 #include <drivers/display/serial.h>
 
 __noreturn __no_protect void panic(const char* msg, ...) {
@@ -44,12 +45,9 @@ __noreturn __no_protect void panic(const char* msg, ...) {
     kprint("RIP: %016lx  RFLAGS: %016lx\n", rip, rflags);
     kprint("CS:  %04x   DS: %04x   ES: %04x\n\n", cs, ds, es);
 
-    kprint("RAX: %016lx  RBX: %016lx  RCX: %016lx  RDX: %016lx\n", rax, rbx, rcx, rdx);
-    kprint("RSI: %016lx  RDI: %016lx  RBP: %016lx  RSP: %016lx\n", rsi, rdi, rbp, rsp);
-    kprint("RIP: %016lx  RFLAGS: %016lx\n", rip, rflags);
-    kprint("CS:  %04x   DS: %04x   ES: %04x\n\n", cs, ds, es);
+    backtrace(rbp);
 
-    kprint("*** HALTING NOW ***\n");
+    kprint("\n*** HALTING NOW ***\n");
 
     asm volatile("cli");
     while (1) { asm volatile("hlt"); }

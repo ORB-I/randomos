@@ -37,10 +37,6 @@ static void kill_user_process(struct CpuState* regs, const char* msg, va_list ls
            regs->rip, regs->rbp, regs->rsp, regs->cs);
     va_end(flst);
 
-    kprint("user fault (pid %d): ", current_pid);
-    serial_vprintf(msg, slst);
-    kprint("\nRIP=%016lx  RBP=%016lx RSP=%016lx  CS=%04lx\n",
-                  regs->rip, regs->rbp, regs->rsp, regs->cs);
     va_end(slst);
 
     page_table_t* uasp = vmm_cpml4v();
@@ -63,20 +59,6 @@ static void kill_user_process(struct CpuState* regs, const char* msg, va_list ls
     vmm_remumap(current_pid, uasp);
     vmm_dasp(uasp);
     panic("all processes have exited");
-}
-
-void backtrace(u64 rbp) {
-    if (!rbp) return;
-    for (usize i = 0; i < 10; i++) {
-        u64* fp = (u64*)rbp;
-        if (!vmm_get_phys(vmm_cpml4v(), rbp)) break;
-        rbp = fp[0];
-        struct kern_symbol* sym = locate_symbol(fp[1]);
-        const char* syms = (sym) ? sym->name : "unknown";
-        kprint("%zu: %s (%lu)\n", i, syms, fp[1]);
-        kprint("%zu: %s (%lu)\n", i, syms, fp[1]);
-        if (!rbp) break;
-    }
 }
 
 void except_panic(struct CpuState* regs, const char* msg, ...) {
@@ -104,18 +86,8 @@ void except_panic(struct CpuState* regs, const char* msg, ...) {
     kprint("ERR: %016lx  INTR: %016lx\n", regs->error_code, regs->intr_no);
     kprint("CS:  %016lx  SS: %016lx\n\n", regs->cs, regs->ss);
 
-    serial_puts("*** KERNEL EXCEPTION ***\n");
-    serial_vprintf(msg, slst);
-    serial_puts("\n\n");
-
-    kprint("RAX: %016lx  RBX: %016lx  RCX: %016lx  RDX: %016lx\n", regs->rax, regs->rbx, regs->rcx, regs->rdx);
-    kprint("RSI: %016lx  RDI: %016lx  RBP: %016lx  RSP: %016lx\n", regs->rsi, regs->rdi, regs->rbp, regs->rsp);
-    kprint("RIP: %016lx  RFLAGS: %016lx\n", regs->rip, regs->rflags);
-    kprint("ERR: %016lx  INTR: %016lx\n", regs->error_code, regs->intr_no);
-    kprint("CS:  %016lx  SS: %016lx\n", regs->cs, regs->ss);
     backtrace(regs->rbp);
 
-    serial_puts("\n*** HALTING NOW ***\n");
     kprint("\n*** HALTING NOW ***\n");
 
     va_end(lst);
