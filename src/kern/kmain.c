@@ -24,6 +24,7 @@
 #include <drivers/pic.h>
 #include <drivers/hid/mouse.h>
 #include <drivers/apic.h>
+#include <drivers/hid/virtio_input.h>
 #include <drivers/acpi.h>
 #include <drivers/display/term.h>
 #include <drivers/storage/fs.h>
@@ -185,14 +186,17 @@ __no_protect void kmain_aftergdt() {
     virtio_rng_init();
     rng_init();
     virtio_net_init();
+    virtio_input_init();
     e1000_init();
     init_lwip();
 
     init_syscalls();
 
     kprint("IO: Requesting keyboard type %d\n", kbtype);
+    if (virtio_input_available()) kbtype = KBD_VIRTIO;
     init_kbd(kbtype);
     kprint("IO: Requesting mouse type %d\n", mbtype);
+    if (virtio_input_available()) mbtype = MOUSE_VIRTIO;
     init_mouse(mbtype);
 
     kprint("Testing AP\n");

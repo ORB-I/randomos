@@ -5,6 +5,8 @@
 
 #define INITBUFSZ 256
 
+extern void _flush_stdout_buffer(void);
+
 char* readline(const char* prompt) {
     u32 bufsz = INITBUFSZ;
     char* buf = (char*)malloc(bufsz);
@@ -22,6 +24,7 @@ char* readline(const char* prompt) {
         char c = (char)getchar();
         if (c == '\n' || c == '\r') {
             putchar(c);
+            _flush_stdout_buffer();
             break;
         } else if (c == '\b') {
             if (i == 0) continue;
@@ -30,10 +33,12 @@ char* readline(const char* prompt) {
                 putchar('\b');
                 putchar(' ');
                 putchar('\b');
+                _flush_stdout_buffer();
                 continue;
             }
         } else {
             putchar(c);
+            _flush_stdout_buffer();
         }
 
         if (i >= bufsz - 1) {

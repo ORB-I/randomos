@@ -8,6 +8,7 @@
 #include <drivers/hid/ps2/mouse.h>
 #include <core/kprint.h>
 #include <drivers/hid/usbhid/usbhid_mouse.h>
+#include <drivers/hid/virtio_input.h>
 #include <drivers/hid/ps2/ps2.h>
 #include <drivers/hid/mouse.h>
 #include <drivers/time/clock.h>
@@ -24,6 +25,8 @@ int get_mouse_info(mouse_info_t* buf) {
     while (!mouse_has_info()) {
         if (mb_type == MOUSE_USBHID) {
             usb_hid_mouse_poll();
+        } else if (mb_type == MOUSE_VIRTIO) {
+            virtio_input_poll();
         }
         asm volatile("pause");
         sleepms(5);
@@ -54,7 +57,10 @@ int init_mouse(int type) {
     }
 
     mb_type = type;
-    if (type == MOUSE_PS2) {
+    if (type == MOUSE_VIRTIO) {
+        kprint("MOUSE: Using VirtIO Input Mouse\n");
+        return 0;
+    } else if (type == MOUSE_PS2) {
         if (!isps2dc()) {
             kprint("MOUSE: No mouse available\n");
             return -ENOEXIST;
