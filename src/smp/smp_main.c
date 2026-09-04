@@ -11,6 +11,7 @@
 #include <lib/string.h>
 #include <core/errno.h>
 #include <scheduler/process.h>
+#include <core/mem/vmm.h>
 
 extern usize ncores;
 extern thread_idt_t* tidts;
@@ -58,13 +59,13 @@ static ssize smp_find_core(u8 apicid) {
 void smp_main(u64 apic_id) {
     ssize i = smp_find_core((u8)apic_id);
     if (i < 0) {
-        // a core the madt never told us about has no stack or gdt to go back to
         kprint("SMP: apicid %lu is not ours, halting\n", apic_id);
-        for (;;) asm volatile("cli\n\thlt");
+        for (;;) asm volatile(
+            "cli\n\t"
+            "hlt\n\t"
+        );
     }
 
-    // far-return through the new gdt so cs actually reloads before we
-    // touch any data segments
     asm volatile(
         "cli\n\t"
         "lgdt %0\n\t"
@@ -97,8 +98,6 @@ void smp_main(u64 apic_id) {
     }
 }
 
-/* r15..ss sit contiguous and identically ordered in both structs, so a
-   saved frame moves as one flat block */
 _Static_assert(sizeof(intctx_t) == offsetof(intctx_t, ss) + sizeof(u64),
                "intctx_t grew padding");
 _Static_assert(offsetof(ap_state, r15) + sizeof(intctx_t)
@@ -304,7 +303,9 @@ void smp_mainloop(ssize i) {
                 // iretq since calling lock_release would clobber our new register states
                 ap_state state;
                 memcpy(&state, &apstates[i], sizeof(state));
+                kprint("running pid %d\n", pid);
                 lock_release(&apstates[i].lock, &rflags);
+                vmm_sasp((page_table_t*)state.cr3);
                 asm volatile(
                     "mov %0, %%r15\n\t"
                     "mov %c1(%%r15), %%rax\n\t"
@@ -321,8 +322,6 @@ void smp_mainloop(ssize i) {
                     "mov %c12(%%r15), %%r12\n\t"
                     "mov %c13(%%r15), %%r13\n\t"
                     "mov %c14(%%r15), %%r14\n\t"
-                    "mov %c21(%%r15), %%rax\n\t"
-                    "mov %%rax, %%cr3\n\t"
 
                     "pushq %c19(%%r15)\n\t" // ss
                     "pushq %c18(%%r15)\n\t" // rsp
@@ -352,8 +351,7 @@ void smp_mainloop(ssize i) {
                        "i"(offsetof(ap_state, rflags)),
                        "i"(offsetof(ap_state, rsp)),
                        "i"(offsetof(ap_state, ss)),
-                       "i"(offsetof(ap_state, r15)),
-                       "i"(offsetof(ap_state, cr3))
+                       "i"(offsetof(ap_state, r15))
                     : "memory");
                 __builtin_unreachable();
             }

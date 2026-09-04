@@ -31,6 +31,7 @@ segment_ld_t load_segment(Elf64_Phdr* phdr, int fd, page_table_t* nasp, u64 load
     u64 start_page = seg_vaddr & ~0xFFFULL;
     u64 end_page = (seg_vaddr + phdr->p_memsz + 0xFFFULL) & ~0xFFFULL;
     usize npgs = (usize)((end_page - start_page) / 4096);
+    kprint("Loading segment at %016lx\n", start_page);
 
     void* mapped = vmm_map_pages(vmm_cpml4v(), start_page, 0, npgs, MAP_ANYPHYS | MAP_CONT | PAGE_WRITE);
     if (!mapped) return SEGLD_ERR(-ENOMEM);
@@ -111,8 +112,6 @@ int loadexe_base(const char* path, u64 base, page_table_t* nasp, loadinfo_t* inf
         kprint("Loader: failed to open file %s\n", path);
         return fd;
     }
-
-    kprint("Loading program %s\n", path);
 
     Elf64_Ehdr ehdr;
     ssize nread = read(fd, &ehdr, sizeof(ehdr));
@@ -229,6 +228,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
     int ret = 0;
     loadinfo_t exe_info = {0};
     page_table_t* nasp = vmm_casp();
+    kprint("Loading program %s (CR3: %p)\n", path, nasp);
 
     if ((ret = loadexe_base(path, 0, nasp, &exe_info)) < 0) {
         vmm_dasp(nasp);
@@ -248,6 +248,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
 
         u64 intrp_base = ((exe_info.ldhigh + 1) + 0xFFFULL) & ~0xFFFULL;
         loadinfo_t intrp_info = {0};
+        kprint("Requesting program interpreter %s at address %016lx\n", interp, intrp_base);
 
         if ((ret = loadexe_base(interp, intrp_base, nasp, &intrp_info)) < 0) {
             for (usize i = 0; i < exe_info.nldsegs; i++) {
@@ -279,6 +280,13 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
     }
 
     u64 rsp_cpy = rsp;
+
+    rsp_cpy -= sizeof(Elf64_Auxv) * 8;
+    Elf64_Auxv* stk_auxv = (Elf64_Auxv*)rsp_cpy;
+    memcpy(stk_auxv, auxv, sizeof(Elf64_Auxv) * 5);
+    stk_auxv[5] = (Elf64_Auxv){AT_STACK, rsp};
+    stk_auxv[6] = (Elf64_Auxv){AT_STACKSZ, USTACK};
+    stk_auxv[7] = (Elf64_Auxv){AT_NULL, 0};
 
     int ac = 0;
     while (argv[ac] != NULL && ac < ARGMAX) {
@@ -334,13 +342,6 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
     rsp_cpy -= sizeof(u64);
     *(u64*)rsp_cpy = (u64)ac;
 
-    rsp_cpy -= sizeof(Elf64_Auxv) * 8;
-    Elf64_Auxv* stk_auxv = (Elf64_Auxv*)rsp_cpy;
-    memcpy(stk_auxv, auxv, sizeof(Elf64_Auxv) * 5);
-    stk_auxv[5] = (Elf64_Auxv){AT_STACK, rsp};
-    stk_auxv[6] = (Elf64_Auxv){AT_STACKSZ, USTACK};
-    stk_auxv[7] = (Elf64_Auxv){AT_NULL, 0};
-
     u64 paddr = vmm_get_phys(vmm_cpml4v(), (u64)(rsp - USTACK));
     if (!vmm_map_pages(nasp, rsp - USTACK, paddr, USTACKPGS, MAP_CONT | PAGE_USER | PAGE_WRITE)) {
         kprint("Loader: failed to map stack\n");
@@ -351,6 +352,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
     free(avaddrs);
     free(evaddrs);
 
+    kprint("Using entry point %016lx\n", entry);
     return (loadprog_res_t){
         .status = 0,
         .pgtbl = nasp,

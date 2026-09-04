@@ -23,7 +23,7 @@ void backtrace(u64 rbp) {
         rbp = fp[0];
         struct kern_symbol* sym = locate_symbol(fp[1]);
         const char* syms = (sym) ? sym->name : "unknown";
-        kprint("%zu: %s (%zu)\n", i, syms, fp[1]);
+        kprint("%zu: %s (%016lx)\n", i, syms, fp[1]);
         if (!rbp) break;
     }
 }

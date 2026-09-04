@@ -18,12 +18,13 @@ ASMFUNC NORETURN void _start(void) {
 
 // elf needs to parse its own DT_RELA and DT_REL first
 HIDDEN void ldso_start(void* rsp) {
+    const char* ldso_startup_msg = "ldso\n";
     asm volatile(
         "mov %0, %%rdi\n\t"
         "mov $5, %%rsi\n\t"
         "mov $54, %%rax\n\t"
         "syscall\n\t"
-        : "=r"("ldso\n")
+        : "=r"(ldso_startup_msg)
         :: "rdi", "rax"
     );
 
@@ -53,6 +54,7 @@ HIDDEN void ldso_start(void* rsp) {
     if (!phdrs_addr || phnum == 0) {
         // like exit(1); but (hopefully) without needing the
         // function relocations lol
+
         asm volatile(
             "mov $1, %rdi\n\t"
             "mov $1, %rax\n\t"
