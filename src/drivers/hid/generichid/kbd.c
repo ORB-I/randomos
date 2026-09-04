@@ -130,6 +130,8 @@ char getchar(void) {
     while (!kb_has_char()) {
         if (kb_type == KBD_USBHID) {
             usb_hid_kbd_poll(10);
+        } else if (kb_type == KBD_VIRTIO) {
+            virtio_input_poll();
         }
         asm volatile("pause");
     }

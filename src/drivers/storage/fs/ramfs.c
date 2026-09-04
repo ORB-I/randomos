@@ -4,11 +4,30 @@
 #include <core/liballoc.h>
 #include <core/errno.h>
 
+/* Allocate a free inode.  Instead of rescaming the whole table from index 0
+ * on every allocation (which makes creating N files O(N^2) and shows up as
+ * lag when the root lives on ramfs), continue from a per-fs hint and only
+ * wrap around when the region past the hint is exhausted.  Amortized O(1)
+ * for append-dominated workloads (e.g. initramfs unpacking).
+ */
 static u32 findfreeino(vfs_t* vfs) {
     ramfs_info* fs = RAMFS(vfs);
-    for (usize i = 0; i < fs->ninodes; i++) {
+
+    if (fs->freehint >= fs->ninodes) {
+        fs->freehint = 0;
+    }
+
+    for (usize i = fs->freehint; i < fs->ninodes; i++) {
         if (!fs->inodtbl[i].used) {
-            return i+1;
+            fs->freehint = i + 1;
+            return i + 1;
+        }
+    }
+
+    for (usize i = 0; i < fs->freehint; i++) {
+        if (!fs->inodtbl[i].used) {
+            fs->freehint = i + 1;
+            return i + 1;
         }
     }
 
@@ -17,6 +36,7 @@ static u32 findfreeino(vfs_t* vfs) {
     fs->inodtbl = ninodtbl;
     u32 ino = fs->ninodes + 1;
     fs->ninodes += 64;
+    fs->freehint = ino; // skip past the slot we just took
     return ino;
 }
 
@@ -69,10 +89,16 @@ ssize ramfs_mkino(vfs_t* vfs, u16 mode, u16 uid, u16 gid) {
 }
 
 ssize ramfs_rmino(vfs_t* vfs, u32 ino) {
+    ramfs_info* fs = RAMFS(vfs);
     ramfs_inode* inod = getinod(vfs, ino);
     if (!inod) return -ENOENT;
     free(inod->dptr);
     memset(inod, 0, sizeof(*inod));
+
+    // Let the next allocation reuse this slot instead of growing the table.
+    if (ino - 1 < fs->freehint) {
+        fs->freehint = ino - 1;
+    }
     return 0;
 }
 
@@ -252,12 +278,23 @@ ssize ramfs_write(vfs_t* vfs, u32 ino, usize off, usize nb, void* buf) {
     if (!inod) return -ENOENT;
 
     if (inod->allocd < off + nb) {
-        void* ndata = realloc(inod->dptr, inod->allocd + nb);
+        // Grow geometrically instead of by nb: growing a file one small write
+        // at a time otherwise reallocs and copies on every write (O(N^2)).
+        usize need = off + nb;
+        usize newcap = inod->allocd ? inod->allocd : 1024;
+        while (newcap < need) {
+            newcap *= 2;
+        }
+        void* ndata = realloc(inod->dptr, newcap);
         if (!ndata) return -ENOMEM;
         inod->dptr = ndata;
+        inod->allocd = newcap;
     }
 
     memcpy(inod->dptr + off, buf, nb);
+    if (off + nb > inod->size) {
+        inod->size = off + nb;
+    }
     return nb;
 }
 
@@ -314,6 +351,7 @@ int ramfs_mount(vfs_t* vfs) {
 
     memset(fs->inodtbl, 0, sizeof(*fs->inodtbl) * 1024);
     fs->ninodes = 1024;
+    fs->freehint = 0;
 
     vfs->priv = (u64)fs;
 

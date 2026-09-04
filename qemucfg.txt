@@ -8,6 +8,7 @@ Base configuration
 -monitor unix:/tmp/qemu-monitor.sock,server=on,wait=off
 -qmp unix:/tmp/qemu-qmp.sock,server=on,wait=off
 -device piix3-usb-uhci,id=uhci
+-device virtio-keyboard-pci -device virtio-tablet-pci
 
 Supported devices
 
