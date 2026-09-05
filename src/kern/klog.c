@@ -3,11 +3,18 @@
 #include <core/printf.h>
 #include <core/kqueue.h>
 #include <core/liballoc.h>
+#include <core/lock.h>
 #include <lib/string.h>
 
 #include <drivers/time/gettimeofday.h>
 
+#define LOGDEV_NONE   0
+#define LOGDEV_SERIAL 1
+#define LOGDEV_TERM   2
+
+static int logdev = LOGDEV_NONE;
 static int hasdevent = -1;
+static lock_t __kplock = {0};
 
 kqueue_t* devqueue = NULL;
 ssize klog_read(udev_t dev, void* buf, usize sz) {
@@ -16,9 +23,14 @@ ssize klog_read(udev_t dev, void* buf, usize sz) {
 }
 
 int kprint_init() {
-    // Kernel log is unconditionally mirrored to both the serial port and the
-    // framebuffer terminal (see kvprint), so boot progress and panics are
-    // visible on-screen even on bare metal. `logdev` is no longer consulted.
+    const char* dev = cmdline_get("logdev");
+    if (dev) {
+        if (streq("serial", dev)) {
+            logdev = LOGDEV_SERIAL;
+        } else if (streq("term", dev)) {
+            logdev = LOGDEV_TERM;
+        }
+    }
     return 0;
 }
 
@@ -41,11 +53,9 @@ int kprint_initdev() {
     return 0;
 }
 
-// The wall clock is anchored on the RTC, which only ticks once per second,
-// so log timestamps are hour/minute/second and never show subsecond digits.
 static int klog_stamp(char* out, usize cap) {
     u64 tod = gettimeofday() % 86400;
-    return snprintf(out, cap, "[%02llu:%02llu:%02llu] ",
+    return snprintf(out, cap, "[%02lu:%02lu:%02lu] ",
                     tod / 3600, (tod % 3600) / 60, tod % 60);
 }
 
@@ -56,34 +66,38 @@ int kvprint(const char* fmt, va_list ap) {
     int stamp_len = klog_stamp(stamp, sizeof(stamp));
     if (stamp_len < 0) stamp_len = 0;
 
-    // Mirror every kernel log line to both the serial port and the framebuffer terminal
-    {
-        va_list ap_serial;
-        va_copy(ap_serial, ap);
-        serial_printf("%s", stamp);
-        ret = serial_vprintf(fmt, ap_serial);
-        va_end(ap_serial);
-    }
-    {
-        va_list ap_term;
-        va_copy(ap_term, ap);
-        printf("%s", stamp);
-        ret = vprintf(fmt, ap_term);
-        va_end(ap_term);
+    va_list sap;
+    va_copy(sap, ap);
+
+    u64 rflags = 0;
+    lock_acquire(&__kplock, &rflags);
+    if (logdev == LOGDEV_SERIAL) {
+        serial_vprintf(fmt, ap);
+    } else if (logdev == LOGDEV_TERM) {
+        vprintf(fmt, ap);
     }
 
     if (hasdevent == 1) {
-        if (!devqueue) return 0;
+        if (!devqueue) {
+            lock_release(&__kplock, &rflags);
+            return 0;
+        }
+        
         char* buf = malloc(1024 * 10);
-        if (!buf) return 0;
+
+        if (!buf) {
+            lock_release(&__kplock, &rflags);
+            return 0;
+        }
 
         memcpy(buf, stamp, stamp_len);
-        ret = vsnprintf(buf + stamp_len, 1024 * 10 - stamp_len, fmt, ap);
+        ret = vsnprintf(buf + stamp_len, 1024 * 10 - stamp_len, fmt, sap);
         if (stamp_len + ret > 1024 * 10 - 1) ret = 1024 * 10 - 1 - stamp_len;
-
         kqueue_enqueue(devqueue, (u8*)buf, stamp_len + ret);
+        va_end(sap);
         free(buf);
     }
+    lock_release(&__kplock, &rflags);
 
     return ret;
 }

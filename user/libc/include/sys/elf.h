@@ -149,6 +149,7 @@ typedef struct {
 
 // dynld first pass
 #define DT_HASH     4
+#define DT_GNU_HASH 0x6ffffef5
 #define DT_SYMTAB   6
 #define DT_SYMENT  11
 #define DT_STRTAB   5
