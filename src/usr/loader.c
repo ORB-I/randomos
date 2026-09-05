@@ -258,7 +258,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
         }
 
         for (usize i = 0; i < intrp_info.nldsegs; i++) {
-            vmm_unmap_pages(vmm_cpml4v(), (u64)intrp_info.segs[i].ptr, intrp_info.segs[i].npgs, 0);
+            vmm_unmap_pages(vmm_cpml4v(), (u64)intrp_info.segs[i].ptr, intrp_info.segs[i].npgs, UNMAP_KEEPPHYS);
         }
 
         auxv[3] = (Elf64_Auxv){AT_IPHDRS, intrp_info.phdrs_vaddr};
@@ -268,7 +268,7 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
     }
 
     for (usize i = 0; i < exe_info.nldsegs; i++) {
-        vmm_unmap_pages(vmm_cpml4v(), (u64)exe_info.segs[i].ptr, exe_info.segs[i].npgs, 0);
+        vmm_unmap_pages(vmm_cpml4v(), (u64)exe_info.segs[i].ptr, exe_info.segs[i].npgs, UNMAP_KEEPPHYS);
     }
 
     u64 rsp = USER_END;
@@ -280,13 +280,6 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
     }
 
     u64 rsp_cpy = rsp;
-
-    rsp_cpy -= sizeof(Elf64_Auxv) * 8;
-    Elf64_Auxv* stk_auxv = (Elf64_Auxv*)rsp_cpy;
-    memcpy(stk_auxv, auxv, sizeof(Elf64_Auxv) * 5);
-    stk_auxv[5] = (Elf64_Auxv){AT_STACK, rsp};
-    stk_auxv[6] = (Elf64_Auxv){AT_STACKSZ, USTACK};
-    stk_auxv[7] = (Elf64_Auxv){AT_NULL, 0};
 
     int ac = 0;
     while (argv[ac] != NULL && ac < ARGMAX) {
@@ -321,24 +314,48 @@ loadprog_res_t load_program(const char* path, char** argv, char** environ) {
         avaddrs[i] = rsp_cpy;
     }
 
-    rsp_cpy &= ~15;
+    // System V ABI layout:
+    // [argc]
+    // [argv[0] ... argv[ac-1]]
+    // [NULL]
+    // [envp[0] ... envp[nenv-1]]
+    // [NULL]
+    // [auxv[0] ... auxv[7]]
+    // Ensure the final rsp_cpy is 16-byte aligned
+    usize total_u64s = 1 + ac + 1 + nenv + 1 + (sizeof(Elf64_Auxv) * 8) / sizeof(u64);
+    if ((rsp_cpy / sizeof(u64) - total_u64s) % 2 != 0) {
+        rsp_cpy -= sizeof(u64);
+    }
 
+    // Auxv array (8 entries) directly above envp NULL
+    rsp_cpy -= sizeof(Elf64_Auxv) * 8;
+    Elf64_Auxv* stk_auxv = (Elf64_Auxv*)rsp_cpy;
+    memcpy(stk_auxv, auxv, sizeof(Elf64_Auxv) * 5);
+    stk_auxv[5] = (Elf64_Auxv){AT_STACK, rsp};
+    stk_auxv[6] = (Elf64_Auxv){AT_STACKSZ, USTACK};
+    stk_auxv[7] = (Elf64_Auxv){AT_NULL, 0};
+
+    // envp NULL terminator
     rsp_cpy -= sizeof(u64);
     *(u64*)rsp_cpy = 0;
 
+    // envp pointers
     for (int i = nenv - 1; i >= 0; i--) {
         rsp_cpy -= sizeof(u64);
         *(u64*)rsp_cpy = (u64)evaddrs[i];
     }
 
+    // argv NULL terminator
     rsp_cpy -= sizeof(u64);
     *(u64*)rsp_cpy = 0;
 
+    // argv pointers
     for (int i = ac - 1; i >= 0; i--) {
         rsp_cpy -= sizeof(u64);
         *(u64*)rsp_cpy = (u64)avaddrs[i];
     }
 
+    // argc
     rsp_cpy -= sizeof(u64);
     *(u64*)rsp_cpy = (u64)ac;
 

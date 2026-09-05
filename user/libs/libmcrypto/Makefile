@@ -6,7 +6,7 @@ CCFLAGS := -m64 -nostdlib \
 	-MMD -MP -mno-mmx -mno-sse -mno-sse2 \
 	-mno-red-zone -msoft-float -mno-fp-ret-in-387 \
 	-Werror -fPIC
-LDFLAGS := -shared -Wl,-soname,/lib/libmcrypto.so -Wl,-shared -m64 -nostdlib -ffreestanding -nostartfiles
+LDFLAGS := -shared -Wl,-soname,/lib/libmcrypto.so -Wl,-shared -m64 -nostdlib -ffreestanding -nostartfiles -Wl,--hash-style=both
 
 LIB := libmcrypto.so
 LIBSRC := mcrypto.c
