@@ -11,8 +11,9 @@
 #define LOGDEV_NONE   0
 #define LOGDEV_SERIAL 1
 #define LOGDEV_TERM   2
+#define LOGDEV_BOTH  (LOGDEV_SERIAL | LOGDEV_TERM)
 
-static int logdev = LOGDEV_NONE;
+static int logdev = LOGDEV_BOTH;
 static int hasdevent = -1;
 static lock_t __kplock = {0};
 
@@ -71,10 +72,19 @@ int kvprint(const char* fmt, va_list ap) {
 
     u64 rflags = 0;
     lock_acquire(&__kplock, &rflags);
-    if (logdev == LOGDEV_SERIAL) {
-        serial_vprintf(fmt, ap);
-    } else if (logdev == LOGDEV_TERM) {
-        vprintf(fmt, ap);
+    if (logdev & LOGDEV_SERIAL) {
+        va_list sap_serial;
+        va_copy(sap_serial, ap);
+        serial_printf("%s", stamp);
+        ret = serial_vprintf(fmt, sap_serial);
+        va_end(sap_serial);
+    }
+    if (logdev & LOGDEV_TERM) {
+        va_list sap_term;
+        va_copy(sap_term, ap);
+        printf("%s", stamp);
+        ret = vprintf(fmt, sap_term);
+        va_end(sap_term);
     }
 
     if (hasdevent == 1) {
