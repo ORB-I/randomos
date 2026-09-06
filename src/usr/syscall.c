@@ -89,7 +89,8 @@ syscall_hdlr_t syscall_tbl[] = {
     [SYS_SETPWD] = sys_setpwd,
     [SYS_SETCURS] = sys_setcurs,
     [SYS_GETCURS] = sys_getcurs,
-    [SYS_MPROTECT] = sys_mprotect
+    [SYS_MPROTECT] = sys_mprotect,
+    [SYS_IOCTL] = sys_ioctl
 };
 
 bool syscall_c(struct sysregs* args) {
@@ -97,8 +98,11 @@ bool syscall_c(struct sysregs* args) {
     struct sysregs svargs;
     memcpy(&svargs, args, sizeof(*args));
 
-    if (args->num > (sizeof(syscall_tbl)/sizeof(syscall_hdlr_t)) ||
-        !syscall_tbl[args->num]) return -EINVAL;
+    if (args->num >= (sizeof(syscall_tbl)/sizeof(syscall_hdlr_t)) ||
+        !syscall_tbl[args->num]) {
+        args->num = (u64)-EINVAL;
+        return 0;
+    }
     
     u64 ret = syscall_tbl[args->num](args);
     

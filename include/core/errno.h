@@ -31,6 +31,8 @@
 #define EEXISTS   29 // file or directory already exists
 #define ELOOP     30 // looped too much
 #define ENAMETOOLONG 31 // name too long, may also be returned as EINVAL
+#define ENODEV    32 // no such device
+#define ENOTTY    33 // inappropriate ioctl for device
 #define FF_TO_ERRNO(FF)  \
     (FF == FR_OK ? EOK : \
      FF == FR_DISK_ERR ? EDISK : \

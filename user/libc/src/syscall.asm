@@ -6,12 +6,26 @@ global __syscall3
 global __syscall4
 global __syscall5
 
+extern set_errno
+
 section .text
 
 %macro do_syscall 0
     syscall
+    cmp rax, 0
+    jge %%done
+    cmp rax, -4095
+    jl %%done
+    neg rax
+    push rax
+    mov rdi, rax
+    call set_errno wrt ..plt
+    pop rax
+    mov rax, -1
+%%done:
     ret
 %endmacro
+
 
 __syscall0:
     mov rax, rdi

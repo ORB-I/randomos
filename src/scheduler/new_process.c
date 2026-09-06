@@ -106,6 +106,8 @@ static ssize _stdout_write(void* buf, usize sz) {
     return sz;
 }
 
+
+
 extern framebuf_t _term_fb;
 int new_process(const char* path, char** argv, char** envp, u8 ppid) {
     process_state_t* proc = NULL;

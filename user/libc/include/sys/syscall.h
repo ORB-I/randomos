@@ -58,6 +58,7 @@
 #define SYS_SETCURS       61
 #define SYS_GETCURS       62
 #define SYS_MPROTECT      63
+#define SYS_IOCTL         64
 
 u64 __syscall0(u64 nr);
 u64 __syscall1(u64 nr, u64 arg0);

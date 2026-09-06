@@ -15,3 +15,4 @@ DEFSYSCALL(sys_serialwrite);
 DEFSYSCALL(sys_getrawscto);
 DEFSYSCALL(sys_setcurs);
 DEFSYSCALL(sys_getcurs);
+DEFSYSCALL(sys_ioctl);
