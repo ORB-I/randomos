@@ -4,12 +4,12 @@
 #define PATH_MAX 1024
 #define FILENAME_MAX 256
 
-#define O_WRONLY 0x02
-#define O_RDONLY 0x01
+#define O_WRONLY 0x01
+#define O_RDONLY 0x02
 #define O_RDWR (O_WRONLY | O_RDONLY)
-#define O_CREAT 0x10
-#define O_APPEND 0x30
-#define O_TRUNC 0x80
+#define O_CREAT 0x04
+#define O_APPEND 0x08
+#define O_TRUNC 0x10
 
 #define S_IFSOCK 0xC000
 #define S_IFLNK  0xA000

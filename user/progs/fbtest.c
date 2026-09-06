@@ -5,12 +5,13 @@
 #include <mem.h>
 #include <io.h>
 #include <str.h>
+#include <stdio.h>
 
 static int termfb = -1;
 
 static int fail(const char* msg) {
     if (termfb >= 0) switch_fb(termfb);
-    fprintf(STDERR, "fbtest: %s\n", msg);
+    fprintf(stderr, "fbtest: %s\n", msg);
     return 1;
 }
 

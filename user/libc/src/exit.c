@@ -9,13 +9,15 @@ void (**__libc_atexits__)(void) = NULL;
 void __libc_finienviron();
 void __libc_finistdio();
 void __libc_finiatexit();
-extern void (*__libc_ldso_ldcleanup)(void);
+
+u64 getauxval(u64 type);
+void __ldso_ldcleanup();
 
 [[noreturn]] void exit(int c) {
     __libc_finiatexit();
     __libc_finistdio();
     __libc_finienviron();
-    __libc_ldso_ldcleanup();
+    __ldso_ldcleanup();
 
     __syscall1(SYS_EXIT, c);
     __builtin_unreachable();

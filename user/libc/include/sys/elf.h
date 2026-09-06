@@ -162,7 +162,7 @@ typedef struct {
 
 // dynld second pass
 #define DT_NEEDED   1
-
+#define DT_PLTGOT 3
 #define DT_JMPREL  23
 #define DT_PLTRELSZ 2
 #define DT_PLTREL  20
@@ -252,5 +252,3 @@ typedef struct {
     u64 type;
     u64 val;
 } Elf64_Auxv;
-
-u64 getauxval(u64 type);

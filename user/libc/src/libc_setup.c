@@ -17,11 +17,13 @@ void __libc_finienviron();
 void __libc_finistdio();
 void __libc_finiatexit();
 
+u64 getauxval(u64 type);
+void __ldso_ldcleanup();
+
 u64 __uvmm_map_low__  = 0;
 u64 __uvmm_map_high__ = 0;
 extern u64 __alloc_anoncurrent;
 extern char** __libc_envp__;
-extern void (*__libc_ldso_ldcleanup)(void);
 
 void __libc_setupfail() {
     __syscall1(SYS_EXIT, -1);
@@ -36,7 +38,6 @@ int _libc_setup(int argc, char** argv, char** envp) {
     __alloc_anoncurrent = __uvmm_map_low__;
     __libc_envp__ = envp;
 
-    __libc_ldsoinit();
     __libc_initenviron();
     __libc_initstdio();
     __libc_initatexit();
@@ -46,7 +47,7 @@ int _libc_setup(int argc, char** argv, char** envp) {
     __libc_finiatexit();
     __libc_finistdio();
     __libc_finienviron();
-    __libc_ldso_ldcleanup();
+    __ldso_ldcleanup();
 
     __syscall1(SYS_EXIT, ret);
     __builtin_unreachable();

@@ -19,7 +19,9 @@ DEFSYSCALL(sys_write) {
 
 DEFSYSCALL(sys_open) {
     if (!ensure_string((char*)args->a0, 256, 0)) return -EINVAL;
-    return open((char*)args->a0, args->a1, args->a2);
+    int ret = open((char*)args->a0, args->a1, args->a2);
+    kprint("sysopen returning %d\n", ret);
+    return ret;
 }
 
 DEFSYSCALL(sys_close) {
