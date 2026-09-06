@@ -46,21 +46,7 @@ ALL_SOFILE_OBJS := $(LIB_SOOBJ) $(ASM_SOOBJ)
 
 CRTSRC := src/crt.asm
 
-DRIVE ?= ../../drive.img
-
-all: $(DRIVE) $(LIBC) $(CRT) $(LIBC_SO) copy
-
-$(DRIVE):
-	dd if=/dev/zero of=$@ bs=1M count=100
-	mkfs.ext2 $@
-	debugfs -w -R "mkdir /bin" $@ 
-	debugfs -w -R "mkdir /etc" $@ 
-	debugfs -w -R "mkdir /lib" $@ 
-
-	#mkfs.msdos -F 16 $@
-	#mmd -i $(DRIVE) ::/bin
-	#mmd -i $(DRIVE) ::/etc
-	#mmd -i $(DRIVE) ::/lib
+all: $(LIBC) $(CRT) $(LIBC_SO) copy
 
 $(LIBC): $(ALL_LIB_OBJS)
 	$(AR) rcs $@ $^

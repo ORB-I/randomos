@@ -51,13 +51,27 @@ INITRD := initrd.img
 INITRD_STAGE := .initrd-stage
 PYTHON ?= python3
 
-SUBDIRS := user/libs/libmcrypto user/libc user/progs share/etc share/man
+DRIVE ?= ../../drive.img
 
-all: subdirs $(ISO)
+SUBDIRS := user/libs/zlib user/libs/libmcrypto user/libc user/progs user/nasm share/etc share/man
+
+all: $(DRIVE) subdirs $(ISO)
+
+$(DRIVE):
+	dd if=/dev/zero of=$@ bs=1M count=100
+	mkfs.ext2 $@
+	debugfs -w -R "mkdir /bin" $@
+	debugfs -w -R "mkdir /etc" $@
+	debugfs -w -R "mkdir /lib" $@
+
+	#mkfs.msdos -F 16 $@
+	#mmd -i $(DRIVE) ::/bin
+	#mmd -i $(DRIVE) ::/etc
+	#mmd -i $(DRIVE) ::/lib
 
 subdirs:
 	@for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)' || exit 1; \
+		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)' 'DRIVE=$(DRIVE)' || exit 1; \
 	done
 
 $(ISO): $(EXE) $(INITRD)
