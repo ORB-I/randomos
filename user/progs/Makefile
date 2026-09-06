@@ -21,8 +21,6 @@ PROGS := init sh echo cat \
 
 PROGS_C := login
 
-DRIVE ?= ../../drive.img
-
 DEPLIBS := ../libc/libc.so ../libc/crt0.o
 DEPLIBS_C := ../libs/libmcrypto/libmcrypto.so
 
@@ -31,20 +29,7 @@ DEPS := $(PROGS:=.d)
 PROGFILES := $(PROGS:=.elf)
 PROGFILES_C := $(PROGS_C:=.elf)
 
-all: $(DRIVE) $(PROGFILES) $(PROGFILES_C) copy
-
-$(DRIVE):
-	dd if=/dev/zero of=$@ bs=1M count=100
-	mkfs.ext2 $@
-	debugfs -w -R "mkdir /bin" $@
-	debugfs -w -R "mkdir /etc" $@
-	debugfs -w -R "mkdir /lib" $@
-
-	#mkfs.msdos -F 16 $@
-	#mmd -i $(DRIVE) ::/bin
-	#mmd -i $(DRIVE) ::/etc
-	#mmd -i $(DRIVE) ::/lib
-
+all: $(PROGFILES) $(PROGFILES_C) copy
 
 $(PROGFILES): %.elf: %.c $(DEPLIBS)
 	$(CC) $(CCFLAGS) -c $< -o $(basename $@).o

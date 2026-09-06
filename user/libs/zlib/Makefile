@@ -12,16 +12,7 @@ SRCS := $(wildcard *.c)
 OBJS := $(SRCS:.c=.o)
 DEPS := $(SRCS:.c=.d)
 
-DRIVE ?= ../../../drive.img
-
-all: $(DRIVE) $(LIB) copy
-
-$(DRIVE):
-	dd if=/dev/zero of=$@ bs=1M count=100
-	mkfs.ext2 $@
-	debugfs -w -R "mkdir /bin" $@
-	debugfs -w -R "mkdir /etc" $@
-	debugfs -w -R "mkdir /lib" $@
+all: $(LIB) copy
 
 $(LIB): $(OBJS)
 	$(CC) $(LDFLAGS) $^ -o $@

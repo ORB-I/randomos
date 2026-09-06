@@ -28,9 +28,12 @@ OUT := nasm
 
 $(OUT): $(OBJS)
 	$(LD) $(LDFLAGS) $^ $(LDLIBS) -o $@
+	debugfs -w -R "rm /bin/$(OUT)" $(DRIVE)
+	debugfs -w -R "write $(OUT) /bin/$(OUT)" $(DRIVE)
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $<
 clean:
 	rm -f $(OBJS) $(DEPS) $(OUT)
 
 -include $(DEPS)
+.PHONY: clean
