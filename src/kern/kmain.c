@@ -1,3 +1,4 @@
+#include <stdatomic.h>
 #include <core/mem/vmm.h>
 #include <core/mem/pmm.h>
 #include <core/std.h>
@@ -99,8 +100,10 @@ int try_init(const char* path) {
     return 1;
 }
 
+static atomic_int ap_test_done = 0;
 void ap_testtask() {
     kprint("Hello from SMP%d\n", get_apicid());
+    atomic_store(&ap_test_done, 1);
 }
 
 __noreturn void __stack_chk_fail() {
@@ -204,6 +207,9 @@ __no_protect void kmain_aftergdt() {
 
     kprint("Testing AP\n");
     while (ap_run(ap_testtask, NULL) < 0);
+    while (!atomic_load(&ap_test_done)) {
+        asm volatile("pause");
+    }
 
     if (init_scheduler() < 0) panic("Failed to initialize scheduler\n");
 

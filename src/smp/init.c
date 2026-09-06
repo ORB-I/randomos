@@ -95,7 +95,12 @@ void init_smpreqs() {
         panic("Failed to initialize SMPs");
     }
 
+    memset(apstates, 0, sizeof(ap_state) * ncores);
+
     for (usize i = 0; i < ncores; i++) {
+        lock_init(&apstates[i].lock);
+        apstates[i].state = AP_WAITING;
+
         thread_gdt_t* tgdt = &tgdts[i];
         thread_idt_t* tidt = &tidts[i];
 

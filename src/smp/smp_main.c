@@ -144,13 +144,14 @@ void smp_request_hdlr_c(intctx_t* ctx) {
             kprint("AP %d received RUN request\n", apicid);
             // only safe to launch out of the idle loop, yanking a paused
             // or running core would orphan whatever frame it was wearing
+            lock_acquire(&apstates[i].lock, &rflags);
             if (apstates[i].state != AP_WAITING) {
-                kprint("AP %d will not RUN\n", apicid);
+                kprint("AP %d will not RUN (state %d)\n", apicid, apstates[i].state);
+                lock_release(&apstates[i].lock, &rflags);
                 atomic_store(&req->done, 1); // ack anyway or the bsp spins forever
                 smp_contloop(i);
             }
             ap_runreq_t* run = (ap_runreq_t*)req->data;
-            lock_acquire(&apstates[i].lock, &rflags);
             apstates[i].rreq = *run;
             apstates[i].state = AP_START;
             lock_release(&apstates[i].lock, &rflags);
@@ -196,6 +197,11 @@ static void smp_main_finish(ssize i) {
         "sti"
         :: "m"(tidts[i].idtr)
     );
+    u64 rflags;
+    lock_acquire(&apstates[i].lock, &rflags);
+    apstates[i].state = AP_WAITING;
+    clear_ctx(i);
+    lock_release(&apstates[i].lock, &rflags);
     send_bsp_request(get_apicid(), BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
     smp_mainloop(i);
 }
@@ -232,6 +238,9 @@ static int nextproc_core(ssize i) {
 
 void smp_mainloop(ssize i) {
     u64 apic_id = get_apicid();
+    if (i < 0 || i >= (ssize)ncores || smp_info[i].apicid != apic_id) {
+        i = smp_find_core((u8)apic_id);
+    }
     for (;;) {
         u64 rflags;
         lock_acquire(&apstates[i].lock, &rflags);
@@ -239,6 +248,7 @@ void smp_mainloop(ssize i) {
             case AP_WAITING:
             case AP_PAUSED: {
                 lock_release(&apstates[i].lock, &rflags);
+                asm volatile("pause");
                 break;
             }
             case AP_RUNNING: {
@@ -370,28 +380,35 @@ void smp_mainloop(ssize i) {
                 __builtin_unreachable();
             }
             case AP_START: {
-                kprint("AP %d START\n", get_apicid());
-                asm("cli");
+                kprint("AP %lu START\n", apic_id);
 
                 void(*fn)(void*) = apstates[i].rreq.fn;
                 void* arg = apstates[i].rreq.arg;
                 clear_ctx(i);
-                send_bsp_request(apic_id, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WORKING);
                 lock_release(&apstates[i].lock, &rflags);
 
-                asm("sti");
-                fn(arg);
-                asm("cli");
+                send_bsp_request(apic_id, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WORKING);
+
+                if (fn) {
+                    asm volatile("sti");
+                    fn(arg);
+                    asm volatile("cli");
+                }
+
+                send_bsp_request(apic_id, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
 
                 lock_acquire(&apstates[i].lock, &rflags);
-
                 clear_ctx(i);
-                apstates[i].state = AP_WAITING;
-                send_bsp_request(apic_id, BSP_REQ_SETSTAT, NULL, SMP_STATUS_WAITING);
+                if (apstates[i].state == AP_START) {
+                    apstates[i].state = AP_WAITING;
+                }
                 lock_release(&apstates[i].lock, &rflags);
 
-                asm("sti");
                 continue;
+            }
+            default: {
+                lock_release(&apstates[i].lock, &rflags);
+                break;
             }
         }
     }
@@ -409,7 +426,8 @@ void smp_mainloop(ssize i) {
         "pushq %1\n\t"
         "iretq"
         :: "r"(smp_stacks[i].stack + sizeof(smp_stacks[i].stack)),
-           "r"(smp_mainloop)
+           "r"(smp_mainloop),
+           "D"(i)
         : "memory"
     );
 
