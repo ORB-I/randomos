@@ -1,17 +1,18 @@
 #include "sys/sysfn.h"
 #include <fb.h>
 #include <io.h>
+#include <stdio.h>
 
 int main() {
     int cfb = get_currfb();
     if (cfb < 0) {
-        fprintf(STDERR, "failed to get current framebuffer\n");
+        fprintf(stderr, "failed to get current framebuffer\n");
         return 1;
     }
 
     framebuf_info_t info;
     if (get_fbinfo(cfb, &info) < 0) {
-        fprintf(STDERR, "failed to get info on current framebuffer\n");
+        fprintf(stderr, "failed to get info on current framebuffer\n");
         return 1;
     }
 

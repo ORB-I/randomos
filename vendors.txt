@@ -7,4 +7,6 @@ Flanterm, https://github.com/mintsuki/flanterm, BSD-2-Clause, for full terminal 
 Printf, https://github.com/mpaland/printf, MIT License, for a full-featured printf library
 LwIP, https://savannah.nongnu.org/projects/lwip/, BSD-style license, for networking support
 liballoc, https://github.com/blanham/liballoc, public domain, for malloc/realloc/calloc/free support
-monocypher (mcrypto), https://github.com/LoupVaillant/monocypher, CC0 or BSD-2-Clause (CC0), for cryptography support
+monocypher (mcrypto), https://github.com/LoupVaillant/monocypher, CC0, for cryptography support
+zlib, https://zlib.net/, Zlib, for compression support
+nasm, https://nasm.us, BSD-2-Clause, for assembly support

@@ -48,6 +48,27 @@ From https://savannah.nongnu.org/projects/lwip/
 Copyright (c) 2001, 2002 Swedish Institute of Computer Science. All rights reserved.  
 LwIp is licensed under the license at [vendor/lwip-2.2.1/COPYING](/vendor/lwip-2.2.1/COPYING)  
 
+## Zlib  
+From https://zlib.net/  
+Copyright (C) 1995-2026 Jean-loup Gailly and Mark Adler  
+Zlib is licensed under the Zlib license at [user/libs/zlib/LICENSE](/user/libs/zlib/LICENSE)  
+Changes made are:  
+- Build system changed (CMake, Bazel, Configure, Make, etc. removed)  
+- Documentation files removed (.1, .pdf, doc/)  
+- Examples removed  
+- Unrelated OS files removed (win32/, watcom/, qnx/, os400/, msdos/, amiga/)  
+- contrib/ removed  
+- examples/ removed  
+- test/ removed  
+- New build system added  
+- All source files changed to work with RandomOS  
+- .cmake-format.yaml removed  
+
+## NASM
+From https://www.nasm.us  
+Copyright 1996-2025 the NASM Authors - All rights reserved.  
+NASM is licensed under the BSD-2-Clause license at [user/nasm/info/LICENS](/user/nasm/info/LICENSE)  
+
 ## This project (full license)
 MIT License  
   

@@ -22,6 +22,8 @@ typedef struct {
 #define CLOCK_MONO   2
 #define CLOCK_UNIX   3
 
+typedef u64 time_t;
+
 u64 getclock(int clock);
 u64 gettime();
 void gettime_ms(struct millitime* timebuf);

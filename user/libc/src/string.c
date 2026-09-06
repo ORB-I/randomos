@@ -57,7 +57,7 @@ s32 atoi(const char* str) {
     return sign * res;
 }
 
-void* memset(void* dest, int c, size_t n) {
+void* memset(void* dest, int c, usize n) {
     void* orig = dest;
     u8 val = (u8)c;
     asm volatile(
@@ -170,4 +170,126 @@ void* memmove(void* dst, const void* src, usize n) {
     }
 
     return dst;
+}
+
+void* memchr(const void* ptr, int c, usize n) {
+    const unsigned char* p = ptr;
+    unsigned char ch = (unsigned char)c;
+
+    for (usize i = 0; i < n; i++) {
+        if (p[i] == ch) return (void*)(p + i);
+    }
+    return NULL;
+}
+
+usize strcspn(const char* s, const char* rj) {
+    usize i;
+
+    for (i = 0; s[i] != '\0'; i++) {
+        for (const char* p = rj; *p != '\0'; p++) {
+            if (s[i] == *p) return i;
+        }
+    }
+
+    return i;
+}
+
+char* strcat(char* dest, const char* src) {
+    char* ret = dest;
+    while (*dest) dest++;
+    while ((*dest++ = *src++));
+    return ret;
+}
+
+int strcmp(const char* s1, const char* s2) {
+    while (*s1 && (*s1 == *s2)) {
+        s1++; s2++;
+    }
+
+    return *s1 - *s2;
+}
+
+int strncmp(const char* s1, const char* s2, usize n) {
+    while (n > 0) {
+        if (*s1 != *s2) {
+            return *s1 - *s2;
+        }
+        if (*s1 == '\0') {
+            return 0;
+        }
+        s1++; s2++; n--;
+    }
+
+    return 0;
+}
+
+char* strncpy(char* dst, const char* src, usize sz) {
+    usize sl = strlen(src);
+    int term = 1;
+    if (sl > sz) {
+        sl = sz;
+        term = 0;
+    }
+
+    for (usize i = 0; i < sl; i++) {
+        dst[i] = src[i];
+    }
+
+    if (term) {
+        dst[sl] = '\0';
+    }
+
+    if (sl < sz) {
+        memset(dst + sl, 0, sz-sl);
+    }
+
+    return dst;
+}
+
+char* strcpy(char* dst, const char* src) {
+    usize sl = strlen(src);
+    for (usize i = 0; i < sl; i++) {
+        dst[i] = src[i];
+    }
+    return dst;
+}
+
+char* strpbrk(const char* s, const char* cs) {
+    for (; *s; s++) {
+        for (const char *p = cs; *p; p++) {
+            if (*s == *p) return (char *)s;
+        }
+    }
+    return NULL;
+}
+
+usize strspn(const char* s, const char* cs) {
+    usize i;
+    for (i = 0; s[i] != '\0'; i++) {
+        const char *p;
+        for (p = cs; *p != '\0'; p++) {
+            if (s[i] == *p) break;
+        }
+        if (*p == '\0') break;
+    }
+    return i;
+}
+
+usize strlcpy(char* dst, const char* src, usize size) {
+    usize len = 0;
+
+    while (src[len]) len++;
+    if (size) {
+        usize n = len < size - 1 ? len : size - 1;
+        memcpy(dst, src, n);
+        dst[n] = '\0';
+    }
+
+    return len;
+}
+
+usize strnlen(const char *s, usize maxlen) {
+    usize i;
+    for (i = 0; i < maxlen && s[i]; i++);
+    return i;
 }

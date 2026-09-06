@@ -4,12 +4,13 @@
 #include <sys/sysfn.h>
 #include <kbd.h>
 #include <mouse.h>
+#include <stdio.h>
 
 static int initfb = -1;
 
 static int fail(const char* msg) {
     if (initfb >= 0) switch_fb(initfb);
-    fprintf(STDERR, "wintest: %s\n", msg);
+    fprintf(stderr, "wintest: %s\n", msg);
     return 1;
 }
 

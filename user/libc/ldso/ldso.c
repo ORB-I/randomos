@@ -1,254 +1,74 @@
-#include <sys/types.h>
-#include <sys/elf.h>
+#include "ldso.h"
+#include "sys/elf.h"
+#include "sys/types.h"
 
-#define HIDDEN __attribute__((visibility("hidden")))
-#define ASMFUNC __attribute((naked))
-#define NORETURN __attribute__((noreturn))
+HIDDEN object_t objects[MAXOBJS];
+HIDDEN usize nloaded = 0;
+HIDDEN u64 lodbase = 0;
+HIDDEN object_t* exeobj = NULL;
 
-HIDDEN NORETURN void ldso_start(void* rsp);
-HIDDEN NORETURN HIDDEN void ldso_main(u64 ldso_base, u64 argc, char** argv, char** envp, Elf64_Auxv* auxv);
-
-ASMFUNC NORETURN void _start(void) {
-    asm volatile(
-        "mov %rsp, %rdi\n\t"
-        "and $-16, %rsp\n\t"
-        "jmp ldso_start"
-    );
-}
-
-// elf needs to parse its own DT_RELA and DT_REL first
-HIDDEN void ldso_start(void* rsp) {
-    const char ldso_startup_msg[] = "ldso\n";
-    asm volatile(
-        "mov $54, %%rax\n\t"
-        "syscall\n\t"
-        :
-        : "D"(ldso_startup_msg), "S"((usize)5)
-        : "rax", "rcx", "r11", "memory"
-    );
-
-    u64* p = rsp;
-    u64 argc = *p++;
-    char** argv = (char**)p;
-
-    p += argc + 1;
-    char** envp = (char**)p;
-    while (*p++);
-
-    Elf64_Auxv* auxv = (Elf64_Auxv*)p;
-    Elf64_Auxv* actual_auxv = auxv;
-
-    usize phdrs_addr = 0;
-    usize phnum = 0;
-
-    while (auxv->type != AT_NULL) {
-        if (auxv->type == AT_IPHDRS) {
-            phdrs_addr = auxv->val;
-        } else if (auxv->type == AT_IPHNUM) {
-            phnum = auxv->val;
-        }
-        auxv++;
-    }
-
-    if (!phdrs_addr || phnum == 0) {
-        // like exit(1); but (hopefully) without needing the
-        // function relocations lol
-
-        asm volatile(
-            "mov $1, %rdi\n\t"
-            "mov $1, %rax\n\t"
-            "syscall"
-        );
-    }
-
-    Elf64_Phdr* phdrs = (Elf64_Phdr*)phdrs_addr;
-    usize dyns_addr = 0;
-    usize ldso_base = 0;
-    for (usize i = 0; i < phnum; i++) {
-        if (phdrs[i].p_type == PT_PHDR) {
-            ldso_base = phdrs_addr - phdrs[i].p_vaddr;
-        } else if (phdrs[i].p_type == PT_DYNAMIC) {
-            dyns_addr = phdrs[i].p_vaddr;
-        }
-    }
-
-    if (!ldso_base) {
-        asm volatile(
-            "mov $1, %rdi\n\t"
-            "mov $1, %rax\n\t"
-            "syscall"
-        );
-    }
-
-    if (dyns_addr) {
-        Elf64_Dyn* dyns = (Elf64_Dyn*)(ldso_base + dyns_addr);
-        
-        usize rela_addr = 0;
-        usize rela_sz = 0;
-
-        usize rel_addr = 0;
-        usize rel_sz = 0;
-
-        while (dyns->d_tag != DT_NULL) {
-            switch (dyns->d_tag) {
-                case DT_RELA: rela_addr = dyns->d_un.d_ptr; break;
-                case DT_RELASZ: rela_sz = dyns->d_un.d_val; break;
-                case DT_REL: rel_addr = dyns->d_un.d_ptr; break;
-                case DT_RELSZ: rel_sz = dyns->d_un.d_val; break;
-            }
-            dyns++;
-        }
-
-        if (rela_addr && rela_sz != 0) {
-            Elf64_Rela* relas = (Elf64_Rela*)(ldso_base + rela_addr);
-            usize nrelas = rela_sz / sizeof(Elf64_Rela);
-            for (usize i = 0; i < nrelas; i++) {
-                Elf64_Rela* rela = &relas[i];
-                if (ELF64_R_TYPE(rela->r_info) == R_X86_64_RELATIVE) {
-                    *((u64*)(ldso_base + rela->r_offset)) = ldso_base + rela->r_addend;
-                }
-            }
-        }
-
-        if (rel_addr && rel_sz != 0) {
-            Elf64_Rel* rels = (Elf64_Rel*)(ldso_base + rel_addr);
-            usize nrels = rel_sz / sizeof(Elf64_Rel);
-            for (usize i = 0; i < nrels; i++) {
-                Elf64_Rel* rel = &rels[i];
-                if (ELF64_R_TYPE(rel->r_info) == R_X86_64_RELATIVE) {
-                    u64 tgt = ldso_base + rel->r_offset;
-                    u64 addend = *(u64*)tgt;
-                    *((u64*)tgt) = ldso_base + addend;
-                }
+// exe only
+HIDDEN void run_preinits(object_t* obj) {
+    if (obj->state == OBJ_LOADED) {
+        if (obj->preinitarraysz > 0 && obj->preinitarray) {
+            usize n = obj->preinitarraysz / sizeof(*obj->preinitarray);
+            for (usize i = 0; i < n; i++) {
+                if (obj->preinitarray[i]) obj->preinitarray[i]();
             }
         }
     }
-
-    ldso_main(ldso_base, argc, argv, envp, actual_auxv);
+    obj->state = OBJ_PREINITED;
 }
 
-HIDDEN ASMFUNC void* ldso_mmap(void* addr, u64 phys, u64 npgs, u64 flags) {
-    asm volatile(
-        "mov %rcx, %r10\n\t"
-        "mov $36, %rax\n\t"
-        "syscall\n\t"
-        "ret\n\t"
-    );
-}
+HIDDEN void run_inits(object_t* obj) {
+    if (!obj || obj->state == OBJ_INITED) return;
 
-HIDDEN ASMFUNC void* ldso_munmap(void* addr, u64 npgs, u64 flags) {
-    asm volatile(
-        "mov $37, %rax\n\t"
-        "syscall\n\t"
-        "ret\n\t"
-    );
-}
-
-HIDDEN ASMFUNC int ldso_mprotect(void* addr, u64 npgs, u64 flgs) {
-    asm volatile(
-        "mov $63, %rax\n\t"
-        "syscall\n\t"
-        "ret\n\t"
-    );
-}
-
-#define O_WRONLY 0x01
-#define O_RDONLY 0x02
-#define O_RDWR (O_WRONLY | O_RDONLY)
-#define O_CREAT 0x04
-#define O_APPEND 0x08
-#define O_TRUNC 0x10
-
-#define SEEK_SET 0
-#define SEEK_CUR 1
-#define SEEK_END 2
-
-#define PAGE_PRESENT  (1ULL << 0)
-#define PAGE_WRITE    (1ULL << 1)
-#define PAGE_USER     (1ULL << 2)
-#define PAGE_HUGE     (1ULL << 7)
-#define PAGE_PWT      (1ULL << 3)
-#define PAGE_PCD      (1ULL << 4)
-#define PAGE_UNCACHE  (PAGE_PCD | PAGE_PWT)
-
-#define MAP_ANYPHYS   (1ULL << 60)
-#define MAP_CONT      (1ULL << 61)
-#define MAP_ANYVIRT   (1ULL << 62)
-#define MAP_USRMAP    (1ULL << 63)
-
-#define UNMAP_KEEPPHYS (1ULL << 0)
-
-HIDDEN ASMFUNC int ldso_open(const char* path, int flags, u16 mode) {
-    asm volatile(
-        "mov $4, %rax\n\t"
-        "syscall\n\t"
-        "ret\n\t"
-    );
-}
-
-HIDDEN ASMFUNC int ldso_close(int fd) {
-    asm volatile(
-        "mov $5, %rax\n\t"
-        "syscall\n\t"
-        "ret\n\t"
-    );
-}
-
-HIDDEN ASMFUNC ssize ldso_read(int fd, void* buf, usize sz) {
-    asm volatile(
-        "mov $2, %rax\n\t"
-        "syscall\n\t"
-        "ret\n\t"
-    );
-}
-
-HIDDEN ASMFUNC s64 ldso_lseek(int fd, s64 off, int whence) {
-    asm volatile(
-        "mov $9, %rax\n\t"
-        "syscall\n\t"
-        "ret\n\t"
-    );
-}
-
-HIDDEN ASMFUNC NORETURN void ldso_exit(int code) {
-    asm volatile(
-        "mov $1, %rax\n\t"
-        "syscall\n\t"
-    );
-}
-
-HIDDEN usize strlen(const char* str);
-
-HIDDEN void ldso_print(const char* buf) {
-    usize len = strlen(buf);
-    if (len == 0) return;
-    asm volatile(
-        "mov $54, %%rax\n\t"
-        "syscall\n\t"
-        :
-        : "D"(buf), "S"(len)
-        : "rax", "rcx", "r11", "memory"
-    );
-}
-
-HIDDEN void ldso_print_hex(u64 val) {
-    char buf[19];
-    buf[0] = '0';
-    buf[1] = 'x';
-    for (int i = 15; i >= 0; i--) {
-        int nibble = (val >> (i * 4)) & 0xF;
-        buf[2 + (15 - i)] = (nibble < 10) ? ('0' + nibble) : ('a' + nibble - 10);
+    for (usize i = 0; i < obj->ndeps; i++) {
+        run_inits(obj->deps[i]);
     }
-    buf[18] = '\0';
-    ldso_print(buf);
+
+    if (obj->state == OBJ_PREINITED || obj->state == OBJ_LOADED) {
+        if (obj->initarraysz > 0 && obj->initarray) {
+            usize n = obj->initarraysz / sizeof(*obj->initarray);
+            for (usize i = 0; i < n; i++) {
+                if (obj->initarray[i]) obj->initarray[i]();
+            }
+        }
+
+        if (obj->init) {
+            obj->init();
+        }
+    }
+    obj->state = OBJ_INITED;
 }
 
-HIDDEN static u64 _ldso_base;
-HIDDEN static Elf64_Auxv* ldso_auxv;
-HIDDEN static u64 __atmmaplow_vaddr = 0;
-HIDDEN static u64 __atmmaphigh_vaddr = 0;
+HIDDEN void run_finis(object_t* obj) {
+    if (obj->state == OBJ_INITED) {
+        if (obj->finiarray) {
+            usize n = obj->finiarraysz / sizeof(*obj->finiarray);
 
-HIDDEN u64 __ldso_getauxval(u64 type) {
+            for (usize i = 0; i < n; i++) {
+                obj->finiarray[i]();
+            }
+
+        }
+
+        if (obj->fini) obj->fini();
+        obj->state = OBJ_FINIED;
+    }
+
+    for (usize i = 0; i < obj->ndeps; i++) {
+        run_finis(obj->deps[i]);
+    }
+}
+
+HIDDEN u64 _ldso_base;
+HIDDEN Elf64_Auxv* ldso_auxv;
+HIDDEN u64 __atmmaplow_vaddr = 0;
+HIDDEN u64 __atmmaphigh_vaddr = 0;
+
+
+u64 getauxval(u64 type) {
     if (type == AT_MMAPLOW) {
         return __atmmaplow_vaddr;
     } else if (type == AT_MMAPHIGH) {
@@ -265,316 +85,8 @@ HIDDEN u64 __ldso_getauxval(u64 type) {
     }
 }
 
-HIDDEN void* memset(void* dest, int c, usize n) {
-    void* orig = dest;
-    u8 val = (u8)c;
-    asm volatile(
-        "cld\n\t"
-        "rep stosb"
-        : "+D"(dest), "+c"(n)
-        : "a"(val)
-        : "memory"
-    );
-    return orig;
-}
-
-HIDDEN void* memcpy(void* dest, const void* src, usize count) {
-    void* orig = dest;
-    asm volatile(
-        "cld\n\t"
-        "rep movsb"
-        : "+D"(dest), "+S"(src), "+c"(count)
-        :: "memory"
-    );
-    return orig;
-}
-
-typedef enum {
-    OBJ_LOADED,
-    OBJ_PREINITED,
-    OBJ_INITED,
-    OBJ_FINIED
-} objstate_t;
-
-#define MAXOBJS 128
-typedef struct ObjectT object_t;
-struct ObjectT {
-    const char* name;
-    object_t* deps[MAXOBJS];
-    usize ndeps;
-    objstate_t state;
-    
-    u64 base;
-    Elf64_Dyn* dynbase;
-
-    Elf64_Sym* dynsym;
-    usize dynsymentsz;
-    
-    char* dynstr;
-    u32* htab;
-    u32* gnu_htab;
-
-    void (**preinitarray)(void);
-    usize preinitarraysz;
-
-    void (*init)(void);
-    void (**initarray)(void);
-    usize initarraysz;
-
-    void (*fini)(void);
-    void (**finiarray)(void);
-    usize finiarraysz;
-};
-HIDDEN static object_t objects[MAXOBJS];
-HIDDEN static usize nloaded = 0;
-HIDDEN static u64 lodbase = 0;
-
-typedef u64 page_table_t;
-#define PML4_IDX(addr) (((addr) >> 39) & 0x1FF)
-#define PDPT_IDX(addr) (((addr) >> 30) & 0x1FF)
-#define PD_IDX(addr)   (((addr) >> 21) & 0x1FF)
-#define PT_IDX(addr)   (((addr) >> 12) & 0x1FF)
-#define HHDM_START 0xFFFF800000000000
-
-HIDDEN ASMFUNC int vmm_setflgs(u64 virt, u64 npgs, u64 flags) {
-    asm volatile(
-        "mov $63, %rax\n\t"
-        "syscall\n\t"
-        "ret\n\t"
-    );
-}
-
-HIDDEN usize strlen(const char* str) {
-    if (!str) return 0;
-    usize len = 0;
-    while (str[len]) len++;
-    return len;
-}
-
-HIDDEN s32 streq(const char* s1, const char* s2) {
-    if (!s1 || !s2) return 0;
-    while (*s1 && (*s1 == *s2)) {
-        s1++;
-        s2++;
-    }
-    return (*(const unsigned char*)s1 == *(const unsigned char*)s2);
-}
-
-HIDDEN u64 elf_hash(const char* name) {
-    u64 h = 0, g;
-    while (*name) {
-        h = (h << 4) + *name++;
-        g = h & 0xf0000000;
-        if (g) { h ^= g >> 24; }
-        h &= ~g;
-    }
-    return h;
-}
-
-HIDDEN u64 locate_hashsym(object_t* obj, const char* name, usize* sz) {
-    if (!obj->htab) return STN_UNDEF;
-    u32 h = elf_hash(name);
-
-    u32 nbuckets = *obj->htab;
-    u32* buckets = obj->htab + 2;
-    u32* chains = buckets + nbuckets;
-
-    u32 i = buckets[h % nbuckets];
-    while (i != STN_UNDEF) {
-        Elf64_Sym* sym = &obj->dynsym[i];
-        if (sym->st_shndx != SHN_UNDEF && streq(obj->dynstr + sym->st_name, name)) {
-            if (sz) *sz = sym->st_size;
-            return obj->base + sym->st_value;
-        }
-        i = chains[i];
-    }
-    return STN_UNDEF;
-}
-
-HIDDEN u32 gnu_hash(const char* s) {
-    u32 h = 5381;
-    for (const unsigned char* p = (const unsigned char*)s; *p; p++) {
-        h = (h << 5) + h + *p;
-    }
-    return h;
-}
-
-HIDDEN u64 locate_gnuhashsym(object_t* obj, const char* name, usize* sz) {
-    if (!obj->gnu_htab) return STN_UNDEF;
-    u32* hdr = obj->gnu_htab;
-    u32 nbuckets = hdr[0];
-    u32 symoffset = hdr[1];
-    u32 bloom_size = hdr[2];
-    u32 bloom_shift = hdr[3];
-
-    u64* bloom = (u64*)(hdr + 4);
-    u32* buckets = (u32*)(bloom + bloom_size);
-    u32* chains = buckets + nbuckets;
-
-    u32 h = gnu_hash(name);
-
-    u64 word = bloom[(h / 64) % bloom_size];
-    u64 mask = (1ULL << (h % 64)) | (1ULL << ((h >> bloom_shift) % 64));
-    if ((word & mask) != mask) {
-        return STN_UNDEF;
-    }
-
-    u32 symix = buckets[h % nbuckets];
-    if (symix < symoffset) {
-        return STN_UNDEF;
-    }
-
-    for (;; symix++) {
-        Elf64_Sym* sym = &obj->dynsym[symix];
-        u32 chain = chains[symix - symoffset];
-        if (((h ^ chain) >> 1) == 0) {
-            if (sym->st_shndx != SHN_UNDEF && streq(obj->dynstr + sym->st_name, name)) {
-                if (sz) *sz = sym->st_size;
-                return obj->base + sym->st_value;
-            }
-        }
-        if (chain & 1) break;
-    }
-    return STN_UNDEF;
-}
-
-HIDDEN u64 locate_extern(const char* name, usize* sz) {
-    if (streq(name, "__ldso_getauxval")) {
-        return (u64)__ldso_getauxval;
-    }
-
-    for (usize l = 0; l < nloaded; l++) {
-        object_t* obj = &objects[l];
-        u64 i = STN_UNDEF;
-        if (obj->gnu_htab) {
-            i = locate_gnuhashsym(obj, name, sz);
-        }
-        if (i == STN_UNDEF && obj->htab) {
-            i = locate_hashsym(obj, name, sz);
-        }
-        if (i != STN_UNDEF) {
-            return i;
-        }
-    }
-    return 0;
-}
-
-HIDDEN int apply_rel(Elf64_Rel* rel, object_t* obj) {
-    u64 tgt = obj->base + rel->r_offset;
-    u64 addend = *(u64*)tgt;
-    u64 v2r = 0;
-
-    switch (ELF64_R_TYPE(rel->r_info)) {
-        case R_X86_64_RELATIVE: {
-            v2r = obj->base + addend;
-            break;
-        }
-        case R_X86_64_JUMP_SLOT:
-        case R_X86_64_GLOB_DAT: {
-            Elf64_Sym* sym = &obj->dynsym[ELF64_R_SYM(rel->r_info)];
-            u64 symaddr = 0;
-
-            if (sym->st_shndx != SHN_UNDEF) {
-                symaddr = obj->base + sym->st_value;
-            } else {
-                symaddr = locate_extern(obj->dynstr + sym->st_name, NULL);
-                if (!symaddr) {
-                    ldso_exit(1);
-                }
-            }
-            v2r = symaddr + addend;
-            break;
-        }
-        case R_X86_64_COPY: {
-            Elf64_Sym* sym = &obj->dynsym[ELF64_R_SYM(rel->r_info)];
-            u64 symaddr;
-            usize sz = 0;
-            if (sym->st_shndx != SHN_UNDEF) {
-                symaddr = obj->base + sym->st_value;
-                sz = sym->st_size;
-            } else {
-                symaddr = locate_extern(obj->dynstr + sym->st_name, &sz);
-                if (!symaddr) {
-                    ldso_exit(1);
-                }
-            }
-
-            memcpy((void*)tgt, (void*)symaddr, sz);
-            return 0;
-        }
-        default: return 0;
-    }
-
-    *((u64*)tgt) = v2r;
-    return 0;
-}
-
-HIDDEN int apply_rela(Elf64_Rela* rela, object_t* obj) {
-    u64 tgt = obj->base + rela->r_offset;
-    u64 v2r = 0;
-
-    switch (ELF64_R_TYPE(rela->r_info)) {
-        case R_X86_64_RELATIVE: {
-            v2r = obj->base + rela->r_addend;
-            break;
-        }
-        case R_X86_64_64:
-        case R_X86_64_JUMP_SLOT:
-        case R_X86_64_GLOB_DAT: {
-            Elf64_Sym* sym = &obj->dynsym[ELF64_R_SYM(rela->r_info)];
-            u64 symaddr = 0;
-            const char* sname = obj->dynstr + sym->st_name;
-
-            if (sym->st_shndx != SHN_UNDEF) {
-                symaddr = obj->base + sym->st_value;
-            } else {
-                symaddr = locate_extern(sname, NULL);
-                if (!symaddr) {
-                    ldso_print("[ldso] symbol not found: ");
-                    ldso_print(sname);
-                    ldso_print("\n");
-                    ldso_exit(1);
-                }
-            }
-            v2r = symaddr + rela->r_addend;
-            break;
-        }
-        case R_X86_64_COPY: {
-            Elf64_Sym* sym = &obj->dynsym[ELF64_R_SYM(rela->r_info)];
-            u64 symaddr;
-            usize sz = 0;
-            if (sym->st_shndx != SHN_UNDEF) {
-                symaddr = obj->base + sym->st_value;
-                sz = sym->st_size;
-            } else {
-                symaddr = locate_extern(obj->dynstr + sym->st_name, &sz);
-                if (!symaddr) {
-                    ldso_exit(1);
-                }
-            }
-
-            memcpy((void*)tgt, (void*)symaddr, sz);
-            return 0;
-        }
-        default: return 0;
-    }
-
-    *((u64*)tgt) = v2r;
-    return 0;
-}
-
-HIDDEN void apply_reltbl(Elf64_Rel* rels, usize reltbl_sz, object_t* obj) {
-    usize nrels = reltbl_sz / sizeof(Elf64_Rel);
-    for (usize i = 0; i < nrels; i++) {
-        apply_rel(&rels[i], obj);
-    }
-}
-
-HIDDEN void apply_relatbl(Elf64_Rela* relas, usize relatbl_sz, object_t* obj) {
-    usize nrelas = relatbl_sz / sizeof(Elf64_Rela);
-    for (usize i = 0; i < nrelas; i++) {
-        apply_rela(&relas[i], obj);
-    }
+void __ldso_ldcleanup() {
+    run_finis(exeobj);
 }
 
 HIDDEN object_t* load_library(const char* path, usize lodbase, usize* ldsz);
@@ -616,10 +128,6 @@ HIDDEN object_t* parse_object(u64 ldbase, u64 dynbase, const char* name) {
         ldso_exit(1);
     }
 
-    void* pltrel_base = 0;
-    usize pltrel_sz = 0;
-    u64 pltrel_type = 0;
-
     void* rela = 0;
     usize relasz = 0;
 
@@ -646,9 +154,11 @@ HIDDEN object_t* parse_object(u64 ldbase, u64 dynbase, const char* name) {
                 break;
             }
 
-            case DT_JMPREL: pltrel_base = (void*)(ldbase + dyn->d_un.d_ptr); break;
-            case DT_PLTRELSZ: pltrel_sz = dyn->d_un.d_val; break;
-            case DT_PLTREL: pltrel_type = dyn->d_un.d_val; break;
+            case DT_PLTGOT: obj->got = (u64*)(ldbase + dyn->d_un.d_ptr); break;
+
+            case DT_JMPREL: obj->pltrel_base = (void*)(ldbase + dyn->d_un.d_ptr); break;
+            case DT_PLTRELSZ: obj->pltrel_sz = dyn->d_un.d_val; break;
+            case DT_PLTREL: obj->pltrel_type = dyn->d_un.d_val; break;
             case DT_RELA: rela = (Elf64_Rela*)(ldbase + dyn->d_un.d_ptr); break;
             case DT_RELASZ: relasz = dyn->d_un.d_val; break;
             case DT_REL: rel = (Elf64_Rel*)(ldbase + dyn->d_un.d_ptr); break;
@@ -668,11 +178,18 @@ HIDDEN object_t* parse_object(u64 ldbase, u64 dynbase, const char* name) {
         dyn++;
     }
 
-    if (pltrel_base) {
-        if (pltrel_type == DT_REL) {
-            apply_reltbl((Elf64_Rel*)pltrel_base, pltrel_sz, obj);
-        } else if (pltrel_type == DT_RELA) {
-            apply_relatbl((Elf64_Rela*)pltrel_base, pltrel_sz, obj);
+    if (!obj->got) {
+        ldso_print("No global offset table in object ");
+        ldso_print(name);
+        ldso_print(". Will not be able to use external symbols.");
+        return obj;
+    }
+
+    if (obj->pltrel_base) {
+        if (obj->pltrel_type == DT_REL) {
+            apply_reltbl((Elf64_Rel*)obj->pltrel_base, obj->pltrel_sz, obj);
+        } else if (obj->pltrel_type == DT_RELA) {
+            apply_relatbl((Elf64_Rela*)obj->pltrel_base, obj->pltrel_sz, obj);
         } else {
             ldso_exit(1);
         }
@@ -686,10 +203,17 @@ HIDDEN object_t* parse_object(u64 ldbase, u64 dynbase, const char* name) {
         apply_relatbl((Elf64_Rela*)rela, relasz, obj);
     }
 
+    obj->got[1] = (u64)obj;
+    obj->got[2] = (u64)ldso_resolve;
     return obj;
 }
 
 HIDDEN object_t* load_library(const char* path, usize lodbase, usize* ldsz) {
+    ldso_print("loading library ");
+    ldso_print(path);
+    ldso_print(" at load base ");
+    ldso_print_hex(lodbase);
+
     for (usize i = 0; i < nloaded; i++) {
         if (objects[i].name && streq(objects[i].name, path)) {
             if (ldsz) *ldsz = 0;
@@ -806,70 +330,16 @@ HIDDEN object_t* load_library(const char* path, usize lodbase, usize* ldsz) {
     return parse_object(lodbase, dynbase, path);
 }
 
-// exe only
-HIDDEN void run_preinits(object_t* obj) {
-    if (obj->state == OBJ_LOADED) {
-        if (obj->preinitarraysz > 0 && obj->preinitarray) {
-            usize n = obj->preinitarraysz / sizeof(*obj->preinitarray);
-            for (usize i = 0; i < n; i++) {
-                if (obj->preinitarray[i]) obj->preinitarray[i]();
-            }
-        }
-    }
-    obj->state = OBJ_PREINITED;
-}
-
-HIDDEN void run_inits(object_t* obj) {
-    if (!obj || obj->state == OBJ_INITED) return;
-
-    for (usize i = 0; i < obj->ndeps; i++) {
-        run_inits(obj->deps[i]);
-    }
-
-    if (obj->state == OBJ_PREINITED || obj->state == OBJ_LOADED) {
-        if (obj->initarraysz > 0 && obj->initarray) {
-            usize n = obj->initarraysz / sizeof(*obj->initarray);
-            for (usize i = 0; i < n; i++) {
-                if (obj->initarray[i]) obj->initarray[i]();
-            }
-        }
-
-        if (obj->init) {
-            obj->init();
-        }
-    }
-    obj->state = OBJ_INITED;
-}
-
-HIDDEN void run_finis(object_t* obj) {
-    if (obj->state == OBJ_INITED) {
-        if (obj->finiarray) {
-            usize n = obj->finiarraysz / sizeof(*obj->finiarray);
-
-            for (usize i = 0; i < n; i++) {
-                obj->finiarray[i]();
-            }
-
-        }
-
-        if (obj->fini) obj->fini();
-        obj->state = OBJ_FINIED;
-    }
-
-    for (usize i = 0; i < obj->ndeps; i++) {
-        run_finis(obj->deps[i]);
-    }
-}
-
 HIDDEN void ldso_main(u64 ldso_base, u64 argc, char** argv, char** envp, Elf64_Auxv* auxv) {
+
     ldso_auxv = auxv;
     _ldso_base = ldso_base;
 
-    u64 phdrs_addr = __ldso_getauxval(AT_PHDR);
-    u64 phnum = __ldso_getauxval(AT_PHNUM);
-    u64 entry = __ldso_getauxval(AT_ENTRY);
-    u64 stack = __ldso_getauxval(AT_STACK);
-    u64 stksz = __ldso_getauxval(AT_STACKSZ);
+    u64 phdrs_addr = getauxval(AT_PHDR);
+    u64 phnum = getauxval(AT_PHNUM);
+    u64 entry = getauxval(AT_ENTRY);
+    u64 stack = getauxval(AT_STACK);
+    u64 stksz = getauxval(AT_STACKSZ);
     __atmmaphigh_vaddr = stack - stksz;
 
     Elf64_Phdr* phdrs = (Elf64_Phdr*)phdrs_addr;
@@ -896,8 +366,8 @@ HIDDEN void ldso_main(u64 ldso_base, u64 argc, char** argv, char** envp, Elf64_A
     // - loads segments according to p_memsz
     // - loads the ld.so AFTER the executable in memory
 
-    Elf64_Phdr* iphdrs = (Elf64_Phdr*)__ldso_getauxval(AT_IPHDRS);
-    u64 iphnum = __ldso_getauxval(AT_IPHNUM);
+    Elf64_Phdr* iphdrs = (Elf64_Phdr*)getauxval(AT_IPHDRS);
+    u64 iphnum = getauxval(AT_IPHNUM);
 
     u64 load_high = 0;
     for (usize i = 0; i < iphnum; i++) {
@@ -907,16 +377,6 @@ HIDDEN void ldso_main(u64 ldso_base, u64 argc, char** argv, char** envp, Elf64_A
         }
     }
     lodbase = (load_high + 0xFFF) & ~0xFFFULL;
-    
-    // now we can get to the fun part
-    // - grab symtab and strtab for symbol resolution
-    // - load libraries (perform all this for each)
-    // - parse relocations
-    // - run preinits
-    // - run inits
-    // - jump to main
-    // - run finis
-    // - ldso_exit
 
     u64 exebase = (u64)phdrs - phdr_vaddr;
     object_t* exeobj = parse_object(exebase, exebase + phdrs[dynidx].p_vaddr, "main");
@@ -927,6 +387,6 @@ HIDDEN void ldso_main(u64 ldso_base, u64 argc, char** argv, char** envp, Elf64_A
 
     int ret = ((int (*)(int argc, char** argv, char** envp))entry)(argc, argv, envp);
 
-    run_finis(exeobj);
+    run_finis(exeobj); // libc should clean up, but run finis just in case libc returned
     ldso_exit(ret);
 }

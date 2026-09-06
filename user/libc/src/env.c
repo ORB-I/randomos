@@ -3,8 +3,11 @@
 #include <mem.h>
 #include <io.h>
 
-extern char** environ;
-extern usize __libc_environ_size__;
+char** environ = NULL;
+usize __libc_environ_size__ = 0;
+char** __libc_envp__ = NULL;
+
+void __libc_setupfail();
 
 static int _env_nameok(char* name) {
     return (name != NULL && name[0] != '\0' && strchr(name, '=') == NULL);
@@ -62,4 +65,37 @@ int setenv(char* name, char* val, int overwrite) {
     environ[++__libc_environ_size__] = NULL;
 
     return 0;
+}
+
+void __libc_initenviron() {
+    usize nenvp = 0;
+    while (__libc_envp__[nenvp] != NULL) nenvp++;
+    __libc_environ_size__ = nenvp;
+
+    environ = malloc((nenvp + 1) * sizeof(char*));
+    if (!environ) {
+        __libc_setupfail();
+    }
+
+    for (usize i = 0; i < nenvp; i++) {
+        environ[i] = strdup(__libc_envp__[i]);
+        if (!environ[i]) {
+            __libc_setupfail();
+        }
+    }
+
+    environ[nenvp] = NULL;
+}
+
+void __libc_finienviron() {
+    if (environ) {
+        for (usize i = 0; i < __libc_environ_size__; i++) {
+            free(environ[i]);
+        }
+        free(environ);
+    }
+}
+
+char** __libc_getenviron() {
+    return environ;
 }

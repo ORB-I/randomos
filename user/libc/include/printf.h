@@ -105,9 +105,14 @@ int fctprintf(void (*out)(char character, void* arg), void* arg, const char* for
 int vfctprintf(void (*out)(char character, void* arg), void* arg, const char* format, va_list lst);
 
 // added by me
-int fprintf(int fd, const char* fmt, ...);
-int serial_printf(const char* fmt, ...);
 
+#include <stdio.h>
+
+int serial_printf(const char* fmt, ...);
+int dprintf(int fd, const char* fmt, ...);
+int vdprintf(const char* format, va_list va);
+int fprintf(FILE* f, const char* fmt, ...);
+int vfprintf(FILE* f, const char* fmt, va_list ap);
 
 #ifdef __cplusplus
 }

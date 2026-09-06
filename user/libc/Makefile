@@ -24,20 +24,20 @@ LIBC := libc.a
 CRT := crt0.o
 LDSO := ld.so
 
+LDSO_SRC := $(wildcard ./ldso/*.c)
+LDSO_OBJ := $(LDSO_SRC:.c=.ldso.o)
+
 LIBSRC := $(shell find . -name "*.c")
 ASMSRC := $(shell find . -name "*.asm")
 
-LIBSRC   := $(filter-out ./ldso/ldso.c, $(LIBSRC))
+LIBSRC   := $(filter-out $(LDSO_SRC), $(LIBSRC))
 LIBA_SRC := $(filter-out ./src/crt.asm src/crt.asm, $(ASMSRC))
-LDSOSRC := ./ldso/ldso.c
 
 LIBOBJ := $(LIBSRC:.c=.o)
 ASMOBJ := $(LIBA_SRC:.asm=.o)
 
 LIB_SOOBJ := $(LIBSRC:.c=.so.o)
 ASM_SOOBJ := $(LIBA_SRC:.asm=.so.o)
-
-LDSO_OBJ := ldso/ldso.o
 
 DEPS := $(LIBSRC:.c=.d)
 
@@ -80,7 +80,7 @@ copy: $(LIBC_SO) $(LDSO)
 $(CRT): $(CRTSRC)
 	$(AS) $(ASFLAGS) $< -o $@
 
-$(LDSO_OBJ): $(LDSOSRC)
+%.ldso.o: %.c
 	$(CC) $(CFLAGS_LDSO) -c $< -o $@
 
 %.so.o: %.c

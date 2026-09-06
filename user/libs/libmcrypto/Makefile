@@ -1,7 +1,7 @@
 include ../../../mk/tools.mk
 
 CCFLAGS := -m64 -nostdlib \
-	-fno-builtin -Iinclude -nodefaultlibs \
+	-fno-builtin -I../../libc/include -nodefaultlibs \
     -ffreestanding -Wall -Wextra -g \
 	-MMD -MP -mno-mmx -mno-sse -mno-sse2 \
 	-mno-red-zone -msoft-float -mno-fp-ret-in-387 \

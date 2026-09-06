@@ -55,6 +55,9 @@
 #define SYS_RANDOMBYTES   58
 #define SYS_GETPWD        59
 #define SYS_SETPWD        60
+#define SYS_SETCURS       61
+#define SYS_GETCURS       62
+#define SYS_MPROTECT      63
 
 u64 __syscall0(u64 nr);
 u64 __syscall1(u64 nr, u64 arg0);

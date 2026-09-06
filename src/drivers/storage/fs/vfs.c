@@ -750,13 +750,17 @@ int open(const char* path, int flags, u16 mode) {
     ssize ino = vfs_resolve(mnt, abs, VFS_FOLLOW_FINAL);
     if (ino == -ENOENT) {
         if (flags & O_CREAT) {
+            kprint("enoent but ocreat specified\n");
             if ((ret = vfs_basecreat(abs, mode | S_IFREG, (u64*)&ino)) < 0) {
+                kprint("creat failed with %d\n", ret);
                 return ret;
             }
         } else {
+            kprint("enoent on open\n");
             return -ENOENT;
         }
     } else if (ino < 0) {
+        kprint("open ino returned %ld\n", ino);
         return ino;
     }
 
