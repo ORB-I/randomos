@@ -188,15 +188,18 @@ void smp_request_hdlr_c(intctx_t* ctx) {
 }
 
 static void smp_main_finish(ssize i) {
+    /* Load this core's IDT before enabling the Local APIC so that any incoming
+       IPI or spurious interrupt vectors to valid handlers rather than triple-faulting. */
+    asm volatile(
+        "lidt %0\n\t"
+        :: "m"(tidts[i].idtr)
+    );
+
     /* INIT leaves this core's lapic software-disabled, without enabling
        it the bsp request IPI below is silently dropped */
     apic_enable_current();
     init_syscalls();
-    asm volatile(
-        "lidt %0\n\t"
-        "sti"
-        :: "m"(tidts[i].idtr)
-    );
+    asm volatile("sti");
     u64 rflags;
     lock_acquire(&apstates[i].lock, &rflags);
     apstates[i].state = AP_WAITING;

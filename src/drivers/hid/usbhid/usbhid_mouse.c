@@ -56,9 +56,11 @@ void usb_hid_mouse_poll() {
         if (rprt.buttons & 2) btns |= MOUSE_BUTTON_RIGHT;
         if (rprt.buttons & 4) btns |= MOUSE_BUTTON_MIDDLE;
 
+        /* Forward movement, button state, and scroll wheel delta */
         enqueue_mouse((mouse_info_t){
             rprt.x, rprt.y,
-            btns
+            (u8)btns,
+            rprt.wheel
         });
         usbhid_pollfree(res);
     }

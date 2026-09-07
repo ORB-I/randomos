@@ -42,3 +42,5 @@ void clear_fb(int fb);
 void flush_scr();
 
 int get_currfb();
+/* Returns true when the active display is the text console */
+bool is_term_active();

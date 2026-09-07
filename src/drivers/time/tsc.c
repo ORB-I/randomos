@@ -37,13 +37,20 @@ u64 tsc_getfrqviapit() {
     outb(0x61, (p61 & 0xfd) | 1);
 
     u64 tscst = rdtsc();
-    while ((inb(0x61) & 0x20) == 0);
+    u32 timeout = 10000000;
+    while (((inb(0x61) & 0x20) == 0) && --timeout) {
+        asm volatile("pause");
+    }
     u64 tsced = rdtsc();
 
     outb(0x61, p61 & 0xFC);
 
+    if (timeout == 0) {
+        return 2000000000ULL;
+    }
+
     u64 dtsc = tsced - tscst;
-    return dtsc / 10;
+    return dtsc * 100;
 }
 
 u64 _tsc_frq = 0;

@@ -125,6 +125,13 @@ struct flanterm_fb_context {
 
     size_t old_cursor_x;
     size_t old_cursor_y;
+
+    /* Scrollback history ring buffer */
+    struct flanterm_fb_char *scrollback;
+    size_t scrollback_max;    /* capacity in rows */
+    size_t scrollback_count;  /* valid rows currently stored */
+    size_t scrollback_head;   /* next insertion index */
+    size_t scrollback_offset; /* view offset: 0 = live, >0 = history */
 };
 
 #ifdef __cplusplus

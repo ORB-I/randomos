@@ -7,6 +7,7 @@
 typedef struct {
     s8 x, y;
     u8 buttons;
+    s8 wheel; /* vertical scroll delta (positive = up) */
 } __attribute__((packed)) mouse_info_t;
 
 int get_mouse_info(mouse_info_t* buf);

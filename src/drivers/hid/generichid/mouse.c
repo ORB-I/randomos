@@ -13,6 +13,9 @@
 #include <drivers/hid/mouse.h>
 #include <drivers/time/clock.h>
 
+#include <drivers/display/term.h>
+#include <drivers/display/fb.h>
+
 kqueue_t* msq = NULL;
 int mb_type = 0;
 
@@ -38,13 +41,21 @@ int get_mouse_info(mouse_info_t* buf) {
 }
 
 void enqueue_mouse(mouse_info_t info) {
+    /* Route mouse wheel to console scrollback when in text mode */
+    if (info.wheel != 0 && is_term_active()) {
+        if (info.wheel > 0) {
+            term_scroll_up((usize)(info.wheel * 3));
+        } else {
+            term_scroll_down((usize)((-info.wheel) * 3));
+        }
+    }
     kqueue_enqueue(msq, (u8*)&info, sizeof(mouse_info_t));
 }
 
 mouse_info_t dequeue_mouse() {
-    mouse_info_t msinfo = {0, 0, 0};
+    mouse_info_t msinfo = {0, 0, 0, 0};
     if (kqueue_dequeue(msq, (u8*)&msinfo, sizeof(mouse_info_t)) < sizeof(mouse_info_t)) {
-        return (mouse_info_t){0, 0, 0};
+        return (mouse_info_t){0, 0, 0, 0};
     }
     return msinfo;
 }

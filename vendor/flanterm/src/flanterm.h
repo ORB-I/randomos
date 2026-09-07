@@ -61,6 +61,12 @@ void flanterm_flush(struct flanterm_context *ctx);
 void flanterm_full_refresh(struct flanterm_context *ctx);
 void flanterm_deinit(struct flanterm_context *ctx, void (*_free)(void *ptr, size_t size));
 
+/* Terminal scrollback navigation */
+void flanterm_scroll_up(struct flanterm_context *ctx, size_t lines);
+void flanterm_scroll_down(struct flanterm_context *ctx, size_t lines);
+void flanterm_scroll_to_bottom(struct flanterm_context *ctx);
+size_t flanterm_get_scroll_offset(struct flanterm_context *ctx);
+
 void flanterm_get_dimensions(struct flanterm_context *ctx, size_t *cols, size_t *rows);
 void flanterm_set_autoflush(struct flanterm_context *ctx, bool state);
 void flanterm_set_callback(struct flanterm_context *ctx, void (*callback)(struct flanterm_context *, uint64_t, uint64_t, uint64_t, uint64_t));

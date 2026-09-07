@@ -79,12 +79,15 @@ bool ata_identify_drive(u8 drv_id, u8 drivet) {
     }
 
     u8 status = ata_inb(drv_id, RTIO, 7);
-    if (status == 0) return false;
+    if (status == 0 || status == 0xFF) return false;
 
     for (int i = 0; i < 4; i++) ata_inb(drv_id, RTCTRL, 0);
 
-    while (ata_inb(drv_id, RTIO, 7) & 0x80) {
+    u32 timeout = 100000;
+    while ((ata_inb(drv_id, RTIO, 7) & 0x80) && --timeout) {
+        asm volatile("pause");
     }
+    if (timeout == 0) return false;
 
     status = ata_inb(drv_id, RTIO, 7);
     if (status & 0x01) return false;
@@ -106,7 +109,10 @@ void ata_enumerate() {
 
 void ata_poll(u8 drv) {
     for (int i = 0; i < 4; i++) ata_inb(drv, RTCTRL, 0);
-    while (ata_inb(drv, RTIO, 7) & 0x80);
+    u32 timeout = 100000;
+    while ((ata_inb(drv, RTIO, 7) & 0x80) && --timeout) {
+        asm volatile("pause");
+    }
 
     u8 stat = ata_inb(drv, RTIO, 7);
     if (stat & 0x01) panic("ATA Error during poll");
@@ -146,14 +152,20 @@ int ata_secwrite(u64 drv, u32 lba, u8* buf) {
 
     ata_outb(drv, RTIO, 7, 0x30);
 
-    while (!(ata_inb(drv, RTIO, 7) & 0x08));
+    u32 timeout = 100000;
+    while (!(ata_inb(drv, RTIO, 7) & 0x08) && --timeout) {
+        asm volatile("pause");
+    }
 
     for (int i = 0; i < 256; i++) {
         ata_outw(drv, RTIO, 0, ((u16)buf[(i * 2) + 1] << 8) | buf[i * 2]);
     }
 
     ata_outb(drv, RTIO, 7, 0xE7);
-    while (ata_inb(drv, RTIO, 7) & 0x80);
+    timeout = 100000;
+    while ((ata_inb(drv, RTIO, 7) & 0x80) && --timeout) {
+        asm volatile("pause");
+    }
 
     return 0;
 }

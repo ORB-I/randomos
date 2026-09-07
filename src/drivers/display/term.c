@@ -9,9 +9,16 @@
 #include <core/errno.h>
 #include <core/spinlock.h>
 
+#include <core/liballoc.h>
+
 struct flanterm_context* _term_ctx;
 int _term_flush = 1;
 static spinlock_t _term_lock = SPINLOCK_INIT;
+
+static void _flanterm_free_wrapper(void* ptr, size_t sz) {
+    (void)sz;
+    free(ptr);
+}
 
 int init_term(int fb) {
     framebuf_info_t fbinfo;
@@ -20,7 +27,7 @@ int init_term(int fb) {
     if ((ret = get_fbinfo(fb, &fbinfo)) < 0) return ret;
 
     _term_ctx = flanterm_fb_init(
-        NULL, NULL,
+        malloc, _flanterm_free_wrapper,
         fbinfo.ptr,
         fbinfo.width, fbinfo.height,
         fbinfo.pitch,
@@ -47,6 +54,10 @@ void _term_flushscr() {
 // due to it having to copy the framebuffer over EVERY TIME
 void term_putchar(char c) {
     spinlock_acquire(&_term_lock);
+    /* Snap back to live output if scrolled back */
+    if (flanterm_get_scroll_offset(_term_ctx) > 0) {
+        flanterm_scroll_to_bottom(_term_ctx);
+    }
     if (c == '\n') {
         flanterm_write(_term_ctx, "\r\n", 2);
         if (_term_flush) _term_flushscr();
@@ -58,7 +69,12 @@ void term_putchar(char c) {
 }
 
 void term_write(const char* buf, usize sz) {
+    if (!_term_ctx || !buf || sz == 0) return;
     spinlock_acquire(&_term_lock);
+    /* Snap back to live output if scrolled back */
+    if (flanterm_get_scroll_offset(_term_ctx) > 0) {
+        flanterm_scroll_to_bottom(_term_ctx);
+    }
     usize start = 0;
     for (usize i = 0; i <= sz; i++) {
         if (i == sz || buf[i] == '\n') {
@@ -126,6 +142,38 @@ void term_set_pos(term_pos_t* pos, int flags) {
     }
 }
 
+/* Scroll upward into earlier terminal output */
+void term_scroll_up(usize lines) {
+    if (!_term_ctx) return;
+    spinlock_acquire(&_term_lock);
+    flanterm_scroll_up(_term_ctx, lines);
+    if (_term_flush) _term_flushscr();
+    spinlock_release(&_term_lock);
+}
+
+/* Scroll downward towards latest output */
+void term_scroll_down(usize lines) {
+    if (!_term_ctx) return;
+    spinlock_acquire(&_term_lock);
+    flanterm_scroll_down(_term_ctx, lines);
+    if (_term_flush) _term_flushscr();
+    spinlock_release(&_term_lock);
+}
+
+/* Reset scrollback position to live output */
+void term_scroll_bottom() {
+    if (!_term_ctx) return;
+    spinlock_acquire(&_term_lock);
+    flanterm_scroll_to_bottom(_term_ctx);
+    if (_term_flush) _term_flushscr();
+    spinlock_release(&_term_lock);
+}
+
+usize term_get_scroll_offset() {
+    if (!_term_ctx) return 0;
+    return flanterm_get_scroll_offset(_term_ctx);
+}
+
 int termctl(int code, int arg0) {
     switch (code) {
         case TCTL_FLUSH:
@@ -148,6 +196,13 @@ int termctl(int code, int arg0) {
             return _term_flush;
         case TCTL_NOECHO:
             noecho(arg0);
+            return 0;
+        case TCTL_SCRLUP:
+            term_scroll_up(arg0 ? (usize)arg0 : 1);
+            return 0;
+        case TCTL_SCRLDN:
+            term_scroll_down(arg0 ? (usize)arg0 : 1);
+            return 0;
         default: return -EINVAL;
     }
 }

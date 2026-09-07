@@ -7,18 +7,28 @@
 #include <drivers/time/clock.h>
 #include <drivers/pci.h>
 #include <drivers/pic.h>
+#include <drivers/apic.h>
+#include <lib/string.h>
 
 #include <uacpi/kernel_api.h>
 
 extern u64 _tsc_frq;
+extern volatile u32* lapic_virt_addr;
 
-u64 uacpi_kernel_get_nanoseconds_since_boot() {
+u64 uacpi_kernel_get_nanoseconds_since_boot(void) {
+    if (_tsc_frq == 0) return 0;
     return (rdtsc() * 1000000000ULL) / _tsc_frq;
 }
 
 void uacpi_kernel_stall(u8 us) {
+    if (_tsc_frq == 0) {
+        for (u32 i = 0; i < (u32)us * 10; i++) {
+            inb(0x80);
+        }
+        return;
+    }
     u64 start = rdtsc();
-    u64 ticks = (us * _tsc_frq) / 1000000ULL;
+    u64 ticks = ((u64)us * _tsc_frq) / 1000000ULL;
     while (rdtsc() - start < ticks) asm volatile("pause");
 }
 
@@ -39,32 +49,51 @@ uacpi_status uacpi_kernel_get_rsdp(uacpi_phys_addr *out_rsdp_address) {
     return UACPI_STATUS_OK;
 }
 
+/* Filter out debug/trace spam so boot messages stay readable */
 void uacpi_kernel_log(uacpi_log_level level, const uacpi_char *msg) {
-    (void)level;
-    kprint("uACPI: %s\n", msg);
+    if (level <= UACPI_LOG_INFO) {
+        kprint("uACPI: %s\n", msg);
+    }
 }
 
-// uACPI will only be called from the
-// BSP so ignore synchronization primitives
+typedef struct {
+    lock_t lock;
+    u64 rflags;
+    u32 depth;
+} uacpi_host_mutex_t;
+
+typedef struct {
+    lock_t lock;
+    volatile u32 counter;
+} uacpi_host_event_t;
 
 uacpi_handle uacpi_kernel_create_mutex(void) {
-    return (uacpi_handle)0x1;
+    uacpi_host_mutex_t *m = malloc(sizeof(uacpi_host_mutex_t));
+    if (!m) return NULL;
+    memset(m, 0, sizeof(*m));
+    return (uacpi_handle)m;
 }
 
-void uacpi_kernel_free_mutex(uacpi_handle _) {
-    (void)_;
+void uacpi_kernel_free_mutex(uacpi_handle hdl) {
+    if (hdl) free(hdl);
 }
 
 uacpi_handle uacpi_kernel_create_event(void) {
-    return (uacpi_handle)0x1;
+    uacpi_host_event_t *ev = malloc(sizeof(uacpi_host_event_t));
+    if (!ev) return NULL;
+    memset(ev, 0, sizeof(*ev));
+    return (uacpi_handle)ev;
 }
 
-void uacpi_kernel_free_event(uacpi_handle _) {
-    (void)_;
+void uacpi_kernel_free_event(uacpi_handle hdl) {
+    if (hdl) free(hdl);
 }
 
 uacpi_thread_id uacpi_kernel_get_thread_id(void) {
-    return 0;
+    if (lapic_virt_addr) {
+        return (uacpi_thread_id)(uintptr_t)(get_apicid() + 1);
+    }
+    return (uacpi_thread_id)(uintptr_t)1;
 }
 
 uacpi_interrupt_state uacpi_kernel_disable_interrupts(void) {
@@ -86,26 +115,85 @@ void uacpi_kernel_restore_interrupts(uacpi_interrupt_state state) {
     }
 }
 
-uacpi_status uacpi_kernel_acquire_mutex(uacpi_handle _, uacpi_u16 __) {
-    (void)_; (void)__;
-    return UACPI_STATUS_OK;
+uacpi_status uacpi_kernel_acquire_mutex(uacpi_handle hdl, uacpi_u16 timeout) {
+    if (!hdl) return UACPI_STATUS_INVALID_ARGUMENT;
+    uacpi_host_mutex_t *m = (uacpi_host_mutex_t*)hdl;
+
+    u64 start_ns = uacpi_kernel_get_nanoseconds_since_boot();
+    u64 timeout_ns = (timeout == 0xFFFF) ? (u64)-1 : ((u64)timeout * 1000000ULL);
+
+    for (;;) {
+        u64 flags = 0;
+        lock_acquire(&m->lock, &flags);
+        if (m->depth == 0) {
+            m->depth = 1;
+            m->rflags = flags;
+            lock_release(&m->lock, &flags);
+            return UACPI_STATUS_OK;
+        }
+        lock_release(&m->lock, &flags);
+
+        if (timeout != 0xFFFF) {
+            u64 elapsed = uacpi_kernel_get_nanoseconds_since_boot() - start_ns;
+            if (elapsed >= timeout_ns)
+                return UACPI_STATUS_TIMEOUT;
+        }
+        uacpi_kernel_stall(10);
+    }
 }
 
-void uacpi_kernel_release_mutex(uacpi_handle _) {
-    (void)_;
+void uacpi_kernel_release_mutex(uacpi_handle hdl) {
+    if (!hdl) return;
+    uacpi_host_mutex_t *m = (uacpi_host_mutex_t*)hdl;
+    u64 flags = 0;
+    lock_acquire(&m->lock, &flags);
+    if (m->depth > 0)
+        m->depth--;
+    lock_release(&m->lock, &flags);
 }
 
-uacpi_bool uacpi_kernel_wait_for_event(uacpi_handle _, uacpi_u16 __) {
-    (void)_; (void)__;
-    return UACPI_TRUE;
+uacpi_bool uacpi_kernel_wait_for_event(uacpi_handle hdl, uacpi_u16 timeout) {
+    if (!hdl) return UACPI_FALSE;
+    uacpi_host_event_t *ev = (uacpi_host_event_t*)hdl;
+
+    u64 start_ns = uacpi_kernel_get_nanoseconds_since_boot();
+    u64 timeout_ns = (timeout == 0xFFFF) ? (u64)-1 : ((u64)timeout * 1000000ULL);
+
+    for (;;) {
+        u64 flags = 0;
+        lock_acquire(&ev->lock, &flags);
+        if (ev->counter > 0) {
+            ev->counter--;
+            lock_release(&ev->lock, &flags);
+            return UACPI_TRUE;
+        }
+        lock_release(&ev->lock, &flags);
+
+        if (timeout != 0xFFFF) {
+            u64 elapsed = uacpi_kernel_get_nanoseconds_since_boot() - start_ns;
+            if (elapsed >= timeout_ns)
+                return UACPI_FALSE;
+        }
+        uacpi_kernel_stall(20);
+    }
 }
 
-void uacpi_kernel_signal_event(uacpi_handle _) {
-    (void)_;
+void uacpi_kernel_signal_event(uacpi_handle hdl) {
+    if (!hdl) return;
+    uacpi_host_event_t *ev = (uacpi_host_event_t*)hdl;
+    u64 flags = 0;
+    lock_acquire(&ev->lock, &flags);
+    ev->counter++;
+    lock_release(&ev->lock, &flags);
 }
 
-void uacpi_kernel_reset_event(uacpi_handle _) {
-    (void)_;
+void uacpi_kernel_reset_event(uacpi_handle hdl) {
+    if (!hdl) return;
+    uacpi_host_event_t *ev = (uacpi_host_event_t*)hdl;
+    u64 flags = 0;
+    lock_acquire(&ev->lock, &flags);
+    ev->counter = 0;
+    lock_release(&ev->lock, &flags);
 }
 
 uacpi_status uacpi_kernel_handle_firmware_request(uacpi_firmware_request *req) {
@@ -134,8 +222,9 @@ uacpi_status uacpi_kernel_pci_device_open(uacpi_pci_address address, uacpi_handl
         return UACPI_STATUS_NOT_FOUND;
     }
 
-    // Probe: nonexistent devices read back as 0xFFFFFFFF
-    if (pci_cfg_inl(address.bus, address.device, address.function, 0) == 0xFFFFFFFF) {
+    // Probe: nonexistent devices return 0xFFFF for Vendor ID (offset 0 low word)
+    u32 id = pci_cfg_inl(address.bus, address.device, address.function, 0);
+    if ((id & 0xFFFF) == 0xFFFF) {
         return UACPI_STATUS_NOT_FOUND;
     }
 
@@ -240,6 +329,7 @@ uacpi_status uacpi_kernel_io_write32(uacpi_handle hdl, uacpi_size offset, uacpi_
 }
 
 void *uacpi_kernel_map(uacpi_phys_addr addr, uacpi_size len) {
+    (void)len;
     return (void*)(HHDM_START + addr);
 }
 
@@ -258,6 +348,7 @@ void uacpi_kernel_free(void *mem) {
 uacpi_handle uacpi_kernel_create_spinlock(void) {
     lock_t* lk = malloc(sizeof(*lk));
     if (!lk) return NULL;
+    memset(lk, 0, sizeof(*lk));
     return lk;
 }
 
@@ -302,7 +393,7 @@ void uacpi_irq_dispatch(u64 irq) {
         uacpi_irq_slots[irq].handler) {
         uacpi_irq_slots[irq].handler(uacpi_irq_slots[irq].ctx);
     }
-    pic_send_eoi((u8)irq);
+    lapic_eoi();
 }
 
 uacpi_status uacpi_kernel_install_interrupt_handler(

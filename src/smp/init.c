@@ -59,7 +59,12 @@ static int init_smpcode(usize ncores) {
 }
 
 void ipi_send(u8 dest, u8 shrtdst, u8 trigger, u8 level, u8 dstmode, u8 delmode, u8 vec) {
-    *LAPIC_REG(0x310) = dest << 24;
+    u32 timeout = 100000;
+    while ((*LAPIC_REG(0x300) & (1 << 12)) && --timeout) {
+        asm volatile("pause" ::: "memory");
+    }
+
+    *LAPIC_REG(0x310) = (u32)dest << 24;
     u32 icr = ((u32)vec << 0) |
               ((u32)delmode << 8) |
               ((u32)dstmode << 11) |
@@ -68,9 +73,11 @@ void ipi_send(u8 dest, u8 shrtdst, u8 trigger, u8 level, u8 dstmode, u8 delmode,
               ((u32)shrtdst << 18);
 
     *LAPIC_REG(0x300) = icr;
-    do {
+
+    timeout = 100000;
+    while ((*LAPIC_REG(0x300) & (1 << 12)) && --timeout) {
         asm volatile("pause" ::: "memory");
-    } while (*LAPIC_REG(0x300) & (1 << 12));
+    }
 }
 
 extern void smp_request_hdlr();
@@ -162,7 +169,10 @@ int init_cores() {
     while (ptr < end) {
         struct acpi_entry_hdr* ent = (struct acpi_entry_hdr*)ptr;
         if (ent->length == 0) break;
-        if (ent->type == ACPI_MADT_ENTRY_TYPE_LAPIC) numcores++;
+        if (ent->type == ACPI_MADT_ENTRY_TYPE_LAPIC) {
+            struct acpi_madt_lapic* lapic = (struct acpi_madt_lapic*)ptr;
+            if (lapic->flags & 1) numcores++;
+        }
         ptr += ent->length;
     }
 
@@ -180,15 +190,18 @@ int init_cores() {
         struct acpi_entry_hdr* ent = (struct acpi_entry_hdr*)ptr;
         if (ent->length == 0) break;
         if (ent->type == ACPI_MADT_ENTRY_TYPE_LAPIC) {
-            smp_info[i] = (smp_info_t){
-                ((struct acpi_madt_lapic*)ptr)->id,
-                i,
-                (struct acpi_madt_lapic*)ptr,
-                SMP_STATUS_DEAD,
-                0xFF,   // <-- current_pid: invalid
-                0       // <-- preempt_pending: false
-            };
-            i++;
+            struct acpi_madt_lapic* lapic = (struct acpi_madt_lapic*)ptr;
+            if (lapic->flags & 1) {
+                smp_info[i] = (smp_info_t){
+                    lapic->id,
+                    i,
+                    lapic,
+                    SMP_STATUS_DEAD,
+                    0xFF,   // <-- current_pid: invalid
+                    0       // <-- preempt_pending: false
+                };
+                i++;
+            }
         }
         ptr += ent->length;
     }
@@ -205,10 +218,11 @@ int init_cores() {
         u32 apicid = smp_info[i].apicid;
         if (apicid == bsp_lapic_id) continue;
         kprint("Starting SMP %d\n", apicid);
-        ipi_send(apicid, IPI_SHRTDST_NONE, IPI_TRIGGER_LVL, IPI_LEVEL_ASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_INIT, 0);
+
+        *LAPIC_REG(0x280) = 0; // Clear ESR
+        // Modern x86_64 INIT IPI (Edge-triggered assert)
+        ipi_send(apicid, IPI_SHRTDST_NONE, IPI_TRIGGER_EDGE, IPI_LEVEL_ASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_INIT, 0);
         sleepms(10);
-        ipi_send(apicid, IPI_SHRTDST_NONE, IPI_TRIGGER_LVL, IPI_LEVEL_DEASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_INIT, 0);
-        sleepms(1);
 
         for (int j = 0; j < 2; j++) {
             *LAPIC_REG(0x280) = 0;

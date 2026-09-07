@@ -39,6 +39,7 @@
 #include <drivers/storage/fs/vfs.h>
 
 u64 ram_max = 0;
+u64 ram_usable = 0;
 extern void gdt_init();
 
 void kmain() {
@@ -51,9 +52,12 @@ void kmain() {
         for (;;) asm("hlt");
     }
 
-    // Top of physical RAM, derived from the memmap.
+    // Top of physical RAM and total usable RAM, derived from the memmap.
     for (usize i = 0; i < mmap_req.response->entry_count; i++) {
         struct limine_memmap_entry* e = mmap_req.response->entries[i];
+        if (e->type == LIMINE_MEMMAP_USABLE) {
+            ram_usable += e->length;
+        }
         if (e->base + e->length > ram_max) {
             ram_max = e->base + e->length;
         }
@@ -127,14 +131,21 @@ __no_protect void kmain_aftergdt() {
         panic("failed to initialize logging");
     }
 
+    kprint("========================================\n");
+    kprint("          RandomOS Booting\n");
+    kprint("========================================\n");
+    kprint("Memory: %lu MB available\n", ram_usable / (1024 * 1024));
+
     asm("cli");
     pic_remap(0x20, 0x28);
     pic_disable();
 
     idt_init();
 
+    kprint("ACPI: Initializing ACPI tables\n");
     init_acpi();
 
+    kprint("VFS: Initializing virtual file system\n");
     if (vfs_init() < 0) {
         panic("Failed to initialize VFS\n");
     }
@@ -159,13 +170,17 @@ __no_protect void kmain_aftergdt() {
     asm("sti");
 
     init_gettimeofday();
+
+    kprint("SMP: Discovering CPU cores\n");
     init_cores();
 
+    kprint("Storage: Initializing block devices\n");
     if (block_init() < 0) {
         panic("KERN: No drive available\n");
     }
 
     const char* rootdev = cmdline_get("root");
+    kprint("Mounting root filesystem...\n");
     if (mount(rootdev, "/", "ext2") < 0) {
         kprint("Root block device unavailable, falling back to initramfs\n");
         if (mount(NULL, "/", "initramfs") < 0) {
@@ -200,10 +215,18 @@ __no_protect void kmain_aftergdt() {
     if (virtio_input_ptr_available()) mbtype = MOUSE_VIRTIO;
     init_mouse(mbtype);
 
-    kprint("Testing AP\n");
-    while (ap_run(ap_testtask, NULL) < 0);
-    while (!atomic_load(&ap_test_done)) {
-        asm volatile("pause");
+    if (ncores > 1) {
+        kprint("Testing AP\n");
+        int tries = 100;
+        while (tries-- > 0 && ap_run(ap_testtask, NULL) < 0) {
+            sleepms(1);
+        }
+        if (tries > 0) {
+            u32 wait_loops = 50000000;
+            while (!atomic_load(&ap_test_done) && --wait_loops) {
+                asm volatile("pause");
+            }
+        }
     }
 
     if (init_scheduler() < 0) panic("Failed to initialize scheduler\n");
@@ -214,12 +237,12 @@ __no_protect void kmain_aftergdt() {
     if (init_pid < 0) {
         panic("init failed");
     }
-    serial_printf("init pid %d\n", init_pid);
+    kprint("init pid %d\n", init_pid);
     current_pid = (u8)init_pid;
 
     for (usize i = 0; i < ncores; i++) {
         if (smp_info[i].apicid == bsp_apicid) {
-            serial_printf("assigning pid to SMP APICID %lu\n", smp_info[i].apicid);
+            kprint("assigning pid to SMP APICID %lu\n", smp_info[i].apicid);
             smp_info[i].current_pid = (u8)init_pid;
             break;
         }

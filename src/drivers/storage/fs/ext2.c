@@ -718,8 +718,6 @@ err:
 }
 
 ssize ext2fs_lookup(vfs_t* vfs, u32 dino, const char* name) {
-    kprint("ext2fs: looking up %s in directory inode %d\n", name, dino);
-
     ext2_ino_t dinod;
     int ret = 0;
     if ((ret = getino(vfs, dino, &dinod)) < 0) return ret;

@@ -8,7 +8,9 @@ u64 (*getms)(void) = NULL;
 
 void sleepms(u64 ms) {
     u64 st = getms();
-    while ((getms() - st) < ms);
+    while ((getms() - st) < ms) {
+        asm volatile("pause");
+    }
 }
 
 int init_clock(int type) {
