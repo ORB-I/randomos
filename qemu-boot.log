@@ -1,0 +1,459 @@
+make[1]: Entering directory '/mnt/c/Users/Spens/Desktop/randomos/user/libs/zlib'
+debugfs -w -R "rm /lib/libz.so" /mnt/c/Users/Spens/Desktop/randomos/drive.img
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs -w -R "write libz.so /lib/libz.so" /mnt/c/Users/Spens/Desktop/randomos/drive.img
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 15
+make[1]: Leaving directory '/mnt/c/Users/Spens/Desktop/randomos/user/libs/zlib'
+make[1]: Entering directory '/mnt/c/Users/Spens/Desktop/randomos/user/libs/libmcrypto'
+debugfs -w -R "rm /lib/libmcrypto.so" /mnt/c/Users/Spens/Desktop/randomos/drive.img
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs -w -R "write libmcrypto.so /lib/libmcrypto.so" /mnt/c/Users/Spens/Desktop/randomos/drive.img
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 16
+make[1]: Leaving directory '/mnt/c/Users/Spens/Desktop/randomos/user/libs/libmcrypto'
+make[1]: Entering directory '/mnt/c/Users/Spens/Desktop/randomos/user/libc'
+debugfs -w -R "rm /lib/libc.so" /mnt/c/Users/Spens/Desktop/randomos/drive.img || true
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs -w -R "rm /lib/ld.so" /mnt/c/Users/Spens/Desktop/randomos/drive.img || true
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs -w -R "write libc.so /lib/libc.so" /mnt/c/Users/Spens/Desktop/randomos/drive.img
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 17
+debugfs -w -R "write ld.so /lib/ld.so" /mnt/c/Users/Spens/Desktop/randomos/drive.img
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 18
+make[1]: Leaving directory '/mnt/c/Users/Spens/Desktop/randomos/user/libc'
+make[1]: Entering directory '/mnt/c/Users/Spens/Desktop/randomos/user/progs'
+for f in init.elf sh.elf echo.elf cat.elf ls.elf mkfile.elf poweroff.elf reboot.elf sleep.elf clear.elf rm.elf wm.elf fbtest.elf dspinfo.elf wintest.elf keytest.elf mousetest.elf id.elf whoami.elf serialtest.elf environ.elf random.elf man.elf rtop.elf ioctest.elf login.elf; do \
+	debugfs -w -R "rm /bin/$(basename $f .elf)" /mnt/c/Users/Spens/Desktop/randomos/drive.img; \
+	debugfs -w -R "write $f /bin/$(basename $f .elf)" /mnt/c/Users/Spens/Desktop/randomos/drive.img; \
+done
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 19
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 20
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 21
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 22
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 23
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 24
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 25
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 26
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 27
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 28
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 29
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 30
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 31
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 32
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 33
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 34
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 35
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 36
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 37
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 38
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 39
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 40
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 41
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 42
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 43
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 44
+make[1]: Leaving directory '/mnt/c/Users/Spens/Desktop/randomos/user/progs'
+make[1]: Entering directory '/mnt/c/Users/Spens/Desktop/randomos/user/nasm'
+make[1]: 'nasm' is up to date.
+make[1]: Leaving directory '/mnt/c/Users/Spens/Desktop/randomos/user/nasm'
+make[1]: Entering directory '/mnt/c/Users/Spens/Desktop/randomos/share/etc'
+for file in passwd passwd.fmt; do \
+	debugfs -w -R "rm /etc/$file" /mnt/c/Users/Spens/Desktop/randomos/drive.img; \
+	debugfs -w -R "write $file /etc/$file" /mnt/c/Users/Spens/Desktop/randomos/drive.img; \
+done
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 46
+debugfs 1.47.2 (1-Jan-2025)
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 47
+make[1]: Leaving directory '/mnt/c/Users/Spens/Desktop/randomos/share/etc'
+make[1]: Entering directory '/mnt/c/Users/Spens/Desktop/randomos/share/man'
+debugfs -w -R "mkdir /share" /mnt/c/Users/Spens/Desktop/randomos/drive.img 2>/dev/null || true
+debugfs -w -R "mkdir /share/man" /mnt/c/Users/Spens/Desktop/randomos/drive.img 2>/dev/null || true
+for file in abi.txt cat.txt login.txt ls.txt man.txt passwd.txt sh.txt syscalls.txt wm.txt; do \
+	debugfs -w -R "rm /share/man/$file" /mnt/c/Users/Spens/Desktop/randomos/drive.img 2>/dev/null || true; \
+	debugfs -w -R "write $file /share/man/$file" /mnt/c/Users/Spens/Desktop/randomos/drive.img; \
+done
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 50
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 51
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 52
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 53
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 54
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 55
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 56
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 57
+
+debugfs 1.47.2 (1-Jan-2025)
+Allocated inode: 58
+make[1]: Leaving directory '/mnt/c/Users/Spens/Desktop/randomos/share/man'
+make[1]: Entering directory '/mnt/c/Users/Spens/Desktop/randomos/vendor/lwip-2.2.1'
+make[1]: '../../lib/liblwip.a' is up to date.
+make[1]: Leaving directory '/mnt/c/Users/Spens/Desktop/randomos/vendor/lwip-2.2.1'
+make[1]: Entering directory '/mnt/c/Users/Spens/Desktop/randomos/vendor/flanterm'
+make[1]: '../../lib/libflanterm.a' is up to date.
+make[1]: Leaving directory '/mnt/c/Users/Spens/Desktop/randomos/vendor/flanterm'
+make[1]: Entering directory '/mnt/c/Users/Spens/Desktop/randomos/vendor/uACPI'
+make[1]: '../../lib/libuacpi.a' is up to date.
+make[1]: Leaving directory '/mnt/c/Users/Spens/Desktop/randomos/vendor/uACPI'
+[QEMU]
+qemu-system-x86_64 -M pc -cpu qemu64 -boot d -smp 2 -m 1G -serial stdio -accel tcg -device isa-debug-exit,iobase=0xf4,iosize=0x04 -drive id=disk,file=drive.img,format=raw,if=none -device virtio-blk-pci,drive=disk -device piix3-usb-uhci,id=uhci -device usb-kbd,bus=uhci.0,port=1 -device usb-mouse,bus=uhci.0,port=2 -netdev user,id=net0 -device virtio-net-pci,netdev=net0 -device virtio-rng-pci -monitor unix:/tmp/qemu-monitor.sock,server=on,wait=off -d int,cpu_reset -D qemu.log  -cdrom os.iso
+IO: Initializing IDT
+uACPI: starting uACPI, version 6.1.0
+
+uACPI: RSDP 0x00000000000F5270 00000014 v00 (BOCHS )
+
+uACPI: RSDT 0x000000003FFE23A2 00000034 v01 (BOCHS  BXPC    )
+
+uACPI: DSDT 0x000000003FFE0040 0000220E v01 (BOCHS  BXPC    )
+
+uACPI: FACP 0x000000003FFE224E 00000074 v01 (BOCHS  BXPC    )
+
+uACPI: APIC 0x000000003FFE22C2 00000080 v03 (BOCHS  BXPC    )
+
+uACPI: HPET 0x000000003FFE2342 00000038 v01 (BOCHS  BXPC    )
+
+uACPI: WAET 0x000000003FFE237A 00000028 v01 (BOCHS  BXPC    )
+
+uACPI: FACS 0x000000003FFE0000 00000040
+
+ACPI: tables initialized
+Mounted device ram at /dev (type ramfs mountid 0)
+Resolved /dev/klog0 to mount /dev (id 0)
+Linking inode 2 to directory 1
+IO: Initializing APIC & IOAPIC
+Using Local APIC at virtual address FFFF8000FEE00000
+LAPIC ID 0
+uACPI: successfully loaded 1 AML blob, 573 ops in 20379ms (avg 28/s)
+
+uACPI: unable to acquire global lock after 65535 attempts
+
+uACPI: aborting method invocation due to previous error: timed out waiting for hardware response
+
+uACPI:     #0 in \_SB_.CPUS.C000._STA()+6/6 at MethodCall1Args
+
+uACPI: unable to acquire global lock after 65535 attempts
+
+uACPI: aborting method invocation due to previous error: timed out waiting for hardware response
+
+uACPI:     #0 in \_SB_.CPUS.C001._STA()+6/6 at MethodCall1Args
+
+uACPI: namespace initialization done in 251724ms: 55 devices, 0 thermal zones
+
+uACPI: enabled 2 GPEs in block _GPE@[0->16]
+
+ACPI: uACPI ready (SCI IRQ 9)
+HPET period: 10000000 fs
+HPET ticks/ms: 100000
+Starting SMP 1
+Registered block device virtblk0
+Mounted device virtblk0 at / (type ext2 mountid 1)
+Mounted device ram at /tmp (type ramfs mountid 2)
+UHCI: Controller initialized at I/O 0xc080
+virtio-rng: Found entropy device at 00:06.0 (iobase=0x0)
+virtio-rng: Entropy source active
+[RNG] VirtIO hardware RNG detected and initialized
+[RNG] Hardware CPU Jitter TRNG initialized
+[RNG] Subsystem ready with 2 active hardware entropy source(s)
+Resolved /dev/rng0 to mount /dev (id 0)
+Linking inode 3 to directory 1
+virtio-net: Found device at 00:05.0 (iobase=0x0, irq=10)
+virtio-net: MAC 52:54:00:12:34:56
+e1000: No Intel E1000 network adapter found on PCI
+Initializing LwIP
+netif: netmask of interface  set to %u.%u.%u.%u
+netif: GW address of interface  set to %u.%u.%u.%u
+netif_set_ipaddr: netif address being changed
+acd_netif_ip_addr_changed(): Address changed
+acd_netif_ip_addr_changed(): old address = 0.0.0.0
+acd_netif_ip_addr_changed(): new address = 127.0.0.1
+netif: added interface lo IP addr %u.%u.%u.%u netmask %u.%u.%u.%u gw %u.%u.%u.%u
+RNG completion: res=0 len=256 used=1 last=1
+RNG DMA after: 19 41 36 da d1 f0 64 42
+RNG completion: res=0 len=256 used=2 last=2
+RNG DMA after: c7 86 51 fc 0c da 8c ba
+dns_init: initializing
+Adding ethernet device VirtIO Net
+Initializing VirtIO NetIF
+netif: added interface vn IP addr %u.%u.%u.%u netmask %u.%u.%u.%u gw %u.%u.%u.%u
+netif=FFFFFFFF800F0E28
+Setting link up for ethernet
+Set status callback
+0.0.0.0
+Set up interface
+Set link up interface
+Setting default ethernet device
+netif: setting default interface vn
+Set default NetIF
+Starting DHCP
+dhcp_start(netif=FFFFFFFF800F0E28) vn%u
+dhcp_start(): mallocing new DHCP client
+dhcp_start(): allocated dhcp
+dhcp_start(): starting DHCP configuration
+udp_bind(ipaddr = %u.%u.%u.%u, port = %u)
+udp_bind: bound to %u.%u.%u.%u, port %u)
+udp_connect: connected to %u.%u.%u.%u, port %u)
+dhcp_discover()
+pbuf_alloc(length=%u)
+pbuf_alloc(length=%u) == 0000000000000134
+transaction id xid(a42a7c06)
+dhcp_discover: making request
+dhcp_discover: sendto(DISCOVER, IP_ADDR_BROADCAST, LWIP_IANA_PORT_DHCP_SERVER)
+pbuf_add_header: old FFFF900000447A90 new FFFF900000447A88 (%u)
+udp_send: added header in given pbuf FFFF900000447A2A
+udp_send: sending datagram of length %u
+udp_send: UDP packet length %u
+inet_chksum_pseudo(): checksumming pbuf FFFF900000447A2A (has next 0000000000000000) 
+inet_chksum_pseudo(): pbuf chain lwip_chksum()=0000778a
+udp_send: UDP checksum 0x00000000000000000000000000008875
+udp_send: ip_output_if (,,,,0x00000000000000000000000000000011,)
+pbuf_add_header: old FFFF900000447A88 new FFFF900000447A74 (%u)
+ip4_output_if: vn%u
+ip4_output_if: call netif->output()
+pbuf_add_header: old FFFF900000447A74 new FFFF900000447A66 (%u)
+ethernet_output: sending packet FFFF900000447A2A
+dhcp_discover: deleting()
+pbuf_free(FFFF900000447A2A)
+pbuf_free: deallocating FFFF900000447A2A
+dhcp_discover: SELECTING
+dhcp_discover(): set request timeout %u msecs
+IO: Requesting keyboard type 1
+KBD: Using USB HID Keyboard
+IO: Requesting mouse type 2
+MOUSE: Using USB HID Mouse
+Testing AP
+AP received request
+AP 1 received RUN request
+AP 1 START
+Hello from SMP1
+Loading program /bin/init (CR3: FFFF80000298D000)
+Resolved /bin/init to mount / (id 1)
+ext2fs: looking up bin in directory inode 2
+ext2fs: looking up init in directory inode 12
+Loading segment at 0000000000200000
+Loading segment at 0000000000201000
+Loading segment at 0000000000202000
+Loading segment at 0000000000203000
+Requesting program interpreter /lib/ld.so at address 0000000000204000
+Resolved /lib/ld.so to mount / (id 1)
+ext2fs: looking up lib in directory inode 2
+ext2fs: looking up ld.so in directory inode 14
+Loading segment at 0000000000204000
+Loading segment at 0000000000205000
+Loading segment at 0000000000209000
+Loading segment at 000000000020a000
+Using entry point 0000000000207020
+Resolved /bin/init to mount / (id 1)
+ext2fs: looking up bin in directory inode 2
+ext2fs: looking up init in directory inode 12
+created new process /bin/init with PID 0
+init pid 0
+assigning pid to SMP APICID 0
+Starting AP scheduler
+AP received request
+AP 1 received CONT request
+ldso
+acd_tmr() ACD-State: %u, ttw=%u
+loading library /lib/libc.so at load base 0x0000000000230000
+Resolved /lib/libc.so to mount / (id 1)
+ext2fs: looking up lib in directory inode 2
+ext2fs: looking up libc.so in directory inode 14
+sysopen returning 4
+acd_tmr() ACD-State: %u, ttw=%u
+acd_tmr() ACD-State: %u, ttw=%u
+etharp_timer
+dns_tmr: dns_check_entries
+pbuf_alloc(length=%u)
+pbuf_alloc(length=%u) == 0000000000000010
+inet_chksum_pseudo(): checksumming pbuf FFFF900000438EA0 (has next 0000000000000000) 
+inet_chksum_pseudo(): pbuf chain lwip_chksum()=00005185
+pbuf_add_header: old FFFF900000438EF0 new FFFF900000438EC8 (%u)
+ip6_output_if: lo%u
+netif->output_ip6()
+pbuf_alloc(length=%u)
+pbuf_alloc(length=%u) == 0000000000000038
+pbuf_copy(FFFF90000044860A, FFFF900000438EA0)
+pbuf_copy_partial_pbuf(FFFF90000044860A, FFFF900000438EA0, %u, %u)
+pbuf_copy_partial_pbuf: copy complete.
+pbuf_free(FFFF900000438EA0)
+pbuf_free: deallocating FFFF900000438EA0
+acd_tmr() ACD-State: %u, ttw=%u
+acd_tmr() ACD-State: %u, ttw=%u
+acd_tmr() ACD-State: %u, ttw=%u
+acd_tmr() ACD-State: %u, ttw=%u
+acd_tmr() ACD-State: %u, ttw=%u
+Loading program /bin/login (CR3: FFFF800002ACE000)
+Resolved /bin/login to mount / (id 1)
+ext2fs: looking up bin in directory inode 2
+ext2fs: looking up login in directory inode 12
+Loading segment at 0000000000200000
+Loading segment at 0000000000201000
+Loading segment at 0000000000203000
+Loading segment at 0000000000204000
+Requesting program interpreter /lib/ld.so at address 0000000000205000
+Resolved /lib/ld.so to mount / (id 1)
+ext2fs: looking up lib in directory inode 2
+ext2fs: looking up ld.so in directory inode 14
+Loading segment at 0000000000205000
+Loading segment at 0000000000206000
+Loading segment at 000000000020a000
+Loading segment at 000000000020b000
+Using entry point 0000000000208020
+Resolved /bin/login to mount / (id 1)
+ext2fs: looking up bin in directory inode 2
+ext2fs: looking up login in directory inode 12
+created new process /bin/login with PID 1
+acd_tmr() ACD-State: %u, ttw=%u
+ldso
+loading library /lib/libc.so at load base 0x0000000000231000
+Resolved /lib/libc.so to mount / (id 1)
+ext2fs: looking up lib in directory inode 2
+ext2fs: looking up libc.so in directory inode 14
+sysopen returning 5
+acd_tmr() ACD-State: %u, ttw=%u
+acd_tmr() ACD-State: %u, ttw=%u
+etharp_timer
+dns_tmr: dns_check_entries
+dhcp_fine_tmr(): request timeout
+dhcp_timeout()
+dhcp_timeout(): restarting discovery
+dhcp_discover()
+pbuf_alloc(length=%u)
+pbuf_alloc(length=%u) == 0000000000000134
+transaction id xid(a42a7c06)
+dhcp_discover: making request
+dhcp_discover: sendto(DISCOVER, IP_ADDR_BROADCAST, LWIP_IANA_PORT_DHCP_SERVER)
+pbuf_add_header: old FFFF900000448980 new FFFF900000448978 (%u)
+udp_send: added header in given pbuf FFFF90000044891A
+udp_send: sending datagram of length %u
+udp_send: UDP packet length %u
+inet_chksum_pseudo(): checksumming pbuf FFFF90000044891A (has next 0000000000000000) 
+inet_chksum_pseudo(): pbuf chain lwip_chksum()=0000778a
+udp_send: UDP checksum 0x00000000000000000000000000008875
+udp_send: ip_output_if (,,,,0x00000000000000000000000000000011,)
+pbuf_add_header: old FFFF900000448978 new FFFF900000448964 (%u)
+ip4_output_if: vn%u
+ip4_output_if: call netif->output()
+pbuf_add_header: old FFFF900000448964 new FFFF900000448956 (%u)
+ethernet_output: sending packet FFFF90000044891A
+dhcp_discover: deleting()
+pbuf_free(FFFF90000044891A)
+pbuf_free: deallocating FFFF90000044891A
+dhcp_discover: SELECTING
+dhcp_discover(): set request timeout %u msecs
+acd_tmr() ACD-State: %u, ttw=%u
+loading library /lib/libmcrypto.so at load base 0x000000000024a000
+acd_tmr() ACD-State: %u, ttw=%u
+Resolved /lib/libmcrypto.so to mount / (id 1)
+ext2fs: looking up lib in directory inode 2
+ext2fs: looking up libmcrypto.so in directory inode 14
+sysopen returning 6
+acd_tmr() ACD-State: %u, ttw=%u
+acd_tmr() ACD-State: %u, ttw=%u
+acd_tmr() ACD-State: %u, ttw=%u
+Login started
+acd_tmr() ACD-State: %u, ttw=%u
+acd_tmr() ACD-State: %u, ttw=%u

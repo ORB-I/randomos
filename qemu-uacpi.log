@@ -1,0 +1,50 @@
+IO: Initializing IDT
+uACPI: starting uACPI, version 6.1.0
+
+uACPI: RSDP 0x00000000000F5260 00000014 v00 (BOCHS )
+
+uACPI: RSDT 0x000000003FFE23AE 00000034 v01 (BOCHS  BXPC    )
+
+uACPI: DSDT 0x000000003FFE0040 0000221A v01 (BOCHS  BXPC    )
+
+uACPI: FACP 0x000000003FFE225A 00000074 v01 (BOCHS  BXPC    )
+
+uACPI: APIC 0x000000003FFE22CE 00000080 v03 (BOCHS  BXPC    )
+
+uACPI: HPET 0x000000003FFE234E 00000038 v01 (BOCHS  BXPC    )
+
+uACPI: WAET 0x000000003FFE2386 00000028 v01 (BOCHS  BXPC    )
+
+uACPI: FACS 0x000000003FFE0000 00000040
+
+ACPI: tables initialized
+Mounted device ram at /dev (type ramfs mountid 0)
+Resolved /dev/klog0 to mount /dev (id 0)
+Linking inode 2 to directory 1
+IO: Initializing APIC & IOAPIC
+Using Local APIC at virtual address FFFF8000FEE00000
+LAPIC ID 0
+uACPI: successfully loaded 1 AML blob, 575 ops in 5368ms (avg 107/s)
+
+uACPI: unable to acquire global lock after 65535 attempts
+
+uACPI: aborting method invocation due to previous error: timed out waiting for hardware response
+
+uACPI:     #0 in \_SB_.CPUS.C000._STA()+6/6 at MethodCall1Args
+
+uACPI: unable to acquire global lock after 65535 attempts
+
+uACPI: aborting method invocation due to previous error: timed out waiting for hardware response
+
+uACPI:     #0 in \_SB_.CPUS.C001._STA()+6/6 at MethodCall1Args
+
+uACPI: namespace initialization done in 281030ms: 55 devices, 0 thermal zones
+
+uACPI: enabled 2 GPEs in block _GPE@[0->16]
+
+ACPI: uACPI ready (SCI IRQ 9)
+HPET period: 10000000 fs
+HPET ticks/ms: 100000
+Starting SMP 1
+Registered block device virtblk0
+Mounted device 
