@@ -8,6 +8,8 @@
 #define TCTL_AFLSH  4
 #define TCTL_GAFLH  5
 #define TCTL_NOECHO 6
+#define TCTL_SETCURS 7
+#define TCTL_GETCURS 8
 
 typedef enum {
     TERM_BLACK = 0,

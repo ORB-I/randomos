@@ -22,6 +22,10 @@ void sleep(int secs) {
     __syscall1(SYS_SLEEP, (u64)secs);
 }
 
+int ioctl(int fd, int cmd, void* data) {
+    return (int)__syscall3(SYS_IOCTL, (u64)fd, (u64)cmd, (u64)data);
+}
+
 int termctl(int code, int arg) {
-    return (int)__syscall2(SYS_TERMCTL, (u64)code, (u64)arg);
+    return ioctl(STDOUT, code, (void*)(intptr_t)arg);
 }

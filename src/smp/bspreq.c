@@ -20,7 +20,13 @@ void send_bsp_request(u64 apicid, int type, void* data, usize datasz) {
     
     ipi_send(bsp_apicid, IPI_SHRTDST_NONE, IPI_TRIGGER_EDGE, IPI_LEVEL_ASSERT, IPI_DSTMODE_PHYS, IPI_DELMODE_FIXED, BSP_REQVEC);
 
-    while (!atomic_load(&global_bspreq_buf.done));
+    while (!atomic_load(&global_bspreq_buf.done)) {
+        if (rflags & (1 << 9)) {
+            asm volatile("sti\n\tpause\n\tcli");
+        } else {
+            asm volatile("pause");
+        }
+    }
     lock_release(&global_bspreq_buf.lock, &rflags);
 }
 

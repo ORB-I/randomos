@@ -8,6 +8,8 @@
 #define TCTL_AFLSH  4
 #define TCTL_GAFLH  5
 #define TCTL_NOECHO 6
+#define TCTL_SETCURS 7
+#define TCTL_GETCURS 8
 
 #define STDIN  0
 #define STDOUT 1
@@ -37,6 +39,7 @@ ssize write(int fd, void* buf, usize sz);
 int reboot();
 int poweroff();
 void sleep(int secs);
+int ioctl(int fd, int cmd, void* data);
 int termctl(int code, int arg);
 int open(char* path, int flags, u16 mode);
 int close(int fd);
