@@ -8,11 +8,13 @@
 
 #include <drivers/time/gettimeofday.h>
 
+/* Console log targets (selectable via cmdline: logdev=serial|term|both|none) */
 #define LOGDEV_NONE   0
-#define LOGDEV_SERIAL 1
-#define LOGDEV_TERM   2
+#define LOGDEV_SERIAL (1 << 0)
+#define LOGDEV_TERM   (1 << 1)
+#define LOGDEV_BOTH   (LOGDEV_SERIAL | LOGDEV_TERM)
 
-static int logdev = LOGDEV_NONE;
+static int logdev = LOGDEV_BOTH;
 static int hasdevent = -1;
 static lock_t __kplock = {0};
 
@@ -23,12 +25,17 @@ ssize klog_read(udev_t dev, void* buf, usize sz) {
 }
 
 int kprint_init() {
+    logdev = LOGDEV_BOTH;
     const char* dev = cmdline_get("logdev");
     if (dev) {
         if (streq("serial", dev)) {
             logdev = LOGDEV_SERIAL;
         } else if (streq("term", dev)) {
             logdev = LOGDEV_TERM;
+        } else if (streq("both", dev)) {
+            logdev = LOGDEV_BOTH;
+        } else if (streq("none", dev)) {
+            logdev = LOGDEV_NONE;
         }
     }
     return 0;
@@ -71,10 +78,19 @@ int kvprint(const char* fmt, va_list ap) {
 
     u64 rflags = 0;
     lock_acquire(&__kplock, &rflags);
-    if (logdev == LOGDEV_SERIAL) {
-        serial_vprintf(fmt, ap);
-    } else if (logdev == LOGDEV_TERM) {
-        vprintf(fmt, ap);
+
+    /* Send to active output sinks */
+    if (logdev & LOGDEV_SERIAL) {
+        va_list sap_serial;
+        va_copy(sap_serial, sap);
+        serial_vprintf(fmt, sap_serial);
+        va_end(sap_serial);
+    }
+    if (logdev & LOGDEV_TERM) {
+        va_list sap_term;
+        va_copy(sap_term, sap);
+        vprintf(fmt, sap_term);
+        va_end(sap_term);
     }
 
     if (hasdevent == 1) {

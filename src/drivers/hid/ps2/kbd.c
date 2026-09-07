@@ -24,6 +24,9 @@ static const char sc_map_shift[128] = {
     '*', 0, ' '
 };
 
+#include <drivers/display/term.h>
+#include <drivers/display/fb.h>
+
 extern void kbd_hdlr();
 
 void init_kbdps2() {
@@ -62,6 +65,27 @@ void c_kbd_hdlr() {
         kbd_setshift(true);
         lapic_eoi();
         return;
+    }
+
+    /* Direct console scrolling when on text terminal */
+    if (is_term_active()) {
+        if (sc == 0x49 /* PageUp */) {
+            term_scroll_up(15);
+            lapic_eoi();
+            return;
+        } else if (sc == 0x51 /* PageDown */) {
+            term_scroll_down(15);
+            lapic_eoi();
+            return;
+        } else if (kbd_getshift() && sc == 0x48 /* Shift+Up */) {
+            term_scroll_up(1);
+            lapic_eoi();
+            return;
+        } else if (kbd_getshift() && sc == 0x50 /* Shift+Down */) {
+            term_scroll_down(1);
+            lapic_eoi();
+            return;
+        }
     }
 
     if (sc < 128) {

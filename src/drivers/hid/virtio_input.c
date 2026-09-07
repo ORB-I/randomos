@@ -10,6 +10,8 @@
 #include <drivers/virtio/virtio.h>
 #include <drivers/virtio/virtqueue.h>
 #include <lib/string.h>
+#include <drivers/display/term.h>
+#include <drivers/display/fb.h>
 
 #define VIRTIO_INPUT_EVENTQ 0
 #define INPUT_EVENT_COUNT 32
@@ -93,6 +95,7 @@ typedef struct {
     u8 buttons;
     s32 delta_x;     /* pending motion since the last EV_SYN, in screen px */
     s32 delta_y;
+    s32 delta_wheel;
     bool has_abs_x, has_abs_y;
     s32 abs_x_min, abs_x_max;
     s32 abs_y_min, abs_y_max;
@@ -132,11 +135,18 @@ static const char char_map_shift[128] = {
     '*', 0, ' '
 };
 
-/* evdev code -> byte for the shared raw-scancode queue. Codes in this
- * range already are set-1 scancodes; extended (E0-prefixed) keys have no
- * single byte and are dropped rather than faked. */
+/* evdev code -> byte for the shared raw-scancode queue. */
 static u8 keycode_to_raw(u16 code) {
     if (code >= 1 && code <= 0x58) return (u8)code;
+    if (code == 103) return 0x48; // Up
+    if (code == 104) return 0x49; // PageUp
+    if (code == 105) return 0x4B; // Left
+    if (code == 106) return 0x4D; // Right
+    if (code == 107) return 0x4F; // End
+    if (code == 108) return 0x50; // Down
+    if (code == 109) return 0x51; // PageDown
+    if (code == 110) return 0x52; // Insert
+    if (code == 111) return 0x53; // Delete
     return 0;
 }
 
@@ -281,6 +291,23 @@ static void process_keyboard_event(virtio_input_device_t* in, const virtio_input
         in->shift_down = pressed;
     }
 
+    /* Direct console scrolling when on text terminal */
+    if (pressed && is_term_active()) {
+        if (code == 104 /* KEY_PAGEUP */) {
+            term_scroll_up(15);
+            return;
+        } else if (code == 109 /* KEY_PAGEDOWN */) {
+            term_scroll_down(15);
+            return;
+        } else if (in->shift_down && code == 103 /* Shift+KEY_UP */) {
+            term_scroll_up(1);
+            return;
+        } else if (in->shift_down && code == 108 /* Shift+KEY_DOWN */) {
+            term_scroll_down(1);
+            return;
+        }
+    }
+
     u8 sc = keycode_to_raw(code);
     if (sc) {
         if (!pressed) sc |= 0x80;
@@ -310,6 +337,9 @@ static void process_pointer_event(virtio_input_device_t* in, const virtio_input_
             if (e->value) in->dirty = true;
         } else if (e->code == REL_Y) {
             in->delta_y += (s32)e->value;
+            if (e->value) in->dirty = true;
+        } else if (e->code == 0x08 /* REL_WHEEL */) {
+            in->delta_wheel += (s32)e->value;
             if (e->value) in->dirty = true;
         }
         return;
@@ -351,15 +381,25 @@ static void flush_pointer(virtio_input_device_t* in) {
 
     s32 dx = in->delta_x;
     s32 dy = in->delta_y;
+    s32 dw = in->delta_wheel;
     in->delta_x = 0;
     in->delta_y = 0;
+    in->delta_wheel = 0;
 
-    while (dx || dy) {
+    if (dx == 0 && dy == 0 && dw != 0) {
+        s8 ew = (dw > 127) ? 127 : (dw < -127 ? -127 : (s8)dw);
+        enqueue_mouse((mouse_info_t){0, 0, in->buttons, ew});
+        return;
+    }
+
+    while (dx || dy || dw) {
         s8 ex = (dx > 127) ? 127 : (dx < -127 ? -127 : (s8)dx);
         s8 ey = (dy > 127) ? 127 : (dy < -127 ? -127 : (s8)dy);
-        enqueue_mouse((mouse_info_t){ex, ey, in->buttons});
+        s8 ew = (dw > 127) ? 127 : (dw < -127 ? -127 : (s8)dw);
+        enqueue_mouse((mouse_info_t){ex, ey, in->buttons, ew});
         dx -= ex;
         dy -= ey;
+        dw -= ew;
     }
 }
 

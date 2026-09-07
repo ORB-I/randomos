@@ -39,9 +39,11 @@ uacpi_status uacpi_kernel_get_rsdp(uacpi_phys_addr *out_rsdp_address) {
     return UACPI_STATUS_OK;
 }
 
+/* Filter out debug/trace spam so boot messages stay readable */
 void uacpi_kernel_log(uacpi_log_level level, const uacpi_char *msg) {
-    (void)level;
-    kprint("uACPI: %s\n", msg);
+    if (level <= UACPI_LOG_INFO) {
+        kprint("uACPI: %s\n", msg);
+    }
 }
 
 // uACPI will only be called from the

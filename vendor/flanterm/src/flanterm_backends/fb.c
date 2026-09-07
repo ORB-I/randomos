@@ -916,6 +916,20 @@ static void flanterm_fb_scroll(struct flanterm_context *_ctx) {
             ctx->map[q->y * _ctx->cols + q->x] = q;
         }
 
+        /* Save the row being scrolled off into the scrollback ring buffer */
+        if (ctx->scrollback != NULL && ctx->scrollback_max > 0) {
+            memcpy(&ctx->scrollback[ctx->scrollback_head * _ctx->cols],
+                   ctx->grid,
+                   _ctx->cols * sizeof(struct flanterm_fb_char));
+            ctx->scrollback_head = (ctx->scrollback_head + 1) % ctx->scrollback_max;
+            if (ctx->scrollback_count < ctx->scrollback_max) {
+                ctx->scrollback_count++;
+            }
+            if (ctx->scrollback_offset > 0 && ctx->scrollback_offset < ctx->scrollback_count) {
+                ctx->scrollback_offset++;
+            }
+        }
+
         /* Shift the authoritative character grid up one row. The last row is
          * left stale here on purpose: the blanks pushed below overwrite it, and
          * until the next flush the stale grid row still matches the stale
@@ -1246,6 +1260,88 @@ static void flanterm_fb_full_refresh(struct flanterm_context *_ctx) {
     }
 }
 
+/* Redraw visible rows from active grid or scrollback history */
+static void flanterm_fb_redraw_scroll(struct flanterm_context *_ctx) {
+    struct flanterm_fb_context *ctx = (void *)_ctx;
+
+    for (size_t y = 0; y < _ctx->rows; y++) {
+        size_t dist = (_ctx->rows - 1) - y;
+        size_t effective_dist = dist + ctx->scrollback_offset;
+
+        struct flanterm_fb_char *row_ptr = NULL;
+        if (effective_dist < _ctx->rows) {
+            size_t grid_y = (_ctx->rows - 1) - effective_dist;
+            row_ptr = &ctx->grid[grid_y * _ctx->cols];
+        } else {
+            size_t sb_dist = effective_dist - _ctx->rows;
+            if (sb_dist < ctx->scrollback_count) {
+                size_t ring_idx = (ctx->scrollback_head + ctx->scrollback_max - 1 - sb_dist) % ctx->scrollback_max;
+                row_ptr = &ctx->scrollback[ring_idx * _ctx->cols];
+            }
+        }
+
+        for (size_t x = 0; x < _ctx->cols; x++) {
+            if (row_ptr) {
+                ctx->plot_char(_ctx, &row_ptr[x], x, y);
+            } else {
+                struct flanterm_fb_char empty = {
+                    .c = ' ', .fg = ctx->text_fg, .bg = ctx->text_bg,
+                    .fg_default = ctx->text_fg_default, .bg_default = ctx->text_bg_default
+                };
+                ctx->plot_char(_ctx, &empty, x, y);
+            }
+        }
+    }
+
+    if (ctx->scrollback_offset == 0 && _ctx->cursor_enabled) {
+        draw_cursor(_ctx);
+    }
+
+    if (ctx->flush_callback) {
+        ctx->flush_callback(ctx->framebuffer, ctx->pitch * ctx->phys_height);
+    }
+}
+
+/* Scroll viewport up into earlier output history */
+void flanterm_scroll_up(struct flanterm_context *_ctx, size_t lines) {
+    if (!_ctx) return;
+    struct flanterm_fb_context *ctx = (void *)_ctx;
+    if (!ctx->scrollback || ctx->scrollback_count == 0) return;
+    ctx->scrollback_offset += lines;
+    if (ctx->scrollback_offset > ctx->scrollback_count) {
+        ctx->scrollback_offset = ctx->scrollback_count;
+    }
+    flanterm_fb_redraw_scroll(_ctx);
+}
+
+/* Scroll viewport down towards live output */
+void flanterm_scroll_down(struct flanterm_context *_ctx, size_t lines) {
+    if (!_ctx) return;
+    struct flanterm_fb_context *ctx = (void *)_ctx;
+    if (!ctx->scrollback) return;
+    if (lines >= ctx->scrollback_offset) {
+        ctx->scrollback_offset = 0;
+    } else {
+        ctx->scrollback_offset -= lines;
+    }
+    flanterm_fb_redraw_scroll(_ctx);
+}
+
+/* Return viewport directly to live cursor */
+void flanterm_scroll_to_bottom(struct flanterm_context *_ctx) {
+    if (!_ctx) return;
+    struct flanterm_fb_context *ctx = (void *)_ctx;
+    if (!ctx->scrollback || ctx->scrollback_offset == 0) return;
+    ctx->scrollback_offset = 0;
+    flanterm_fb_redraw_scroll(_ctx);
+}
+
+size_t flanterm_get_scroll_offset(struct flanterm_context *_ctx) {
+    if (!_ctx) return 0;
+    struct flanterm_fb_context *ctx = (void *)_ctx;
+    return ctx->scrollback_offset;
+}
+
 static void flanterm_fb_deinit(struct flanterm_context *_ctx, void (*_free)(void *, size_t)) {
     struct flanterm_fb_context *ctx = (void *)_ctx;
 
@@ -1268,6 +1364,10 @@ static void flanterm_fb_deinit(struct flanterm_context *_ctx, void (*_free)(void
 
     if (ctx->canvas != NULL) {
         _free(ctx->canvas, ctx->canvas_size);
+    }
+
+    if (ctx->scrollback != NULL) {
+        _free(ctx->scrollback, ctx->scrollback_max * _ctx->cols * sizeof(struct flanterm_fb_char));
     }
 
     _free(ctx, sizeof(struct flanterm_fb_context));
@@ -1599,6 +1699,21 @@ struct flanterm_context *flanterm_fb_init(
         goto fail;
     }
     memset(ctx->map, 0, ctx->map_size);
+
+    ctx->scrollback_max = 1000;
+    size_t scrollback_bytes = ctx->scrollback_max * _ctx->cols * sizeof(struct flanterm_fb_char);
+    ctx->scrollback = _malloc(scrollback_bytes);
+    if (!ctx->scrollback) {
+        ctx->scrollback_max = 200;
+        scrollback_bytes = ctx->scrollback_max * _ctx->cols * sizeof(struct flanterm_fb_char);
+        ctx->scrollback = _malloc(scrollback_bytes);
+        if (!ctx->scrollback) {
+            ctx->scrollback_max = 0;
+        }
+    }
+    ctx->scrollback_count = 0;
+    ctx->scrollback_head = 0;
+    ctx->scrollback_offset = 0;
 
     if (canvas != NULL) {
         if (mul_size_overflow(ctx->width, ctx->height, &ctx->canvas_size) ||

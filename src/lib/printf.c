@@ -900,21 +900,26 @@ int snprintf(char* buffer, usize count, const char* format, ...)
   return ret;
 }
 
-// modified just like printf
+/* Format directly into a stack buffer to avoid heap overhead on common log lines */
 int vprintf(const char* format, va_list va)
 {
   va_list vacpy;
-  memcpy(vacpy, va, sizeof(vacpy));
+  va_copy(vacpy, va);
 
-  char buffer[1];
-  int ret = _vsnprintf(_out_null, buffer, (usize)-1, format, va);
+  char stack_buf[512];
+  int ret = vsnprintf(stack_buf, sizeof(stack_buf), format, vacpy);
+  va_end(vacpy);
 
-  char* buf = malloc(ret + 1);
-  if (!buf) return 0;
-  
-  ret = vsnprintf(buf, ret + 1, format, vacpy);
-  term_write(buf, ret);
-  free(buf);
+  if (ret > 0 && ret < (int)sizeof(stack_buf)) {
+      term_write(stack_buf, ret);
+  } else if (ret >= (int)sizeof(stack_buf)) {
+      char* buf = malloc(ret + 1);
+      if (buf) {
+          ret = vsnprintf(buf, ret + 1, format, va);
+          term_write(buf, ret);
+          free(buf);
+      }
+  }
 
   return ret;
 }

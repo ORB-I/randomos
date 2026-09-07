@@ -10,6 +10,8 @@
 #define TCTL_NOECHO 6
 #define TCTL_SETCURS 7
 #define TCTL_GETCURS 8
+#define TCTL_SCRLUP  9
+#define TCTL_SCRLDN  10
 
 typedef enum {
     TERM_BLACK = 0,
@@ -49,4 +51,10 @@ void term_clear();
 void term_flush();
 void term_get_pos(term_pos_t* pos);
 void term_set_pos(term_pos_t* pos, int flags);
+
+/* Scrollback buffer control */
+void term_scroll_up(usize lines);
+void term_scroll_down(usize lines);
+void term_scroll_bottom();
+usize term_get_scroll_offset();
 int termctl(int code, int arg0);

@@ -127,14 +127,22 @@ __no_protect void kmain_aftergdt() {
         panic("failed to initialize logging");
     }
 
+    kprint("========================================\n");
+    kprint("          RandomOS Booting\n");
+    kprint("========================================\n");
+    kprint("Memory: %lu MB available\n", ram_max / (1024 * 1024));
+
     asm("cli");
     pic_remap(0x20, 0x28);
     pic_disable();
 
+    kprint("IO: Initializing IDT\n");
     idt_init();
 
+    kprint("ACPI: Initializing ACPI tables\n");
     init_acpi();
 
+    kprint("VFS: Initializing virtual file system\n");
     if (vfs_init() < 0) {
         panic("Failed to initialize VFS\n");
     }
@@ -159,13 +167,17 @@ __no_protect void kmain_aftergdt() {
     asm("sti");
 
     init_gettimeofday();
+
+    kprint("SMP: Discovering CPU cores\n");
     init_cores();
 
+    kprint("Storage: Initializing block devices\n");
     if (block_init() < 0) {
         panic("KERN: No drive available\n");
     }
 
     const char* rootdev = cmdline_get("root");
+    kprint("Mounting root filesystem...\n");
     if (mount(rootdev, "/", "ext2") < 0) {
         kprint("Root block device unavailable, falling back to initramfs\n");
         if (mount(NULL, "/", "initramfs") < 0) {
@@ -214,12 +226,12 @@ __no_protect void kmain_aftergdt() {
     if (init_pid < 0) {
         panic("init failed");
     }
-    serial_printf("init pid %d\n", init_pid);
+    kprint("init pid %d\n", init_pid);
     current_pid = (u8)init_pid;
 
     for (usize i = 0; i < ncores; i++) {
         if (smp_info[i].apicid == bsp_apicid) {
-            serial_printf("assigning pid to SMP APICID %lu\n", smp_info[i].apicid);
+            kprint("assigning pid to SMP APICID %lu\n", smp_info[i].apicid);
             smp_info[i].current_pid = (u8)init_pid;
             break;
         }

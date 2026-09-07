@@ -225,3 +225,12 @@ int get_fbinfo(int fb, framebuf_info_t *info) {
 int get_currfb() {
     return proctbl[current_pid].currfb;
 }
+
+/* True when the current process is rendering to the text console */
+bool is_term_active() {
+    int fb = get_currfb();
+    struct fdinfo* info = NULL;
+    if (getfd(fb, &info) < 0) return true;
+    if (!info || !info->data.fb) return true;
+    return (info->data.fb->type == FBTYPE_TERM);
+}

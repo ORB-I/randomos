@@ -77,9 +77,11 @@ static int wm_strncmp(const char* s1, const char* s2, usize n) {
     return 0;
 }
 
+#define TERM_HIST_MAX 256
 typedef struct {
-    char lines[16][48];
+    char lines[TERM_HIST_MAX][64];
     int line_count;
+    int scroll_offset;
     char input[48];
     int input_len;
     char cwd[64];
@@ -92,14 +94,22 @@ typedef struct {
     usize file_sizes[32];
     int file_count;
     int selected_idx;
+    int scroll_offset;
     char preview[128];
 } files_state_t;
 
+#define NOTES_MAX_LINES 64
 typedef struct {
-    char text[8][40];
+    char text[NOTES_MAX_LINES][48];
+    int line_count;
     int cursor_row;
     int cursor_col;
+    int scroll_offset;
 } notes_state_t;
+
+typedef struct {
+    int scroll_offset;
+} sysinfo_state_t;
 
 typedef struct {
     char display[24];
@@ -122,6 +132,7 @@ typedef struct {
         files_state_t files;
         notes_state_t notes;
         calc_state_t calc;
+        sysinfo_state_t sysinfo;
     } state;
 } win_t;
 
@@ -384,16 +395,52 @@ static int wm_get_active_win(void) {
 
 static void term_add_line(win_t* w, const char* text) {
     term_state_t* t = &w->state.term;
-    if (t->line_count < 15) {
+    if (t->line_count < TERM_HIST_MAX) {
         wm_strncpy(t->lines[t->line_count], text, sizeof(t->lines[0]) - 1);
         t->lines[t->line_count][sizeof(t->lines[0]) - 1] = '\0';
         t->line_count++;
     } else {
-        for (int i = 0; i < 14; i++) {
+        for (int i = 0; i < TERM_HIST_MAX - 1; i++) {
             memcpy(t->lines[i], t->lines[i + 1], sizeof(t->lines[0]));
         }
-        wm_strncpy(t->lines[14], text, sizeof(t->lines[0]) - 1);
-        t->lines[14][sizeof(t->lines[0]) - 1] = '\0';
+        wm_strncpy(t->lines[TERM_HIST_MAX - 1], text, sizeof(t->lines[0]) - 1);
+        t->lines[TERM_HIST_MAX - 1][sizeof(t->lines[0]) - 1] = '\0';
+    }
+    t->scroll_offset = 0; // snap to bottom on new output
+}
+
+/* Adjust window view offset for scrolling (positive = up, negative = down) */
+static void wm_scroll_window(win_t* w, int delta) {
+    if (!w || !w->open) return;
+    if (w->app_type == APP_TERMINAL) {
+        term_state_t* t = &w->state.term;
+        int vis_lines = (w->h - 28) / (GUI_FONT_H + 2);
+        if (vis_lines <= 0) vis_lines = 1;
+        int max_scroll = (t->line_count > vis_lines) ? (t->line_count - vis_lines) : 0;
+        t->scroll_offset += delta;
+        if (t->scroll_offset < 0) t->scroll_offset = 0;
+        if (t->scroll_offset > max_scroll) t->scroll_offset = max_scroll;
+    } else if (w->app_type == APP_FILES) {
+        files_state_t* f = &w->state.files;
+        int vis_items = (w->h - 56) / (GUI_FONT_H + 4);
+        if (vis_items <= 0) vis_items = 1;
+        int max_scroll = (f->file_count > vis_items) ? (f->file_count - vis_items) : 0;
+        f->scroll_offset -= delta;
+        if (f->scroll_offset < 0) f->scroll_offset = 0;
+        if (f->scroll_offset > max_scroll) f->scroll_offset = max_scroll;
+    } else if (w->app_type == APP_NOTES) {
+        notes_state_t* n = &w->state.notes;
+        int vis_lines = (w->h - 16) / (GUI_FONT_H + 4);
+        if (vis_lines <= 0) vis_lines = 1;
+        int max_scroll = (n->line_count > vis_lines) ? (n->line_count - vis_lines) : 0;
+        n->scroll_offset -= delta;
+        if (n->scroll_offset < 0) n->scroll_offset = 0;
+        if (n->scroll_offset > max_scroll) n->scroll_offset = max_scroll;
+    } else if (w->app_type == APP_SYSINFO) {
+        sysinfo_state_t* s = &w->state.sysinfo;
+        s->scroll_offset -= delta;
+        if (s->scroll_offset < 0) s->scroll_offset = 0;
+        if (s->scroll_offset > 12) s->scroll_offset = 12;
     }
 }
 
@@ -563,8 +610,17 @@ static void paint_terminal(win_t* w) {
     win_fill(w, 0, 0, w->w, w->h, 0xFF14161F);
     term_state_t* t = &w->state.term;
 
+    int vis_lines = (w->h - 28) / (GUI_FONT_H + 2);
+    if (vis_lines <= 0) vis_lines = 1;
+    int max_scroll = (t->line_count > vis_lines) ? (t->line_count - vis_lines) : 0;
+    if (t->scroll_offset > max_scroll) t->scroll_offset = max_scroll;
+    if (t->scroll_offset < 0) t->scroll_offset = 0;
+
+    int start_idx = t->line_count - vis_lines - t->scroll_offset;
+    if (start_idx < 0) start_idx = 0;
+
     int y = 6;
-    for (int i = 0; i < t->line_count; i++) {
+    for (int i = start_idx; i < t->line_count && (i - start_idx) < vis_lines; i++) {
         u32 col = COLOR_TEXT;
         if (t->lines[i][0] == '$') col = COLOR_GREEN;
         win_draw_str(w, 8, y, t->lines[i], col, 0, true);
@@ -574,11 +630,27 @@ static void paint_terminal(win_t* w) {
     // Input prompt
     char pbuf[64];
     snprintf(pbuf, sizeof(pbuf), "$ %s", t->input);
-    win_draw_str(w, 8, y, pbuf, COLOR_CYAN, 0, true);
+    win_draw_str(w, 8, w->h - 18, pbuf, COLOR_CYAN, 0, true);
 
     // Cursor
     int cx = 8 + (int)strlen(pbuf) * GUI_FONT_W;
-    win_fill(w, cx, y, GUI_FONT_W, GUI_FONT_H, COLOR_WHITE);
+    win_fill(w, cx, w->h - 18, GUI_FONT_W, GUI_FONT_H, COLOR_WHITE);
+
+    // Scrollbar
+    if (max_scroll > 0) {
+        int sb_x = w->w - 7;
+        int sb_h = w->h - 26;
+        win_fill(w, sb_x, 4, 4, sb_h, 0xFF1F2335);
+        int thumb_h = (vis_lines * sb_h) / t->line_count;
+        if (thumb_h < 8) thumb_h = 8;
+        int scroll_pos = max_scroll - t->scroll_offset;
+        int thumb_y = 4 + (scroll_pos * (sb_h - thumb_h)) / max_scroll;
+        win_fill(w, sb_x, thumb_y, 4, thumb_h, COLOR_ACCENT);
+
+        if (t->scroll_offset > 0) {
+            win_draw_str(w, w->w - 72, 6, "[^SCROLL]", COLOR_YELLOW, 0, true);
+        }
+    }
 }
 
 static void paint_files(win_t* w) {
@@ -591,12 +663,18 @@ static void paint_files(win_t* w) {
     snprintf(path_disp, sizeof(path_disp), " Path: %s", f->current_path);
     win_draw_str(w, 4, 4, path_disp, COLOR_CYAN, 0, true);
 
+    int vis_items = (w->h - 54) / (GUI_FONT_H + 4);
+    if (vis_items <= 0) vis_items = 1;
+    int max_scroll = (f->file_count > vis_items) ? (f->file_count - vis_items) : 0;
+    if (f->scroll_offset > max_scroll) f->scroll_offset = max_scroll;
+    if (f->scroll_offset < 0) f->scroll_offset = 0;
+
     // File list
     int y = 30;
-    for (int i = 0; i < f->file_count && y < w->h - 30; i++) {
+    for (int i = f->scroll_offset; i < f->file_count && (i - f->scroll_offset) < vis_items; i++) {
         bool sel = (i == f->selected_idx);
         if (sel) {
-            win_fill(w, 4, y - 2, w->w - 8, GUI_FONT_H + 4, 0xFF3D4668);
+            win_fill(w, 4, y - 2, w->w - 14, GUI_FONT_H + 4, 0xFF3D4668);
         }
 
         const char* tag = f->is_dir[i] ? "[DIR]" : "[FILE]";
@@ -605,6 +683,17 @@ static void paint_files(win_t* w) {
         snprintf(item, sizeof(item), "%-6s %-16s %u B", tag, f->file_names[i], (unsigned)f->file_sizes[i]);
         win_draw_str(w, 8, y, item, col, 0, true);
         y += GUI_FONT_H + 4;
+    }
+
+    // Scrollbar
+    if (max_scroll > 0) {
+        int sb_x = w->w - 7;
+        int sb_h = w->h - 54;
+        win_fill(w, sb_x, 28, 4, sb_h, 0xFF1F2335);
+        int thumb_h = (vis_items * sb_h) / f->file_count;
+        if (thumb_h < 8) thumb_h = 8;
+        int thumb_y = 28 + (f->scroll_offset * (sb_h - thumb_h)) / max_scroll;
+        win_fill(w, sb_x, thumb_y, 4, thumb_h, COLOR_ACCENT);
     }
 
     // Footer info
@@ -616,46 +705,72 @@ static void paint_files(win_t* w) {
 
 static void paint_sysinfo(win_t* w) {
     win_fill(w, 0, 0, w->w, w->h, COLOR_WIN_BG);
+    sysinfo_state_t* s = &w->state.sysinfo;
+    int base_y = 12 - s->scroll_offset * (GUI_FONT_H + 6);
 
-    win_draw_str(w, 16, 12, "=== RandomOS System Info ===", COLOR_CYAN, 0, true);
+    win_draw_str(w, 16, base_y, "=== RandomOS System Info ===", COLOR_CYAN, 0, true);
 
     char buf[64];
     snprintf(buf, sizeof(buf), "OS:        RandomOS x86_64");
-    win_draw_str(w, 16, 36, buf, COLOR_TEXT, 0, true);
+    win_draw_str(w, 16, base_y + 24, buf, COLOR_TEXT, 0, true);
 
     snprintf(buf, sizeof(buf), "Display:   %u x %u (32 bpp)", (unsigned)gui_w, (unsigned)gui_h);
-    win_draw_str(w, 16, 54, buf, COLOR_TEXT, 0, true);
+    win_draw_str(w, 16, base_y + 42, buf, COLOR_TEXT, 0, true);
 
     snprintf(buf, sizeof(buf), "FS:        EXT2 Root Filesystem");
-    win_draw_str(w, 16, 72, buf, COLOR_TEXT, 0, true);
+    win_draw_str(w, 16, base_y + 60, buf, COLOR_TEXT, 0, true);
 
     u64 uptime_s = (getclock(CLOCK_MONOMS) - start_time_ms) / 1000;
     snprintf(buf, sizeof(buf), "Uptime:    %u:%02u min", (unsigned)(uptime_s / 60), (unsigned)(uptime_s % 60));
-    win_draw_str(w, 16, 90, buf, COLOR_GREEN, 0, true);
+    win_draw_str(w, 16, base_y + 78, buf, COLOR_GREEN, 0, true);
 
     // Visual Memory / CPU Bar
-    win_draw_str(w, 16, 116, "Memory Utilization:", COLOR_TEXT_DIM, 0, true);
-    win_fill(w, 16, 136, w->w - 32, 14, 0xFF24283B);
-    win_fill(w, 16, 136, (w->w - 32) * 35 / 100, 14, COLOR_ACCENT);
-    draw_rect(w->buf, w->w, 16, 136, w->w - 32, 14, COLOR_BAR_BORDER);
+    win_draw_str(w, 16, base_y + 104, "Memory Utilization:", COLOR_TEXT_DIM, 0, true);
+    win_fill(w, 16, base_y + 124, w->w - 32, 14, 0xFF24283B);
+    win_fill(w, 16, base_y + 124, (w->w - 32) * 35 / 100, 14, COLOR_ACCENT);
+    draw_rect(w->buf, w->w, 16, base_y + 124, w->w - 32, 14, COLOR_BAR_BORDER);
 
-    win_draw_str(w, 16, 158, "CPU Utilization:", COLOR_TEXT_DIM, 0, true);
-    win_fill(w, 16, 178, w->w - 32, 14, 0xFF24283B);
-    win_fill(w, 16, 178, (w->w - 32) * 12 / 100, 14, COLOR_GREEN);
-    draw_rect(w->buf, w->w, 16, 178, w->w - 32, 14, COLOR_BAR_BORDER);
+    win_draw_str(w, 16, base_y + 146, "CPU Utilization:", COLOR_TEXT_DIM, 0, true);
+    win_fill(w, 16, base_y + 166, w->w - 32, 14, 0xFF24283B);
+    win_fill(w, 16, base_y + 166, (w->w - 32) * 12 / 100, 14, COLOR_GREEN);
+    draw_rect(w->buf, w->w, 16, base_y + 166, w->w - 32, 14, COLOR_BAR_BORDER);
 }
 
 static void paint_notes(win_t* w) {
     win_fill(w, 0, 0, w->w, w->h, 0xFF161821);
     notes_state_t* n = &w->state.notes;
 
-    for (int r = 0; r < 8; r++) {
-        int y = 8 + r * (GUI_FONT_H + 4);
+    int vis_lines = (w->h - 16) / (GUI_FONT_H + 4);
+    if (vis_lines <= 0) vis_lines = 1;
+
+    if (n->cursor_row < n->scroll_offset) {
+        n->scroll_offset = n->cursor_row;
+    } else if (n->cursor_row >= n->scroll_offset + vis_lines) {
+        n->scroll_offset = n->cursor_row - vis_lines + 1;
+    }
+
+    int max_scroll = (n->line_count > vis_lines) ? (n->line_count - vis_lines) : 0;
+    if (n->scroll_offset > max_scroll) n->scroll_offset = max_scroll;
+    if (n->scroll_offset < 0) n->scroll_offset = 0;
+
+    int y = 8;
+    for (int r = n->scroll_offset; r < n->line_count && (r - n->scroll_offset) < vis_lines; r++) {
         win_draw_str(w, 8, y, n->text[r], COLOR_TEXT, 0, true);
         if (r == n->cursor_row) {
             int cx = 8 + (int)strlen(n->text[r]) * GUI_FONT_W;
             win_fill(w, cx, y, 2, GUI_FONT_H, COLOR_ACCENT);
         }
+        y += GUI_FONT_H + 4;
+    }
+
+    if (max_scroll > 0) {
+        int sb_x = w->w - 7;
+        int sb_h = w->h - 16;
+        win_fill(w, sb_x, 8, 4, sb_h, 0xFF1F2335);
+        int thumb_h = (vis_lines * sb_h) / n->line_count;
+        if (thumb_h < 8) thumb_h = 8;
+        int thumb_y = 8 + (n->scroll_offset * (sb_h - thumb_h)) / max_scroll;
+        win_fill(w, sb_x, thumb_y, 4, thumb_h, COLOR_ACCENT);
     }
 }
 
@@ -939,6 +1054,12 @@ static void handle_click(int mx, int my) {
             int cx = mx - w->x;
             int cy = my - (w->y + TITLE_H);
 
+            // Clicking scrollbar track: top half steps up, bottom half steps down
+            if (cx >= w->w - 12) {
+                wm_scroll_window(w, (cy < w->h / 2) ? 4 : -4);
+                return;
+            }
+
             if (w->app_type == APP_CALC) {
                 calc_state_t* c = &w->state.calc;
                 int sx = 14, sy = 52, bw = 40, bh = 28;
@@ -987,7 +1108,7 @@ static void handle_click(int mx, int my) {
                 }
             } else if (w->app_type == APP_FILES) {
                 files_state_t* f = &w->state.files;
-                int clicked_item = (cy - 30) / (GUI_FONT_H + 4);
+                int clicked_item = f->scroll_offset + (cy - 30) / (GUI_FONT_H + 4);
                 if (clicked_item >= 0 && clicked_item < f->file_count) {
                     if (f->selected_idx == clicked_item && f->is_dir[clicked_item]) {
                         // Enter directory
@@ -995,6 +1116,7 @@ static void handle_click(int mx, int my) {
                             // nothing
                         } else if (streq(f->file_names[clicked_item], "..")) {
                             wm_strcpy(f->current_path, "/");
+                            f->scroll_offset = 0;
                             files_refresh(w);
                         } else {
                             if (streq(f->current_path, "/")) {
@@ -1002,11 +1124,18 @@ static void handle_click(int mx, int my) {
                             } else {
                                 snprintf(f->current_path, sizeof(f->current_path), "%s/%s", f->current_path, f->file_names[clicked_item]);
                             }
+                            f->scroll_offset = 0;
                             files_refresh(w);
                         }
                     } else {
                         f->selected_idx = clicked_item;
                     }
+                }
+            } else if (w->app_type == APP_NOTES) {
+                notes_state_t* n = &w->state.notes;
+                int clicked_row = n->scroll_offset + (cy - 8) / (GUI_FONT_H + 4);
+                if (clicked_row >= 0 && clicked_row < NOTES_MAX_LINES) {
+                    n->cursor_row = clicked_row;
                 }
             }
             return;
@@ -1023,6 +1152,58 @@ static void handle_key(u8 sc, bool shift) {
     int active_id = wm_get_active_win();
     if (active_id < 0) return;
     win_t* w = &wins[active_id];
+
+    // Window navigation and scrolling keys
+    if (sc == 0x49) { // PageUp
+        wm_scroll_window(w, 6);
+        return;
+    }
+    if (sc == 0x51) { // PageDown
+        wm_scroll_window(w, -6);
+        return;
+    }
+    if (sc == 0x48) { // Up
+        if (w->app_type == APP_FILES) {
+            files_state_t* f = &w->state.files;
+            if (f->selected_idx > 0) {
+                f->selected_idx--;
+                if (f->selected_idx < f->scroll_offset) f->scroll_offset = f->selected_idx;
+            }
+        } else if (w->app_type == APP_NOTES) {
+            notes_state_t* n = &w->state.notes;
+            if (n->cursor_row > 0) {
+                n->cursor_row--;
+                if (n->cursor_row < n->scroll_offset) n->scroll_offset = n->cursor_row;
+            }
+        } else {
+            wm_scroll_window(w, 1);
+        }
+        return;
+    }
+    if (sc == 0x50) { // Down
+        if (w->app_type == APP_FILES) {
+            files_state_t* f = &w->state.files;
+            if (f->selected_idx + 1 < f->file_count) {
+                f->selected_idx++;
+                int visible_rows = (w->h - 36) / (GUI_FONT_H + 4);
+                if (f->selected_idx >= f->scroll_offset + visible_rows) {
+                    f->scroll_offset = f->selected_idx - visible_rows + 1;
+                }
+            }
+        } else if (w->app_type == APP_NOTES) {
+            notes_state_t* n = &w->state.notes;
+            if (n->cursor_row + 1 < NOTES_MAX_LINES) {
+                n->cursor_row++;
+                int visible_rows = (w->h - 16) / (GUI_FONT_H + 4);
+                if (n->cursor_row >= n->scroll_offset + visible_rows) {
+                    n->scroll_offset = n->cursor_row - visible_rows + 1;
+                }
+            }
+        } else {
+            wm_scroll_window(w, -1);
+        }
+        return;
+    }
 
     char ch = scancode_to_ascii(sc, shift);
 
@@ -1044,7 +1225,14 @@ static void handle_key(u8 sc, bool shift) {
     } else if (w->app_type == APP_NOTES) {
         notes_state_t* n = &w->state.notes;
         if (ch == '\n') {
-            if (n->cursor_row < 7) n->cursor_row++;
+            if (n->cursor_row + 1 < NOTES_MAX_LINES) {
+                n->cursor_row++;
+                if (n->cursor_row >= n->line_count) n->line_count = n->cursor_row + 1;
+                int visible_rows = (w->h - 16) / (GUI_FONT_H + 4);
+                if (n->cursor_row >= n->scroll_offset + visible_rows) {
+                    n->scroll_offset = n->cursor_row - visible_rows + 1;
+                }
+            }
         } else if (ch == '\b') {
             int len = strlen(n->text[n->cursor_row]);
             if (len > 0) n->text[n->cursor_row][len - 1] = '\0';
@@ -1053,6 +1241,7 @@ static void handle_key(u8 sc, bool shift) {
             if (len < 36) {
                 n->text[n->cursor_row][len] = ch;
                 n->text[n->cursor_row][len + 1] = '\0';
+                if (n->cursor_row >= n->line_count) n->line_count = n->cursor_row + 1;
             }
         }
     }
@@ -1104,6 +1293,20 @@ int main(void) {
             if (mouse_x >= (int)gui_w) mouse_x = (int)gui_w - 1;
             if (mouse_y < 0) mouse_y = 0;
             if (mouse_y >= (int)gui_h) mouse_y = (int)gui_h - 1;
+
+            // Route mouse wheel events to whichever window is hovered
+            if (minfo.wheel != 0) {
+                for (int i = win_count - 1; i >= 0; i--) {
+                    int id = win_order[i];
+                    win_t* w = &wins[id];
+                    if (w->minimized) continue;
+                    if (mouse_x >= w->x && mouse_x < w->x + w->w &&
+                        mouse_y >= w->y && mouse_y < w->y + w->h + TITLE_H) {
+                        wm_scroll_window(w, minfo.wheel * 3);
+                        break;
+                    }
+                }
+            }
 
             bool left_down = (minfo.buttons & MOUSE_BUTTON_LEFT) != 0;
             bool left_click = left_down && !(mouse_prev_btns & MOUSE_BUTTON_LEFT);

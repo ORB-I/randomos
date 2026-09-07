@@ -11,6 +11,7 @@
 typedef struct {
     s8 x, y;
     u8 buttons;
+    s8 wheel; /* vertical scroll delta (positive = up) */
 } __packed mouse_info_t;
 
 void enqueue_mouse(mouse_info_t info);
