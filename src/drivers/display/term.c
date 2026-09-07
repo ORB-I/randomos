@@ -126,6 +126,10 @@ void term_flush() {
     _term_flushscr();
 }
 
+void term_get_size(term_pos_t* pos) {
+    flanterm_get_dimensions(_term_ctx, &pos->x, &pos->y);
+}
+
 void term_get_pos(term_pos_t* pos) {
     flanterm_get_cursor_pos(_term_ctx, &pos->x, &pos->y);
 }
@@ -174,7 +178,7 @@ usize term_get_scroll_offset() {
     return flanterm_get_scroll_offset(_term_ctx);
 }
 
-int termctl(int code, int arg0) {
+int termctl(int code, u64 arg0) {
     switch (code) {
         case TCTL_FLUSH:
             term_flush();
@@ -202,6 +206,10 @@ int termctl(int code, int arg0) {
             return 0;
         case TCTL_SCRLDN:
             term_scroll_down(arg0 ? (usize)arg0 : 1);
+            return 0;
+        case TCTL_GETSZ: 
+            if (!arg0) return -EINVAL;
+            term_get_size((term_pos_t*)arg0);
             return 0;
         default: return -EINVAL;
     }

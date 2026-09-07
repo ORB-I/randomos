@@ -26,6 +26,6 @@ int ioctl(int fd, int cmd, void* data) {
     return (int)__syscall3(SYS_IOCTL, (u64)fd, (u64)cmd, (u64)data);
 }
 
-int termctl(int code, int arg) {
-    return ioctl(STDOUT, code, (void*)(intptr_t)arg);
+int termctl(int code, u64 arg) {
+    return __syscall2(SYS_TERMCTL, code, arg);
 }

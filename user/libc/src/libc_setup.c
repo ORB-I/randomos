@@ -38,6 +38,8 @@ int _libc_setup(int argc, char** argv, char** envp) {
     __alloc_anoncurrent = __uvmm_map_low__;
     __libc_envp__ = envp;
 
+    serial_printf("User heap start: %p\nUser heap end: %p\n", __uvmm_map_low__, __uvmm_map_high__);
+
     __libc_initenviron();
     __libc_initstdio();
     __libc_initatexit();

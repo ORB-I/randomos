@@ -25,13 +25,14 @@ CRT := crt0.o
 LDSO := ld.so
 
 LDSO_SRC := $(wildcard ./ldso/*.c)
-LDSO_OBJ := $(LDSO_SRC:.c=.ldso.o)
+LDSO_ASRC := $(wildcard ./ldso/*.asm)
+LDSO_OBJ := $(LDSO_SRC:.c=.ldso.o) $(LDSO_ASRC:.asm=.ldso.o)
 
 LIBSRC := $(shell find . -name "*.c")
 ASMSRC := $(shell find . -name "*.asm")
 
 LIBSRC   := $(filter-out $(LDSO_SRC), $(LIBSRC))
-LIBA_SRC := $(filter-out ./src/crt.asm src/crt.asm, $(ASMSRC))
+LIBA_SRC := $(filter-out ./src/crt.asm src/crt.asm $(LDSO_ASRC), $(ASMSRC))
 
 LIBOBJ := $(LIBSRC:.c=.o)
 ASMOBJ := $(LIBA_SRC:.asm=.o)
@@ -68,6 +69,8 @@ $(CRT): $(CRTSRC)
 
 %.ldso.o: %.c
 	$(CC) $(CFLAGS_LDSO) -c $< -o $@
+%.ldso.o: %.asm
+	$(AS) $(ASFLAGS) $< -o $@m
 
 %.so.o: %.c
 	$(CC) $(CCFLAGS_SO) -c $< -o $@

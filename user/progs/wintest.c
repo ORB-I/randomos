@@ -37,7 +37,7 @@ int main() {
     flush_scr();
 
     int x = info.width/2, y = info.height/2;
-    mouse_info_t minfo = {0, 0, 0};
+    mouse_info_t minfo = {0, 0, 0, 0};
     while (1) {
         if (get_mouse_info(&minfo) < 0) {
             serial_printf("mouse failed\r\n");
