@@ -1,5 +1,7 @@
 include mk/tools.mk
 
+DRIVE ?= drive.img
+
 ASFLAGS      := -Iinclude -felf64
 LDFLAGS      := -m elf_x86_64 -T share/link.ld --no-pie -O0 -nostdlib -no-pie
 
@@ -17,6 +19,8 @@ XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
 
 QFLAGS := -M pc -cpu qemu64 -boot d -smp 2 -m 1G -serial stdio -accel tcg \
 		  -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+		  -drive id=disk,file=$(DRIVE),format=raw,if=none \
+		  -device virtio-blk-pci,drive=disk \
 		  -device piix3-usb-uhci,id=uhci \
 		  -device usb-kbd,bus=uhci.0,port=1 \
 		  -device usb-mouse,bus=uhci.0,port=2 \
@@ -39,8 +43,6 @@ SUS  := $(CC_SRC:.c=.su)
 INITRD := initrd.img
 INITRD_STAGE := .initrd-stage
 PYTHON ?= python3
-
-DRIVE ?= drive.img
 
 SUBDIRS := user/libs/zlib user/libs/libmcrypto \
 		   user/libc user/progs user/nasm share/etc share/man \
