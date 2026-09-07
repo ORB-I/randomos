@@ -161,6 +161,8 @@ static uacpi_status initialize_from_rxsdt(uacpi_phys_addr rxsdt_addr,
             goto error_out;
     }
 
+    uacpi_info("probe: xsdt enumeration done");
+
     ret = UACPI_STATUS_OK;
 
 error_out:
@@ -339,6 +341,8 @@ uacpi_status uacpi_initialize_tables(void)
             g_uacpi_rt_ctx.facs = tbl.ptr;
         }
     }
+
+    uacpi_info("probe: facs install done");
 
     table_mutex = uacpi_kernel_create_mutex();
     if (uacpi_unlikely(table_mutex == UACPI_NULL))

@@ -258,6 +258,14 @@ void uacpi_kernel_free(void *mem) {
 uacpi_handle uacpi_kernel_create_spinlock(void) {
     lock_t* lk = malloc(sizeof(*lk));
     if (!lk) return NULL;
+
+    /*
+     * malloc() doesn't zero memory, and lock_acquire() spins forever on a
+     * nonzero lock word. A fresh heap block can contain garbage (the PMM
+     * hands out physical frames without zeroing them), so this must be
+     * explicitly initialized to the unlocked state.
+     */
+    lock_init(lk);
     return lk;
 }
 

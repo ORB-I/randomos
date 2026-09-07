@@ -338,38 +338,48 @@ uacpi_status uacpi_initialize(uacpi_u64 flags)
     if (g_uacpi_rt_ctx.max_call_stack_depth == 0)
         uacpi_context_set_max_call_stack_depth(UACPI_DEFAULT_MAX_CALL_STACK_DEPTH);
 
+    uacpi_info("probe: phase tables start");
     ret = uacpi_initialize_tables();
     if (uacpi_unlikely_error(ret))
         goto out_fatal_error;
+    uacpi_info("probe: phase tables ok");
 
     ret = uacpi_initialize_registers();
     if (uacpi_unlikely_error(ret))
         goto out_fatal_error;
+    uacpi_info("probe: phase registers ok");
 
     ret = uacpi_initialize_events_early();
     if (uacpi_unlikely_error(ret))
         goto out_fatal_error;
+    uacpi_info("probe: phase events_early ok");
 
     ret = uacpi_initialize_opregion();
     if (uacpi_unlikely_error(ret))
         goto out_fatal_error;
+    uacpi_info("probe: phase opregion ok");
 
     ret = uacpi_initialize_interfaces();
     if (uacpi_unlikely_error(ret))
         goto out_fatal_error;
+    uacpi_info("probe: phase interfaces ok");
 
     ret = uacpi_initialize_namespace();
     if (uacpi_unlikely_error(ret))
         goto out_fatal_error;
+    uacpi_info("probe: phase namespace ok");
 
     ret = uacpi_initialize_notify();
     if (uacpi_unlikely_error(ret))
         goto out_fatal_error;
+    uacpi_info("probe: phase notify ok");
 
     uacpi_install_default_address_space_handlers();
+    uacpi_info("probe: phase handlers ok");
 
     if (!uacpi_check_flag(UACPI_FLAG_NO_ACPI_MODE))
         enter_acpi_mode_initial();
+    uacpi_info("probe: phase acpi mode ok");
 
     return UACPI_STATUS_OK;
 
