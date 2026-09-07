@@ -173,7 +173,7 @@ void smp_request_hdlr_c(intctx_t* ctx) {
             apstates[i].state = AP_RUNNING;
             lock_release(&apstates[i].lock, &rflags);
             atomic_store(&req->done, 1);
-            break;
+            smp_contloop(i);
         }
         case AP_REQ_STOP: {
             kprint("AP %d received STOP request\n", apicid);
@@ -248,7 +248,7 @@ void smp_mainloop(ssize i) {
             case AP_WAITING:
             case AP_PAUSED: {
                 lock_release(&apstates[i].lock, &rflags);
-                asm volatile("pause");
+                asm volatile("sti\n\tpause");
                 break;
             }
             case AP_RUNNING: {
@@ -404,6 +404,7 @@ void smp_mainloop(ssize i) {
                 }
                 lock_release(&apstates[i].lock, &rflags);
 
+                asm volatile("sti");
                 continue;
             }
             default: {

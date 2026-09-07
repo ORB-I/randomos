@@ -654,8 +654,8 @@ int mount(const char* dev, const char* path, const char* type) {
     vfs_t* mnt = &mounts[mntid];
     mnt->inuse = 1;
 
+    struct blockdev bdev = {0};
     if (!(fs->flags & FSFLAG_NOBLK)) {
-        struct blockdev bdev;
         if (dev) {
             if ((ret = block_getdevnam(dev, &bdev)) < 0) {
                 mnt->inuse = 0;
@@ -685,7 +685,7 @@ int mount(const char* dev, const char* path, const char* type) {
         return ret;
     }
 
-    kprint("Mounted device %s at %s (type %s mountid %zu)\n", (fs->flags & FSFLAG_NOBLK) ? "ram" : dev, path, type, mntid);
+    kprint("Mounted device %s at %s (type %s mountid %zu)\n", (fs->flags & FSFLAG_NOBLK) ? "ram" : (dev ? dev : bdev.name), path, type, mntid);
 
     return 0;
 }

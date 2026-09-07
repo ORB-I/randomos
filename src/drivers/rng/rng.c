@@ -109,22 +109,21 @@ int rng_init(void) {
 
 static int rng_fillpool(void) {
     if (kqueue_queued(entq) < sizeof(u64) * 32) {
-        usize n_bytes = (1024 * sizeof(u64)) - kqueue_queued(entq);
-        u8* tbuf = malloc(n_bytes);
-        if (!tbuf) return -1;
-        memset(tbuf, 0, n_bytes);
-
-        u8* mixbuf = malloc(n_bytes);
-        if (!mixbuf) {
-            free(tbuf);
-            return -1;
-        }
+        usize n_bytes = 256;
+        u8 tbuf[256];
+        u8 mixbuf[256];
+        memset(tbuf, 0, sizeof(tbuf));
 
         usize collected = 0;
         bool any_collected = false;
 
         for (usize i = 0; i < NUM_RNG_DRIVERS; i++) {
             if (rng_drivers[i].active) {
+                // If hardware RNG already supplied entropy, skip jitter fallback
+                if (any_collected && strcmp(rng_drivers[i].name, "CPU Jitter TRNG") == 0) {
+                    continue;
+                }
+
                 int r = rng_drivers[i].read(mixbuf, n_bytes);
                 if (r > 0) {
                     any_collected = true;
@@ -136,13 +135,10 @@ static int rng_fillpool(void) {
             }
         }
 
-        free(mixbuf);
-
         if (any_collected && collected > 0) {
             kqueue_enqueue(entq, tbuf, collected);
         }
 
-        free(tbuf);
         return any_collected ? 0 : -1;
     }
     return 0;
