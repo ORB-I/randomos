@@ -31,7 +31,6 @@
 /* virtio-input device features */
 #define VIRTIO_INPUT_F_EVENTS (1ULL << 0)
 /* global / transport features */
-#define VIRTIO_F_VERSION_1 (1ULL << 32)
 
 #define EV_SYN 0
 #define EV_KEY 1
