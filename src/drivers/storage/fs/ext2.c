@@ -992,6 +992,11 @@ ssize ext2fs_read(vfs_t* vfs, u32 ino, usize off, usize nb, void* buf) {
     ext2_ino_t inod;
     if ((ret = getino(vfs, ino, &inod)) < 0) return ret;
 
+    usize size = getisize(vfs, &inod);
+
+    if (off >= size) return 0;
+    if (nb > size - off) nb = size - off;
+
     usize nread = 0;
     while (nread < nb) {
         usize pos = off + nread;

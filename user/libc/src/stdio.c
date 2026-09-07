@@ -323,6 +323,7 @@ void __libc_init_stdioptr(FILE** ptr, int fd, int fflags) {
     (*ptr)->flags = fflags;
 }
 
+#include <io.h>
 void __libc_fini_stdioptr(FILE** ptr) {
     fflush(*ptr);
     free((*ptr)->buf);

@@ -9,7 +9,8 @@
 
 DEFSYSCALL(sys_read) {
     if (!ensure_pointer((void*)args->a1, args->a2, 1)) return -EINVAL;
-    return read(args->a0, (u8*)args->a1, args->a2);
+    int ret = read(args->a0, (u8*)args->a1, args->a2);
+    return ret;
 }
 
 DEFSYSCALL(sys_write) {

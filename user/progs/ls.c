@@ -17,11 +17,11 @@ int list_dir(char* path) {
     while ((ret = readdir(d, &st)) == 0) {
         printf("\t%s\n", st.st_name);
     }
-    serial_printf("readdir returned with %p\n", ret);
     termctl(TCTL_AFLSH, 1);
     termctl(TCTL_FLUSH, 0);
 
     close(d);
+    serial_printf("returning 0\n");
     return 0;
 }
 
