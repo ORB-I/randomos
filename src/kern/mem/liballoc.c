@@ -304,21 +304,35 @@ void *malloc(size_t size)
 		
 
 		// Find one big enough.
-			tag = l_freePages[ index ];				// Start at the front of the list.
-			while ( tag != NULL )
+		//
+		// Freed blocks land in the bucket matching their *size*, not the
+		// bucket of whatever request freed them, so a search restricted to
+		// the request's own bucket misses usable free blocks (e.g. a freed
+		// 64 KB block sits in a high bucket while a 32-byte request only
+		// searches bucket 8). Walk every bucket from the request's up and
+		// remember which bucket the tag was actually found in.
+		int search_index = index;
+		while ( search_index < MAXEXP )
+		{
+			struct boundary_tag* t = l_freePages[ search_index ];
+			while ( t != NULL )
 			{
 					// If there's enough space in this tag.
-				if ( (tag->real_size - sizeof(struct boundary_tag))
+				if ( (t->real_size - sizeof(struct boundary_tag))
 								>= (size + sizeof(struct boundary_tag) ) )
 				{
 					#ifdef DEBUG
-					kprint("Tag search found %i >= %i\n",(tag->real_size - sizeof(struct boundary_tag)), (size + sizeof(struct boundary_tag) ) );
+					kprint("Tag search found %i >= %i\n",(t->real_size - sizeof(struct boundary_tag)), (size + sizeof(struct boundary_tag) ) );
 					#endif
+					tag = t;
 					break;
 				}
 
-				tag = tag->next;
+				t = t->next;
 			}
+			if ( tag ) break;
+			search_index++;
+		}
 
 		
 			// No page found. Make one.
@@ -337,7 +351,7 @@ void *malloc(size_t size)
 				remove_tag( tag );
 
 				if ( (tag->split_left == NULL) && (tag->split_right == NULL) )
-					l_completePages[ index ] -= 1;
+					l_completePages[ search_index ] -= 1;
 			}
 		
 		// We have a free page.  Remove it from the free pages list.

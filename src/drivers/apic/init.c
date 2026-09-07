@@ -4,7 +4,6 @@
 #include <core/panic.h>
 #include <drivers/apic.h>
 #include <drivers/pic.h>
-#include <lai/core.h>
 #include <core/kprint.h>
 #include <core/asmh.h>
 #include <uacpi/tables.h>
@@ -234,13 +233,14 @@ static void enable_lapic() {
 void apic_init() {
     pic_disable();
 
-    struct acpi_madt madt;
-    uacpi_status uret = uacpi_table_find_by_signature("APIC", (void*)&madt);
-    if (uacpi_unlikely(uret)) {
+    uacpi_table tbl;
+    uacpi_status uret = uacpi_table_find_by_signature("APIC", &tbl);
+    if (uacpi_unlikely_error(uret)) {
         panic("APIC: MADT table not found");
     }
 
-    parse_madt(&madt);
+    struct acpi_madt* madt = (struct acpi_madt*)tbl.ptr;
+    parse_madt(madt);
 
     lapic_virt_addr = (volatile u32*)(lapic_phys_addr + HHDM_START);
     kprint("Using Local APIC at virtual address %p\n", lapic_virt_addr);
