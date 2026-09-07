@@ -21,7 +21,10 @@ static inline u32 rtc_bcd2bin(u8 val) {
 
 u64 rtc_gettime() {
     outb(0x70, REG_STA);
-    while (inb(0x71) & 0x80);
+    u32 timeout = 100000;
+    while ((inb(0x71) & 0x80) && --timeout) {
+        asm volatile("pause");
+    }
     outb(0x70, REG_STB);
     u8 stb = inb(0x71);
     outb(0x71, stb | 0x80);

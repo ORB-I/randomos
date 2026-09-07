@@ -222,8 +222,9 @@ uacpi_status uacpi_kernel_pci_device_open(uacpi_pci_address address, uacpi_handl
         return UACPI_STATUS_NOT_FOUND;
     }
 
-    // Probe: nonexistent devices read back as 0xFFFFFFFF
-    if (pci_cfg_inl(address.bus, address.device, address.function, 0) == 0xFFFFFFFF) {
+    // Probe: nonexistent devices return 0xFFFF for Vendor ID (offset 0 low word)
+    u32 id = pci_cfg_inl(address.bus, address.device, address.function, 0);
+    if ((id & 0xFFFF) == 0xFFFF) {
         return UACPI_STATUS_NOT_FOUND;
     }
 
