@@ -23,9 +23,8 @@ QFLAGS := -M pc -cpu qemu64 -boot d -smp 2 -m 1G -serial stdio -accel tcg \
 		  -netdev user,id=net0 -device virtio-net-pci,netdev=net0 \
 		  -device virtio-rng-pci \
 		  -monitor unix:/tmp/qemu-monitor.sock,server=on,wait=off \
-		  -device virtio-keyboard-pci \
-		  -device virtio-tablet-pci \
 		  -d int,cpu_reset -D qemu.log
+
 QFLAGS_HEADLESS := -display none -serial file:qemu.log
 
 AS_SRC := $(shell find src -name '*.asm')
@@ -87,8 +86,7 @@ $(ISO): $(EXE) $(INITRD)
 # Pack the userland into a cpio "newc" archive the kernel unpacks at boot
 # (see src/kern/initramfs.c).  The archive must end up in the ISO as
 # /boot/initrd.img because share/limine.conf loads it as a module.
-$(INITRD): $(wildcard user/progs/*.elf) user/libc/libc.so \
-		user/libs/libmcrypto/libmcrypto.so \
+$(INITRD): $(wildcard user/progs/*.elf) $(shell find user/ -name "*.so") \
 		$(wildcard share/etc/passwd share/etc/passwd.fmt) \
 		$(wildcard share/man/*.txt) tools/mkinitrd.py
 	@echo "[INITRD] $@"
@@ -99,8 +97,7 @@ $(INITRD): $(wildcard user/progs/*.elf) user/libc/libc.so \
 		cp "$$f" "$(INITRD_STAGE)/bin/$$(basename "$$f" .elf)"; \
 	done
 	@cp share/etc/passwd share/etc/passwd.fmt "$(INITRD_STAGE)/etc/"
-	@cp user/libc/libc.so "$(INITRD_STAGE)/lib/"
-	@cp user/libs/libmcrypto/libmcrypto.so "$(INITRD_STAGE)/lib/"
+	@cp $(shell find user/ -name "*.so") "$(INITRD_STAGE)/lib/"
 	@cp share/man/*.txt "$(INITRD_STAGE)/share/man/"
 	$(PYTHON) tools/mkinitrd.py "$(INITRD_STAGE)" "$@"
 	@rm -rf $(INITRD_STAGE)
