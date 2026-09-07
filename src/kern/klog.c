@@ -11,6 +11,8 @@
 #define LOGDEV_NONE   0
 #define LOGDEV_SERIAL 1
 #define LOGDEV_TERM   2
+#define LOGDEV_BOTH   3
+#define LOGDEV_BOTH   3
 
 static int logdev = LOGDEV_NONE;
 static int hasdevent = -1;
@@ -29,6 +31,10 @@ int kprint_init() {
             logdev = LOGDEV_SERIAL;
         } else if (streq("term", dev)) {
             logdev = LOGDEV_TERM;
+        } else if (streq("both", dev)) {
+            logdev = LOGDEV_BOTH;
+        } else if (streq("both", dev)) {
+            logdev = LOGDEV_BOTH;
         }
     }
     return 0;
@@ -75,6 +81,12 @@ int kvprint(const char* fmt, va_list ap) {
         serial_vprintf(fmt, ap);
     } else if (logdev == LOGDEV_TERM) {
         vprintf(fmt, ap);
+    } else if (logdev == LOGDEV_BOTH) {
+        va_list cap;
+        va_copy(cap, ap);
+        serial_vprintf(fmt, ap);
+        vprintf(fmt, cap);
+        va_end(cap);
     }
 
     if (hasdevent == 1) {
