@@ -6,6 +6,7 @@
 #include <drivers/hid/kbd.h>
 #include <drivers/hid/mouse.h>
 #include <core/fd.h>
+#include <core/kprint.h>
 
 DEFSYSCALL(sys_termctl) {
     return termctl(args->a0, args->a1);

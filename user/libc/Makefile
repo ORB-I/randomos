@@ -70,7 +70,7 @@ $(CRT): $(CRTSRC)
 %.ldso.o: %.c
 	$(CC) $(CFLAGS_LDSO) -c $< -o $@
 %.ldso.o: %.asm
-	$(AS) $(ASFLAGS) $< -o $@
+	$(AS) $(ASFLAGS) $< -o $@m
 
 %.so.o: %.c
 	$(CC) $(CCFLAGS_SO) -c $< -o $@

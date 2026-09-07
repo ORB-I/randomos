@@ -12,6 +12,7 @@
 #define TCTL_GETCURS 8
 #define TCTL_SCRLUP  9
 #define TCTL_SCRLDN  10
+#define TCTL_GETSZ   11
 
 typedef enum {
     TERM_BLACK = 0,
@@ -57,4 +58,4 @@ void term_scroll_up(usize lines);
 void term_scroll_down(usize lines);
 void term_scroll_bottom();
 usize term_get_scroll_offset();
-int termctl(int code, int arg0);
+int termctl(int code, u64 arg0);

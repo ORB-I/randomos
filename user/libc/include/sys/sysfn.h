@@ -10,6 +10,9 @@
 #define TCTL_NOECHO 6
 #define TCTL_SETCURS 7
 #define TCTL_GETCURS 8
+#define TCTL_SCRLUP  9
+#define TCTL_SCRLDN  10
+#define TCTL_GETSZ   11
 
 #define STDIN  0
 #define STDOUT 1
@@ -34,12 +37,17 @@ typedef enum {
     TERM_BRIGHT_GREY = 15,
 } term_color_t;
 
+typedef struct {
+    usize x;
+    usize y;
+} term_pos_t;
+
 ssize read(int fd, void* buf, usize sz);
 ssize write(int fd, void* buf, usize sz);
 int reboot();
 int poweroff();
 void sleep(int secs);
 int ioctl(int fd, int cmd, void* data);
-int termctl(int code, int arg);
+int termctl(int code, u64 arg);
 int open(char* path, int flags, u16 mode);
 int close(int fd);
