@@ -38,12 +38,8 @@
 #include <drivers/time/clock.h>
 #include <drivers/storage/fs/vfs.h>
 
-#include <lai/helpers/pm.h>
-
 u64 ram_max = 0;
 extern void gdt_init();
-extern void sci_hdlr();
-//core_acpi_t* acpi_hdl = NULL;
 
 void kmain() {
     if (!LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision)) {
@@ -137,8 +133,6 @@ __no_protect void kmain_aftergdt() {
 
     idt_init();
 
-    //core_acpi_t acpi;
-    //acpi_hdl = &acpi;
     init_acpi();
 
     if (vfs_init() < 0) {
@@ -154,9 +148,10 @@ __no_protect void kmain_aftergdt() {
     kprint("IO: Initializing APIC & IOAPIC\n");
     apic_init();
 
-    // Register the SCI interrupt now that apic_init() has built the
-    // IOAPIC redirection table.
-    init_irq(gfadt->sci_int, sci_hdlr);
+    // uACPI installs its SCI interrupt handler at the end of
+    // uacpi_namespace_load(), which needs the IOAPIC redirection table
+    // from apic_init(), so the namespace phase runs after it.
+    init_acpi_ns();
 
     if (init_clock(CLOCK_HPET) < 0) {
         kprint("Switch to HPET failed\n");

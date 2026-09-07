@@ -3,7 +3,7 @@ include mk/tools.mk
 ASFLAGS      := -Iinclude -felf64
 LDFLAGS      := -m elf_x86_64 -T share/link.ld --no-pie -O0 -nostdlib -no-pie
 
-LIBS         := -Llib -lflanterm -llwip -luacpi # -llai
+LIBS         := -Llib -lflanterm -llwip -luacpi
 CCFLAGS      := -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 				-msoft-float -mno-fp-ret-in-387 \
 				-m64 -nostdlib -fno-builtin -fno-pie -Iinclude \
@@ -17,8 +17,6 @@ XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
 
 QFLAGS := -M pc -cpu qemu64 -boot d -smp 2 -m 1G -serial stdio -accel tcg \
 		  -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
-		  -drive id=disk,file=drive.img,format=raw,if=none \
-		  -device virtio-blk-pci,drive=disk \
 		  -device piix3-usb-uhci,id=uhci \
 		  -device usb-kbd,bus=uhci.0,port=1 \
 		  -device usb-mouse,bus=uhci.0,port=2 \
@@ -47,7 +45,7 @@ DRIVE ?= drive.img
 
 SUBDIRS := user/libs/zlib user/libs/libmcrypto \
 		   user/libc user/progs user/nasm share/etc share/man \
-		   vendor/lai vendor/lwip-2.2.1 vendor/flanterm \
+		   vendor/lwip-2.2.1 vendor/flanterm \
 		   vendor/uACPI
 
 all: $(DRIVE) subdirs $(ISO)

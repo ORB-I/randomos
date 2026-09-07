@@ -1,19 +1,22 @@
 #include "ssc.h"
 #include "../ensurance.h"
-#include <lai/helpers/pm.h>
+#include <uacpi/sleep.h>
 #include <core/mem/vmm.h>
 #include <drivers/rng/rng.h>
 
 DEFSYSCALL(sys_reboot) {
     (void)args;
-    if (lai_acpi_reset() == 0) return 0;
+    if (uacpi_likely_success(uacpi_reboot())) return 0;
     return -EUNKNOWN;
 }
 
 DEFSYSCALL(sys_poweroff) {
     (void)args;
-    if (lai_enter_sleep(5) == 0) return 0;
-    else return -EUNKNOWN;
+    uacpi_status st = uacpi_prepare_for_sleep_state(UACPI_SLEEP_STATE_S5);
+    if (uacpi_likely_error(st)) return -EUNKNOWN;
+    st = uacpi_enter_sleep_state(UACPI_SLEEP_STATE_S5);
+    if (uacpi_likely_error(st)) return -EUNKNOWN;
+    return 0;
 }
 
 DEFSYSCALL(sys_mmap) {

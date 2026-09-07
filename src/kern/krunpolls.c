@@ -3,6 +3,7 @@
 #include <lwip/lwip/ip4.h>
 #include <lwip/lwip/dhcp.h>
 #include <lwip/lwip/prot/dhcp.h>
+#include <drivers/nacpi.h>
 
 extern struct netif _e1000_netif;
 int smp_getactive();
@@ -15,5 +16,6 @@ void krunpolls() {
     u64 flags;
     asm volatile("pushfq\n\tpopq %0\n\tcli" : "=r"(flags) :: "memory");
     sys_check_timeouts();
+    uacpi_drain_work();
     if (flags & 0x200) asm volatile("sti" ::: "memory");
 }

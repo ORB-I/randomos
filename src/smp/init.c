@@ -147,14 +147,15 @@ void init_smpreqs() {
 
 u64 bsp_apicid = 0;
 int init_cores() {
-    struct acpi_madt madt;
-    uacpi_status uret = uacpi_table_find_by_signature("APIC", (void*)&madt);
-    if (uacpi_unlikely(uret)) {
+    uacpi_table tbl;
+    uacpi_status uret = uacpi_table_find_by_signature("APIC", &tbl);
+    if (uacpi_unlikely_error(uret)) {
         panic("APIC: MADT table not found");
     }
 
-    u64 bptr = (u64)&madt + sizeof(struct acpi_madt);
-    u64 end = (u64)&madt + madt.hdr.length;
+    struct acpi_madt* madt = (struct acpi_madt*)tbl.ptr;
+    u64 bptr = (u64)madt + sizeof(struct acpi_madt);
+    u64 end = (u64)madt + madt->hdr.length;
 
     u64 ptr = bptr;
     u64 numcores = 0;

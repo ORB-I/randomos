@@ -60,10 +60,12 @@ u64 hpet_getms() {
 }
 
 int hpet_init(u64 (**getms)(void)) {
-    uacpi_status uret = uacpi_table_find_by_signature("HPET", (void*)&hpet_acpitbl);
+    uacpi_table tbl;
+    uacpi_status uret = uacpi_table_find_by_signature("HPET", &tbl);
     if (uacpi_unlikely_error(uret)) {
         return -ENOEXIST;
     }
+    hpet_acpitbl = (struct acpi_hpet*)tbl.ptr;
 
     u64 capid = hpet_read64(0x00);
     if (!(capid & (1 << 13))) {
