@@ -3,6 +3,7 @@
 #include <drivers/pci.h>
 
 #define VIRTIO_VENDOR_ID         0x1AF4
+#define VIRTIO_F_VERSION_1 (1ULL << 32)
 
 /* VirtIO Device IDs (Legacy / Subsystem) */
 #define VIRTIO_DEV_NET           0x1000
@@ -13,6 +14,7 @@
 #define VIRTIO_DEV_RNG           0x1005
 #define VIRTIO_DEV_INPUT        0x1012
 #define VIRTIO_DEV_9P            0x1009
+#define VIRTIO_DEV_SND 0x1019
 
 /* VirtIO Modern / Transitional Device IDs (Offset 0x1040) */
 #define VIRTIO_DEV_MODERN_NET    0x1041
