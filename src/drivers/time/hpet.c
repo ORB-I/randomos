@@ -1,4 +1,4 @@
-#include <drivers/acpi.h>
+#include <drivers/nacpi.h>
 #include <core/mem/vmm.h>
 #include <core/asmh.h>
 #include <drivers/apic.h>
@@ -6,48 +6,50 @@
 #include <core/idt.h>
 #include <drivers/time/hpet.h>
 #include <core/errno.h>
+#include <uacpi/acpi.h>
+#include <uacpi/tables.h>
 
-typedef struct {
+/*typedef struct {
     sdt_header_t hdr;
     u32 evttblkid; // event timer block id
     genaddr_t baseaddr;
     u8 hpetno;
     u16 mcmctpm; // main count clock tick in periodic mode
     u8 attrs;
-} __packed hpet_acpitbl_t;
+} __packed hpet_acpitbl_t;*/
 
-hpet_acpitbl_t* hpet_acpitbl = NULL;
+struct acpi_hpet* hpet_acpitbl = NULL;
 
 u8 hpet_read8(usize reg) {
-    return *((volatile u8*)(HHDM_START + hpet_acpitbl->baseaddr.addr + reg));
+    return *((volatile u8*)(HHDM_START + hpet_acpitbl->address.address + reg));
 }
 
 u16 hpet_read16(usize reg) {
-    return *((volatile u16*)(HHDM_START + hpet_acpitbl->baseaddr.addr + reg));
+    return *((volatile u16*)(HHDM_START + hpet_acpitbl->address.address + reg));
 }
 
 u32 hpet_read32(usize reg) {
-    return *((volatile u32*)(HHDM_START + hpet_acpitbl->baseaddr.addr + reg));
+    return *((volatile u32*)(HHDM_START + hpet_acpitbl->address.address + reg));
 }
 
 u64 hpet_read64(usize reg) {
-    return *((volatile u64*)(HHDM_START + hpet_acpitbl->baseaddr.addr + reg));
+    return *((volatile u64*)(HHDM_START + hpet_acpitbl->address.address + reg));
 }
 
 void hpet_write8(usize reg, u8 val) {
-    *((volatile u8*)(HHDM_START + hpet_acpitbl->baseaddr.addr + reg)) = val;
+    *((volatile u8*)(HHDM_START + hpet_acpitbl->address.address + reg)) = val;
 }
 
 void hpet_write16(usize reg, u16 val) {
-    *((volatile u16*)(HHDM_START + hpet_acpitbl->baseaddr.addr + reg)) = val;
+    *((volatile u16*)(HHDM_START + hpet_acpitbl->address.address + reg)) = val;
 }
 
 void hpet_write32(usize reg, u32 val) {
-    *((volatile u32*)(HHDM_START + hpet_acpitbl->baseaddr.addr + reg)) = val;
+    *((volatile u32*)(HHDM_START + hpet_acpitbl->address.address + reg)) = val;
 }
 
 void hpet_write64(usize reg, u64 val) {
-    *((volatile u64*)(HHDM_START + hpet_acpitbl->baseaddr.addr + reg)) = val;
+    *((volatile u64*)(HHDM_START + hpet_acpitbl->address.address + reg)) = val;
 }
 
 extern void hpet_hdlr();
@@ -58,18 +60,11 @@ u64 hpet_getms() {
 }
 
 int hpet_init(u64 (**getms)(void)) {
-    void* acpitbl_ptr = NULL;
-    if (acpi_hdl->xsdt) {
-        acpitbl_ptr = find_acpitbl(acpi_hdl->xsdt, "HPET");
-    } else {
-        acpitbl_ptr = find_acpitbl_32(acpi_hdl->rsdt, "HPET");
-    }
-
-    if (!acpitbl_ptr) {
+    uacpi_status uret = uacpi_table_find_by_signature("HPET", (void*)&hpet_acpitbl);
+    if (uacpi_unlikely_error(uret)) {
         return -ENOEXIST;
     }
 
-    hpet_acpitbl = (hpet_acpitbl_t*)acpitbl_ptr;
     u64 capid = hpet_read64(0x00);
     if (!(capid & (1 << 13))) {
         hpet_acpitbl = NULL;

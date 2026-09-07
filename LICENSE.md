@@ -69,6 +69,11 @@ From https://www.nasm.us
 Copyright 1996-2025 the NASM Authors - All rights reserved.  
 NASM is licensed under the BSD-2-Clause license at [user/nasm/info/LICENS](/user/nasm/info/LICENSE)  
 
+## uACPI  
+From https://github.com/uACPI/uACPI  
+Copyright (c) 2022-2026 Daniil Tatianin  
+uACPI is licensed under the MIT license at [vendor/uACPI/LICENSE](/vendor/uACPI/LICENSE)  
+
 ## This project (full license)
 MIT License  
   

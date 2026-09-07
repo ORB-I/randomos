@@ -10,3 +10,5 @@ liballoc, https://github.com/blanham/liballoc, public domain, for malloc/realloc
 monocypher (mcrypto), https://github.com/LoupVaillant/monocypher, CC0, for cryptography support
 zlib, https://zlib.net/, Zlib, for compression support
 nasm, https://nasm.us, BSD-2-Clause, for assembly support
+libbcrypt, https://github.com/rg3/libbcrypt, CC-1.0, for bcrypto support
+uacpi, https://github.com/uACPI/uACPI, MIT license, new ACPI support

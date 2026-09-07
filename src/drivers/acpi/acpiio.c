@@ -2,7 +2,7 @@
 #include <core/asmh.h>
 #include <core/errno.h>
 
-#include <drivers/acpi.h>
+/*#include <drivers/acpi.h>
 
 s32 acpi_write8(genaddr_t* addr, u8 val) {
     if (addr->accsz < ACCESS8 && addr->bitwdth < 8) return -EINVAL;
@@ -86,4 +86,4 @@ s32 acpi_read32(genaddr_t* addr, u32* out) {
         default:
             return -EINVAL;
     }
-}
+}*/

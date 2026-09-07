@@ -6,7 +6,7 @@
 
 #include <lib/string.h>
 
-#include <drivers/acpi.h>
+/*#include <drivers/acpi.h>
 #include <drivers/time/clock.h>
 #include <drivers/pci.h>
 
@@ -69,7 +69,11 @@ void laihost_pci_writed(u16 seg, u8 bus, u8 slot, u8 fn, u16 off, uint32_t val) 
 
 void laihost_sleep(u64 ms) { sleepms(ms); }
 
-void* laihost_map(uintptr_t phys_addr, size_t _) {  (void)_; return (void*)(phys_addr + HHDM_START); }
+void* laihost_map(uintptr_t phys_addr, size_t _) {  
+    kprint("LAI requesting map of %016lx\n", phys_addr);
+    (void)_; return (void*)(phys_addr + HHDM_START); 
+}
+
 void laihost_unmap(void* _, size_t __) { (void)_; (void)__; }
 
 void* laihost_scan(const char *sig, size_t index) {
@@ -91,7 +95,7 @@ void* laihost_scan(const char *sig, size_t index) {
     for (u32 i = 0; i < sdt_entries(__lai_core_acpi__); i++) {
         sdt_header_t* hdr;
         if (__lai_core_acpi__->xsdt != NULL) {
-            hdr = (sdt_header_t*)__lai_core_acpi__->xsdt->entries[i];
+            hdr = (sdt_header_t*)(__lai_core_acpi__->xsdt->entries[i] + HHDM_START);
         } else {
             hdr = (sdt_header_t*)(((u64)__lai_core_acpi__->rsdt->entries[i]) + HHDM_START);
         }
@@ -106,3 +110,4 @@ void* laihost_scan(const char *sig, size_t index) {
 
     return NULL;
 }
+*/

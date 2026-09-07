@@ -3,7 +3,7 @@ include mk/tools.mk
 ASFLAGS      := -Iinclude -felf64
 LDFLAGS      := -m elf_x86_64 -T share/link.ld --no-pie -O0 -nostdlib -no-pie
 
-LIBS         := -Llib -llai -lflanterm -llwip
+LIBS         := -Llib -lflanterm -llwip -luacpi # -llai
 CCFLAGS      := -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -mno-red-zone \
 				-msoft-float -mno-fp-ret-in-387 \
 				-m64 -nostdlib -fno-builtin -fno-pie -Iinclude \
@@ -33,14 +33,6 @@ QFLAGS_HEADLESS := -display none -serial file:qemu.log
 AS_SRC := $(shell find src -name '*.asm')
 CC_SRC := $(shell find src -name '*.c')
 
-LWIP_DIR  := vendor/lwip-2.2.1
-LWIP_SRC  := $(shell find $(LWIP_DIR)/src/core -name '*.c') \
-             $(shell find $(LWIP_DIR)/src/api -name '*.c') \
-			 $(shell find $(LWIP_DIR)/src/netif -name '*.c')
-
-LWIP_OBJ  := $(LWIP_SRC:.c=.o)
-LWIP_DEPS := $(LWIP_SRC:.c=.d)
-
 OBJ  := $(AS_SRC:.asm=.o) $(CC_SRC:.c=.o)
 EXE  := kern.elf
 ISO  := os.iso
@@ -51,11 +43,19 @@ INITRD := initrd.img
 INITRD_STAGE := .initrd-stage
 PYTHON ?= python3
 
-DRIVE ?= ../../drive.img
+DRIVE ?= drive.img
 
-SUBDIRS := user/libs/zlib user/libs/libmcrypto user/libc user/progs user/nasm share/etc share/man
+SUBDIRS := user/libs/zlib user/libs/libmcrypto \
+		   user/libc user/progs user/nasm share/etc share/man \
+		   vendor/lai vendor/lwip-2.2.1 vendor/flanterm \
+		   vendor/uACPI
 
 all: $(DRIVE) subdirs $(ISO)
+
+subdirs:
+	@for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)' 'DRIVE=$(shell realpath $(DRIVE))' 'DFLCFLAGS=$(CCFLAGS)' || exit 1; \
+	done
 
 $(DRIVE):
 	dd if=/dev/zero of=$@ bs=1M count=100
@@ -68,11 +68,6 @@ $(DRIVE):
 	#mmd -i $(DRIVE) ::/bin
 	#mmd -i $(DRIVE) ::/etc
 	#mmd -i $(DRIVE) ::/lib
-
-subdirs:
-	@for dir in $(SUBDIRS); do \
-		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)' 'DRIVE=$(DRIVE)' || exit 1; \
-	done
 
 $(ISO): $(EXE) $(INITRD)
 	@$(MAKE) -C limine-binary
@@ -97,7 +92,7 @@ $(ISO): $(EXE) $(INITRD)
 $(INITRD): $(wildcard user/progs/*.elf) user/libc/libc.so \
 		user/libs/libmcrypto/libmcrypto.so \
 		$(wildcard share/etc/passwd share/etc/passwd.fmt) \
-		$(wildcard share/man/*.txt) mkinitrd.py
+		$(wildcard share/man/*.txt) tools/mkinitrd.py
 	@echo "[INITRD] $@"
 	@rm -rf $(INITRD_STAGE)
 	@mkdir -p $(INITRD_STAGE)/bin $(INITRD_STAGE)/etc \
@@ -109,24 +104,16 @@ $(INITRD): $(wildcard user/progs/*.elf) user/libc/libc.so \
 	@cp user/libc/libc.so "$(INITRD_STAGE)/lib/"
 	@cp user/libs/libmcrypto/libmcrypto.so "$(INITRD_STAGE)/lib/"
 	@cp share/man/*.txt "$(INITRD_STAGE)/share/man/"
-	$(PYTHON) mkinitrd.py "$(INITRD_STAGE)" "$@"
+	$(PYTHON) tools/mkinitrd.py "$(INITRD_STAGE)" "$@"
 	@rm -rf $(INITRD_STAGE)
 
-$(EXE): $(OBJ) lib/liblwip.a
+$(EXE): $(OBJ)
 	@echo "[LD] $@"
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
-	python3 mkksyms.py $(NM) $@
+	python3 tools/mkksyms.py $(NM) $@
 	$(CC) $(CCFLAGS) -c ksyms.c -o ksyms.o
 	$(LD) $(LDFLAGS) ksyms.o $(OBJ) lib/liblwip.a -o $@ $(LIBS)
 	@rm -f ksyms.o ksyms.d
-
-lib/liblwip.a: $(LWIP_OBJ)
-	@echo "[AR] $@"
-	$(AR) rcs $@ $^
-
-$(LWIP_OBJ): $(LWIP_DIR)/%.o: $(LWIP_DIR)/%.c
-	@echo "[CC] $<"
-	$(CC) $(CCFLAGS) -I$(LWIP_DIR)/src/include -w -c $< -o $@
 
 %.o: %.c
 	@echo "[CC] $<"
@@ -145,7 +132,7 @@ debug: all
 	
 clean:
 	@echo "[CLEAN]"
-	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS) ksyms.c ksyms.o ksyms.d lib/liblwip.a $(LWIP_OBJ) $(LWIP_DEPS) $(INITRD)
+	@rm -f $(OBJ) $(ISO) $(EXE) $(DEPS) $(DRIVE) ksyms.c ksyms.o ksyms.d $(INITRD)
 	@rm -rf $(INITRD_STAGE)
 	@for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir 'CC=$(CC)' 'LD=$(LD)' 'AS=$(AS)' 'AR=$(AR)' 'NM=$(NM)' $@; \

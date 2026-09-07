@@ -1,7 +1,10 @@
 #include <core/asmh.h>
 
 #include <drivers/pic.h>
-#include <drivers/acpi.h>
+#include <uacpi/uacpi.h>
+#include <uacpi/tables.h>
+#include <drivers/nacpi.h>
+//#include <drivers/acpi.h>
 
 #define REG_SECS 0x00
 #define REG_MINS 0x02
@@ -51,8 +54,8 @@ u64 rtc_gettime() {
 
     u16 year;
     u8 century_val = 0;
-    if (acpi_hdl && acpi_hdl->fadt && acpi_hdl->fadt->century) {
-        outb(0x70, acpi_hdl->fadt->century);
+    if (gfadt->century) {
+        outb(0x70, gfadt->century);
         century_val = inb(0x71);
         if (!(stb & 0x04)) {
             century_val = rtc_bcd2bin(century_val);

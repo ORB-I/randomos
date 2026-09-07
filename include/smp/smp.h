@@ -3,6 +3,7 @@
 #include <drivers/apic.h>
 #include <arch/idt.h>
 #include <arch/gdt.h>
+#include <uacpi/acpi.h>
 
 #define SMP_STATUS_DEAD    0x00
 #define SMP_STATUS_WAITING 0x01
@@ -10,7 +11,7 @@
 typedef struct {
     u64 apicid;
     u8 tid;
-    madt_plapic_t* acpi_ent;
+    struct acpi_madt_lapic* acpi_ent;
     u8 status;
     u8 current_pid;
     u8 preempt_pending;

@@ -1,7 +1,8 @@
 #pragma once
 
 #include <core/std.h>
-#include <drivers/acpi.h>
+//#include <drivers/acpi.h>
+#include <uacpi/acpi.h>
 
 #define IA32_APIC_BASE_MSR 0x1B
 #define IA32_APIC_BASE_MSR_ENABLE 0x800
@@ -32,51 +33,7 @@
 #define MAX_ISOS 32
 
 typedef struct {
-    sdt_header_t hdr;
-    u32 lapic_addr;
-    u32 flags;
-} __packed madt_hdr_t;
-
-typedef struct {
-    u8 type;
-    u8 len;
-} __packed madt_entry_hdr_t;
-
-#define ENT_PROCLOCAL_APIC 0x00
-typedef struct {
-    madt_entry_hdr_t hdr;
-    u8 smpid;
-    u8 apicid;
-    u32 flags;
-} __packed madt_plapic_t;
-
-#define ENT_IOAPIC 0x01
-typedef struct {
-    madt_entry_hdr_t hdr;
-    u8 id;
-    u8 __resv;
-    u32 addr;
-    u32 gsi_base;
-} __packed madt_ioapic_t;
-
-#define ENT_IOAPIC_SRC_OVERRIDE 0x02
-typedef struct {
-    madt_entry_hdr_t hdr;
-    u8 bussrc;
-    u8 irqsrc;
-    u32 gsi;
-    u16 flags;
-} __packed madt_ioaintso_t;
-
-#define ENT_LOCALAPIC_ADDR_OVERRIDE 0x05
-typedef struct {
-    madt_entry_hdr_t hdr;
-    u16 __resv;
-    u64 addr;
-} __packed madt_laddro_t;
-
-typedef struct {
-    madt_entry_hdr_t hdr;
+    struct acpi_entry_hdr hdr;
     u8 id;
     u32 gsi_base;
     u32 max_redirection_entries;

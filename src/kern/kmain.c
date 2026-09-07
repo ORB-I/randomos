@@ -25,7 +25,7 @@
 #include <drivers/hid/mouse.h>
 #include <drivers/apic.h>
 #include <drivers/hid/virtio_input.h>
-#include <drivers/acpi.h>
+#include <drivers/nacpi.h>
 #include <drivers/display/term.h>
 #include <drivers/storage/fs.h>
 #include <drivers/storage/block/block.h>
@@ -42,7 +42,7 @@
 u64 ram_max = 0;
 extern void gdt_init();
 extern void sci_hdlr();
-core_acpi_t* acpi_hdl = NULL;
+//core_acpi_t* acpi_hdl = NULL;
 
 void kmain() {
     if (!LIMINE_BASE_REVISION_SUPPORTED(limine_base_revision)) {
@@ -134,9 +134,9 @@ __no_protect void kmain_aftergdt() {
 
     idt_init();
 
-    core_acpi_t acpi;
-    acpi_hdl = &acpi;
-    init_acpi(&acpi);
+    //core_acpi_t acpi;
+    //acpi_hdl = &acpi;
+    init_acpi();
 
     if (vfs_init() < 0) {
         panic("Failed to initialize VFS\n");
@@ -153,7 +153,7 @@ __no_protect void kmain_aftergdt() {
 
     // Register the SCI interrupt now that apic_init() has built the
     // IOAPIC redirection table.
-    init_irq(acpi.fadt->sci_int, sci_hdlr);
+    init_irq(gfadt->sci_int, sci_hdlr);
 
     if (init_clock(CLOCK_HPET) < 0) {
         kprint("Switch to HPET failed\n");

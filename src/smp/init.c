@@ -1,5 +1,5 @@
 #include <drivers/apic.h>
-#include <drivers/acpi.h>
+#include <uacpi/acpi.h>
 #include <core/mem/vmm.h>
 #include <lib/string.h>
 #include <core/panic.h>
@@ -10,6 +10,7 @@
 #include <smp/ipi.h>
 #include <smp/smp.h>
 #include <smp/apreq.h>
+#include <uacpi/tables.h>
 
 extern u8 __smp_startup_begin[];
 extern u8 __smp_startup_end[];
@@ -141,30 +142,22 @@ void init_smpreqs() {
 
 u64 bsp_apicid = 0;
 int init_cores() {
-
-    void* madt = NULL;
-    if (acpi_hdl && acpi_hdl->xsdt) {
-        madt = find_acpitbl(acpi_hdl->xsdt, "APIC");
-    } else if (acpi_hdl && acpi_hdl->rsdt) {
-        madt = find_acpitbl_32(acpi_hdl->rsdt, "APIC");
-    }
-
-    if (!madt) {
+    struct acpi_madt madt;
+    uacpi_status uret = uacpi_table_find_by_signature("APIC", (void*)&madt);
+    if (uacpi_unlikely(uret)) {
         panic("APIC: MADT table not found");
     }
 
-    madt_hdr_t* hdr = (madt_hdr_t*)madt;
-
-    u64 bptr = (u64)madt + sizeof(madt_hdr_t);
-    u64 end = (u64)madt + hdr->hdr.len;
+    u64 bptr = (u64)&madt + sizeof(struct acpi_madt);
+    u64 end = (u64)&madt + madt.hdr.length;
 
     u64 ptr = bptr;
     u64 numcores = 0;
     while (ptr < end) {
-        madt_entry_hdr_t* ent = (madt_entry_hdr_t*)ptr;
-        if (ent->len == 0) break;
-        if (ent->type == ENT_PROCLOCAL_APIC) numcores++;
-        ptr += ent->len;
+        struct acpi_entry_hdr* ent = (struct acpi_entry_hdr*)ptr;
+        if (ent->length == 0) break;
+        if (ent->type == ACPI_MADT_ENTRY_TYPE_LAPIC) numcores++;
+        ptr += ent->length;
     }
 
     init_smpcode(numcores);
@@ -178,20 +171,20 @@ int init_cores() {
     }
     
     while (ptr < end) {
-        madt_entry_hdr_t* ent = (madt_entry_hdr_t*)ptr;
-        if (ent->len == 0) break;
-        if (ent->type == ENT_PROCLOCAL_APIC) {
+        struct acpi_entry_hdr* ent = (struct acpi_entry_hdr*)ptr;
+        if (ent->length == 0) break;
+        if (ent->type == ACPI_MADT_ENTRY_TYPE_LAPIC) {
             smp_info[i] = (smp_info_t){
-                ((madt_plapic_t*)ptr)->apicid,
+                ((struct acpi_madt_lapic*)ptr)->id,
                 i,
-                (madt_plapic_t*)ptr,
+                (struct acpi_madt_lapic*)ptr,
                 SMP_STATUS_DEAD,
                 0xFF,   // <-- current_pid: invalid
                 0       // <-- preempt_pending: false
             };
             i++;
         }
-        ptr += ent->len;
+        ptr += ent->length;
     }
     init_smpreqs();
 

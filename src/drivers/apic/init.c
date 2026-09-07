@@ -2,12 +2,13 @@
 #include <core/mem/vmm.h>
 #include <core/asmh.h>
 #include <core/panic.h>
-#include <drivers/acpi.h>
 #include <drivers/apic.h>
 #include <drivers/pic.h>
 #include <lai/core.h>
 #include <core/kprint.h>
 #include <core/asmh.h>
+#include <uacpi/tables.h>
+#include <uacpi/acpi.h>
 
 uintptr_t lapic_phys_addr = 0xFEE00000;
 volatile u32* lapic_virt_addr = NULL;
@@ -16,7 +17,7 @@ u32 bsp_lapic_id = 0;
 static ioapic_info_t ioapics[MAX_IOAPICS];
 static usize num_ioapics = 0;
 
-static madt_ioaintso_t isos[MAX_ISOS];
+static struct acpi_madt_interrupt_source_override isos[MAX_ISOS];
 static usize num_isos = 0;
 
 static inline u32 lapic_read(u32 reg) {
@@ -99,7 +100,7 @@ void ioapic_route_gsi(u32 gsi, u8 vector, u32 lapic_id, u16 flags, bool masked) 
 
 static u32 irq_to_gsi(u8 irq, u16* flags) {
     for (usize i = 0; i < num_isos; i++) {
-        if (isos[i].irqsrc == irq) {
+        if (isos[i].source == irq) {
             if (flags) {
                 *flags = isos[i].flags;
             }
@@ -157,12 +158,11 @@ void ioapic_unmask_irq(u8 irq) {
     ioapic_write(ioapic, reg, low);
 }
 
-static void parse_madt(void* madt) {
-    madt_hdr_t* hdr = (madt_hdr_t*)madt;
-    lapic_phys_addr = hdr->lapic_addr;
+static void parse_madt(struct acpi_madt* madt) {
+    lapic_phys_addr = madt->local_interrupt_controller_address;
 
-    uintptr_t ptr = (uintptr_t)madt + sizeof(madt_hdr_t);
-    uintptr_t end = (uintptr_t)madt + hdr->hdr.len;
+    uintptr_t ptr = (uintptr_t)madt + sizeof(struct acpi_madt);
+    uintptr_t end = (uintptr_t)madt + madt->hdr.length;
 
     asm volatile(
         "mov $1, %%eax\n\t"
@@ -172,39 +172,39 @@ static void parse_madt(void* madt) {
     );
     
     while (ptr < end) {
-        madt_entry_hdr_t* entry = (madt_entry_hdr_t*)ptr;
-        if (entry->len == 0) {
+        struct acpi_entry_hdr* entry = (struct acpi_entry_hdr*)ptr;
+        if (entry->length == 0) {
             break;
         }
 
         switch (entry->type) {
-            case ENT_IOAPIC: {
+            case ACPI_MADT_ENTRY_TYPE_IOAPIC: {
                 if (num_ioapics < MAX_IOAPICS) {
-                    madt_ioapic_t* ioapic = (madt_ioapic_t*)ptr;
+                    struct acpi_madt_ioapic* ioapic = (struct acpi_madt_ioapic*)ptr;
                     ioapics[num_ioapics].id = ioapic->id;
                     ioapics[num_ioapics].gsi_base = ioapic->gsi_base;
-                    ioapics[num_ioapics].phys_addr = ioapic->addr;
+                    ioapics[num_ioapics].phys_addr = ioapic->address;
                     num_ioapics++;
                 }
                 break;
             }
-            case ENT_IOAPIC_SRC_OVERRIDE: {
+            case ACPI_MADT_ENTRY_TYPE_INTERRUPT_SOURCE_OVERRIDE: {
                 if (num_isos < MAX_ISOS) {
-                    madt_ioaintso_t* iso = (madt_ioaintso_t*)ptr;
+                    struct acpi_madt_interrupt_source_override*  iso = (struct acpi_madt_interrupt_source_override*)ptr;
                     isos[num_isos] = *iso;
                     num_isos++;
                 }
                 break;
             }
-            case ENT_LOCALAPIC_ADDR_OVERRIDE: {
-                madt_laddro_t* laddro = (madt_laddro_t*)ptr;
-                lapic_phys_addr = laddro->addr;
+            case ACPI_MADT_ENTRY_TYPE_LAPIC_ADDRESS_OVERRIDE: {
+                struct acpi_madt_lapic_address_override* laddro = (struct acpi_madt_lapic_address_override*)ptr;
+                lapic_phys_addr = laddro->address;
                 break;
             }
             default:
                 break;
         }
-        ptr += entry->len;
+        ptr += entry->length;
     }
 }
 
@@ -234,18 +234,13 @@ static void enable_lapic() {
 void apic_init() {
     pic_disable();
 
-    void* madt = NULL;
-    if (acpi_hdl && acpi_hdl->xsdt) {
-        madt = find_acpitbl(acpi_hdl->xsdt, "APIC");
-    } else if (acpi_hdl && acpi_hdl->rsdt) {
-        madt = find_acpitbl_32(acpi_hdl->rsdt, "APIC");
-    }
-
-    if (!madt) {
+    struct acpi_madt madt;
+    uacpi_status uret = uacpi_table_find_by_signature("APIC", (void*)&madt);
+    if (uacpi_unlikely(uret)) {
         panic("APIC: MADT table not found");
     }
 
-    parse_madt(madt);
+    parse_madt(&madt);
 
     lapic_virt_addr = (volatile u32*)(lapic_phys_addr + HHDM_START);
     kprint("Using Local APIC at virtual address %p\n", lapic_virt_addr);

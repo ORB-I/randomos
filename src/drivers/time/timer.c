@@ -1,7 +1,7 @@
 #include <core/std.h>
 #include <core/asmh.h>
 
-#include <drivers/acpi.h>
+//#include <drivers/acpi.h>
 #include <drivers/pic.h>
 
 uint64_t tick = 0;

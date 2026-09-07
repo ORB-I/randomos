@@ -21,10 +21,18 @@ typedef u32 uid_t;
 typedef u32 gid_t;
 
 typedef __builtin_va_list va_list;
-#define va_start(lst, ap) __builtin_va_start(lst, ap)
-#define va_end(lst) __builtin_va_end(lst)
-#define va_arg(lst, type) __builtin_va_arg(lst, type)
-#define va_copy(dst, src) __builtin_va_copy(dst, src)
+#ifndef va_start
+#    define va_start(lst, ap) __builtin_va_start(lst, ap)
+#endif
+#ifndef va_end
+#    define va_end(lst) __builtin_va_end(lst)
+#endif
+#ifndef va_arg
+#    define va_arg(lst, type) __builtin_va_arg(lst, type)
+#endif
+#ifndef va_copy
+#    define va_copy(dst, src) __builtin_va_copy(dst, src)
+#endif
 
 #define __maybe_unused __attribute__((unused))
 #define __noreturn __attribute__((noreturn))
