@@ -39,6 +39,7 @@
 #include <drivers/storage/fs/vfs.h>
 
 u64 ram_max = 0;
+u64 ram_usable = 0;
 extern void gdt_init();
 
 void kmain() {
@@ -51,9 +52,12 @@ void kmain() {
         for (;;) asm("hlt");
     }
 
-    // Top of physical RAM, derived from the memmap.
+    // Top of physical RAM and total usable RAM, derived from the memmap.
     for (usize i = 0; i < mmap_req.response->entry_count; i++) {
         struct limine_memmap_entry* e = mmap_req.response->entries[i];
+        if (e->type == LIMINE_MEMMAP_USABLE) {
+            ram_usable += e->length;
+        }
         if (e->base + e->length > ram_max) {
             ram_max = e->base + e->length;
         }
@@ -130,13 +134,12 @@ __no_protect void kmain_aftergdt() {
     kprint("========================================\n");
     kprint("          RandomOS Booting\n");
     kprint("========================================\n");
-    kprint("Memory: %lu MB available\n", ram_max / (1024 * 1024));
+    kprint("Memory: %lu MB available\n", ram_usable / (1024 * 1024));
 
     asm("cli");
     pic_remap(0x20, 0x28);
     pic_disable();
 
-    kprint("IO: Initializing IDT\n");
     idt_init();
 
     kprint("ACPI: Initializing ACPI tables\n");

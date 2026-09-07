@@ -54,9 +54,13 @@ void hpet_write64(usize reg, u64 val) {
 
 extern void hpet_hdlr();
 u64 _hpet_tickcnt = 0;
+static u64 hpet_ticks_per_ms = 0;
+static u64 hpet_base_counter = 0;
 
 u64 hpet_getms() {
-    return _hpet_tickcnt;
+    if (!hpet_acpitbl || hpet_ticks_per_ms == 0) return _hpet_tickcnt;
+    u64 cur = hpet_read64(0xF0);
+    return (cur >= hpet_base_counter) ? ((cur - hpet_base_counter) / hpet_ticks_per_ms) : 0;
 }
 
 int hpet_init(u64 (**getms)(void)) {
@@ -108,6 +112,8 @@ int hpet_init(u64 (**getms)(void)) {
     u64 period = 1000000000000ULL / clkperiod;
     kprint("HPET period: %u fs\n", clkperiod);
     kprint("HPET ticks/ms: %lu\n", period);
+    hpet_ticks_per_ms = period;
+    hpet_base_counter = counter;
     hpet_write64(0x108, counter + period);
 
     idt_regintr(NULL, 0x40, hpet_hdlr, 0x8E, 1);

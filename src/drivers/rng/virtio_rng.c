@@ -93,26 +93,6 @@ usize virtio_rng_read(u8* buf, usize len) {
         u32 out_len = 0;
         int res = virtqueue_poll_used(&rng_vq, &out_len, 1000000);
 
-        kprint(
-            "RNG completion: res=%d len=%u used=%u last=%u\n",
-            res,
-            out_len,
-            rng_vq.used->idx,
-            rng_vq.last_used_idx
-        );
-
-        kprint(
-            "RNG DMA after: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-            rng_dma_virt[0],
-            rng_dma_virt[1],
-            rng_dma_virt[2],
-            rng_dma_virt[3],
-            rng_dma_virt[4],
-            rng_dma_virt[5],
-            rng_dma_virt[6],
-            rng_dma_virt[7]
-        );
-
         virtqueue_free_desc(&rng_vq, (u16)desc);
 
         if (res < 0 || out_len == 0) {
