@@ -215,10 +215,18 @@ __no_protect void kmain_aftergdt() {
     if (virtio_input_ptr_available()) mbtype = MOUSE_VIRTIO;
     init_mouse(mbtype);
 
-    kprint("Testing AP\n");
-    while (ap_run(ap_testtask, NULL) < 0);
-    while (!atomic_load(&ap_test_done)) {
-        asm volatile("pause");
+    if (ncores > 1) {
+        kprint("Testing AP\n");
+        int tries = 100;
+        while (tries-- > 0 && ap_run(ap_testtask, NULL) < 0) {
+            sleepms(1);
+        }
+        if (tries > 0) {
+            u32 wait_loops = 50000000;
+            while (!atomic_load(&ap_test_done) && --wait_loops) {
+                asm volatile("pause");
+            }
+        }
     }
 
     if (init_scheduler() < 0) panic("Failed to initialize scheduler\n");

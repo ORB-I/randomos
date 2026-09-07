@@ -8,6 +8,9 @@
 #include <core/asmh.h>
 #include <uacpi/tables.h>
 #include <uacpi/acpi.h>
+#include <core/idt.h>
+
+extern void lapic_spurious_hdlr();
 
 uintptr_t lapic_phys_addr = 0xFEE00000;
 volatile u32* lapic_virt_addr = NULL;
@@ -244,6 +247,7 @@ void apic_init() {
 
     lapic_virt_addr = (volatile u32*)(lapic_phys_addr + HHDM_START);
     kprint("Using Local APIC at virtual address %p\n", lapic_virt_addr);
+    idt_regintr(NULL, LAPIC_SPURIOUS_VEC, lapic_spurious_hdlr, 0x8E, 0);
     enable_lapic();
 
     for (usize i = 0; i < num_ioapics; i++) {
