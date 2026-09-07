@@ -15,8 +15,12 @@ XORRISOFLAGS := -as mkisofs -R -r -J -b boot/limine/limine-bios-cd.bin \
         		-apm-block-size 2048 --efi-boot boot/limine/limine-uefi-cd.bin \
         		-efi-boot-part --efi-boot-image --protective-msdos-label
 
+DRIVE ?= drive.img
+
 QFLAGS := -M pc -cpu qemu64 -boot d -smp 2 -m 1G -serial stdio -accel tcg \
 		  -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+		  -drive id=disk,file=$(DRIVE),format=raw,if=none \
+		  -device virtio-blk-pci,drive=disk \
 		  -device piix3-usb-uhci,id=uhci \
 		  -device usb-kbd,bus=uhci.0,port=1 \
 		  -device usb-mouse,bus=uhci.0,port=2 \
@@ -40,8 +44,6 @@ SUS  := $(CC_SRC:.c=.su)
 INITRD := initrd.img
 INITRD_STAGE := .initrd-stage
 PYTHON ?= python3
-
-DRIVE ?= drive.img
 
 SUBDIRS := user/libs/zlib user/libs/libmcrypto \
 		   user/libc user/progs user/nasm share/etc share/man \
@@ -87,7 +89,7 @@ $(ISO): $(EXE) $(INITRD)
 # Pack the userland into a cpio "newc" archive the kernel unpacks at boot
 # (see src/kern/initramfs.c).  The archive must end up in the ISO as
 # /boot/initrd.img because share/limine.conf loads it as a module.
-$(INITRD): $(wildcard user/progs/*.elf) user/libc/libc.so \
+$(INITRD): $(wildcard user/progs/*.elf) user/libc/libc.so user/libc/ld.so \
 		user/libs/libmcrypto/libmcrypto.so \
 		$(wildcard share/etc/passwd share/etc/passwd.fmt) \
 		$(wildcard share/man/*.txt) tools/mkinitrd.py
@@ -100,6 +102,7 @@ $(INITRD): $(wildcard user/progs/*.elf) user/libc/libc.so \
 	done
 	@cp share/etc/passwd share/etc/passwd.fmt "$(INITRD_STAGE)/etc/"
 	@cp user/libc/libc.so "$(INITRD_STAGE)/lib/"
+	@cp user/libc/ld.so "$(INITRD_STAGE)/lib/"
 	@cp user/libs/libmcrypto/libmcrypto.so "$(INITRD_STAGE)/lib/"
 	@cp share/man/*.txt "$(INITRD_STAGE)/share/man/"
 	$(PYTHON) tools/mkinitrd.py "$(INITRD_STAGE)" "$@"
