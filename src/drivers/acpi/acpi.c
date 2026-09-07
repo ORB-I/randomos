@@ -8,6 +8,7 @@
 #include <uacpi/event.h>
 #include <uacpi/acpi.h>
 #include <drivers/nacpi.h>
+#include <uacpi/context.h>
 
 struct acpi_fadt *gfadt;
 
@@ -25,13 +26,6 @@ void init_acpi() {
     kprint("ACPI: tables initialized\n");
 }
 
-/*
- * Late phase: namespace load + initialize, GPE finalization, FADT grab.
- *
- * uACPI installs the SCI interrupt handler at the end of
- * uacpi_namespace_load(), which requires the IOAPIC redirection table
- * to exist, so this must run after apic_init().
- */
 void init_acpi_ns() {
     uacpi_status ret = uacpi_namespace_load();
     if (uacpi_unlikely_error(ret)) {

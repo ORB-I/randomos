@@ -1,38 +1,5 @@
 #include "ldso.h"
 
-u64 ldso_resvmain(u64 obj_ident, u64 pltidx);
-ASMFUNC void ldso_resolve() {
-    asm volatile(
-        "pop %%r12\n\t"
-        "pop %%r13\n\t"
-        "push %%rax\n\t"
-        "push %%rcx\n\t"
-        "push %%rdx\n\t"
-        "push %%rsi\n\t"
-        "push %%rdi\n\t"
-        "push %%r8\n\t"
-        "push %%r9\n\t"
-        "push %%r10\n\t"
-        "push %%r11\n\t"
-        "mov %%r12, %%rdi\n\t"
-        "mov %%r13, %%rsi\n\t"
-        "call *%0\n\t"
-        "mov %%rax, %%rbx\n\t"
-        "pop %%r11\n\t"
-        "pop %%r10\n\t"
-        "pop %%r9\n\t"
-        "pop %%r8\n\t"
-        "pop %%rdi\n\t"
-        "pop %%rsi\n\t"
-        "pop %%rdx\n\t"
-        "pop %%rcx\n\t"
-        "pop %%rax\n\t"
-        "jmp *%%rbx"
-        :: "r"(ldso_resvmain)
-        : "memory", "r12", "r13", "rax", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11", "rbx"
-    );
-}
-
 HIDDEN u64 elf_hash(const char* name) {
     u64 h = 0, g;
     while (*name) {
